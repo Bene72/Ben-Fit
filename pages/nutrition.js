@@ -5,7 +5,7 @@ import Layout from '../components/Layout'
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-export default function Nutrition() {
+export default function NutritionPage({ clientId }) {
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState(null)
   const [logs, setLogs] = useState([])
