@@ -1,3 +1,4 @@
+import Nutrition from '../nutrition'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
