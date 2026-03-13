@@ -62,7 +62,7 @@ export default function CoachPanel() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1b3JhZWxyZHVjeGRtaXBpY2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTM3MDEsImV4cCI6MjA4ODU2OTcwMX0.ivhvddWMc79rVv-Pmc1VjTkfB-ysV8V2oYEchYfTVvk'
         },
         body: JSON.stringify({
           full_name: newClient.full_name,
