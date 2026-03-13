@@ -60,9 +60,10 @@ export default function CoachPanel() {
       const res = await fetch('https://euoraelrducxdmipicbq.supabase.co/functions/v1/create-client', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${session.access_token}`,
+  'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+},
         body: JSON.stringify({
           full_name: newClient.full_name,
           email: newClient.email,
