@@ -35,6 +35,7 @@ export default function BilanPage() {
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [creating, setCreating] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -61,6 +62,28 @@ export default function BilanPage() {
     load()
   }, [])
 
+  const createBilan = async () => {
+    setCreating(true)
+    const weekStart = getMondayOfWeek()
+    const exists = bilans.find(b => b.week_start === weekStart)
+    if (exists) { setOpenBilan(exists.id); setEditForm(exists); setCreating(false); return }
+
+    // Récupérer le coach_id du client
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('coach_id')
+      .eq('id', user.id)
+      .single()
+
+    const { data } = await supabase
+      .from('bilans')
+      .insert({ client_id: user.id, coach_id: profile?.coach_id, week_start: weekStart })
+      .select().single()
+
+    if (data) { setBilans(prev => [data, ...prev]); setOpenBilan(data.id); setEditForm(data) }
+    setCreating(false)
+  }
+
   const saveBilan = async () => {
     setSaving(true)
     await supabase
@@ -83,18 +106,23 @@ export default function BilanPage() {
     <Layout title="Mon Bilan" user={user}>
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '22px', fontWeight: '700', color: '#0D1B4E', marginBottom: '4px' }}>
-            📋 Mes bilans hebdomadaires
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+          <div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '22px', fontWeight: '700', color: '#0D1B4E', marginBottom: '4px' }}>
+              📋 Mes bilans hebdomadaires
+            </div>
+            <div style={{ fontSize: '13px', color: '#6B7A99' }}>
+              Remplis ton bilan chaque semaine pour que ton coach puisse suivre ta progression
+            </div>
           </div>
-          <div style={{ fontSize: '13px', color: '#6B7A99' }}>
-            Remplis ton bilan chaque semaine pour que ton coach puisse suivre ta progression
-          </div>
+          <button onClick={createBilan} disabled={creating} style={{ padding: '9px 18px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
+            {creating ? '…' : '+ Bilan cette semaine'}
+          </button>
         </div>
 
         {bilans.length === 0 && (
           <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#6B7A99' }}>
-            Ton coach n'a pas encore créé de bilan pour toi. Reviens bientôt ! 👋
+            Clique sur "+ Bilan cette semaine" pour créer ton premier bilan ! 💪
           </div>
         )}
 
