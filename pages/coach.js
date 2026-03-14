@@ -92,6 +92,9 @@ export default function CoachPanel() {
       }
 
       const res = await supabase.functions.invoke('create-client', {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        },
         body: {
           full_name: newClient.full_name,
           email: newClient.email,
@@ -140,7 +143,7 @@ export default function CoachPanel() {
           {sidebarOpen ? '←' : '☰'}
         </button>
 
-        <aside style={{ width: sidebarOpen ? '260px' : '0px', background: '#0D1B4E', position: 'fixed', top: 0, bottom: 0, left: 0, display: 'flex', flexDirection: 'column', zIndex: 100, overflowY: sidebarOpen ? 'auto' : 'hidden', overflow: 'hidden', transition: 'width 0.25s ease' }}>
+        <aside style={{ width: sidebarOpen ? '260px' : '0px', background: '#0D1B4E', position: 'fixed', top: 0, bottom: 0, left: 0, display: 'flex', flexDirection: 'column', zIndex: 100, overflow: 'hidden', transition: 'width 0.25s ease' }}>
           <div style={{ padding: '20px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img src="/logo-small.png" alt="Ben&Fit" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
             <div>
@@ -1031,6 +1034,9 @@ function GestionTab({ client, onDelete }) {
   const deleteClient = async () => {
     setDeleting(true)
     const res = await supabase.functions.invoke('delete-client', {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      },
       body: { client_id: client.id }
     })
     setDeleting(false)
