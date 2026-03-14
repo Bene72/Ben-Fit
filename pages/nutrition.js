@@ -229,13 +229,15 @@ function MacroBlock({ log, plan, date, onSave }) {
 
 function FoodDetailBlock({ log }) {
   const [items, setItems] = useState([])
-  const [showSearch, setShowSearch] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [mode, setMode] = useState('search') // 'search' | 'manual'
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [selected, setSelected] = useState(null)
   const [qty, setQty] = useState('100')
   const [mealName, setMealName] = useState('')
   const [searching, setSearching] = useState(false)
+  const [manual, setManual] = useState({ name: '', quantity: '100', calories: '', protein: '', carbs: '', fat: '' })
   const timerRef = useRef(null)
 
   useEffect(() => {
@@ -245,13 +247,12 @@ function FoodDetailBlock({ log }) {
   }, [log?.id])
 
   useEffect(() => {
-    if (query.length < 2) { setResults([]); return }
+    if (mode !== 'search' || query.length < 2) { setResults([]); return }
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
       setSearching(true)
       const q = query.trim().toLowerCase()
       const { data } = await supabase.from('foods').select('*').ilike('name', `%${q}%`).order('name').limit(100)
-      // Tri : commence par la saisie en premier, contient ensuite
       const sorted = (data || []).sort((a, b) => {
         const an = a.name.toLowerCase(), bn = b.name.toLowerCase()
         const aStarts = an.startsWith(q), bStarts = bn.startsWith(q)
@@ -262,7 +263,7 @@ function FoodDetailBlock({ log }) {
       setResults(sorted)
       setSearching(false)
     }, 300)
-  }, [query])
+  }, [query, mode])
 
   const addItem = async () => {
     if (!selected || !log?.id) return
@@ -283,6 +284,23 @@ function FoodDetailBlock({ log }) {
     if (data) { setItems(prev => [...prev, data]); setSelected(null); setQuery(''); setQty('100'); setMealName(''); setResults([]) }
   }
 
+  const addManualItem = async () => {
+    if (!manual.name.trim() || !log?.id) return
+    const item = {
+      log_id: log.id,
+      name: manual.name.trim() + (mealName ? ` (${mealName})` : ''),
+      quantity: parseFloat(manual.quantity) || 100,
+      unit: 'g',
+      calories: parseInt(manual.calories) || 0,
+      protein: parseFloat(manual.protein) || 0,
+      carbs: parseFloat(manual.carbs) || 0,
+      fat: parseFloat(manual.fat) || 0,
+      fiber: 0
+    }
+    const { data } = await supabase.from('nutrition_log_meals').insert(item).select().single()
+    if (data) { setItems(prev => [...prev, data]); setManual({ name:'', quantity:'100', calories:'', protein:'', carbs:'', fat:'' }); setMealName('') }
+  }
+
   const deleteItem = async (id) => {
     await supabase.from('nutrition_log_meals').delete().eq('id', id)
     setItems(prev => prev.filter(i => i.id !== id))
@@ -292,12 +310,23 @@ function FoodDetailBlock({ log }) {
 
   return (
     <div style={{ background:'white', borderRadius:'14px', border:'1px solid #EAEAEA', overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-      <div style={{ padding:'14px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
         <div style={{ fontWeight:'700', fontSize:'15px', color:'#0D1B4E' }}>🍽️ Détail des aliments <span style={{ fontSize:'12px', color:'#999', fontWeight:'400' }}>(optionnel)</span></div>
-        {log && <button onClick={() => setShowSearch(!showSearch)} style={{ padding:'5px 12px', background:'#0D1B4E', color:'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>+ Ajouter un aliment</button>}
+        {log && (
+          <div style={{ display:'flex', gap:'6px' }}>
+            <button onClick={() => { setShowAdd(true); setMode('search') }}
+              style={{ padding:'5px 12px', background: showAdd && mode==='search' ? '#EEF2FF' : '#0D1B4E', color: showAdd && mode==='search' ? '#0D1B4E' : 'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>
+              🔍 Rechercher
+            </button>
+            <button onClick={() => { setShowAdd(true); setMode('manual') }}
+              style={{ padding:'5px 12px', background: showAdd && mode==='manual' ? '#EEF2FF' : '#4A6FD4', color: showAdd && mode==='manual' ? '#0D1B4E' : 'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>
+              ✏️ Libre
+            </button>
+          </div>
+        )}
       </div>
 
-      {showSearch && log && (
+      {showAdd && log && mode === 'search' && (
         <div style={{ padding:'16px 20px', background:'#F5F8FF', borderBottom:'1px solid #EAEAEA' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 180px', gap:'10px', marginBottom:'10px' }}>
             <div style={{ position:'relative' }}>
@@ -341,14 +370,46 @@ function FoodDetailBlock({ log }) {
           )}
           <div style={{ display:'flex', gap:'8px' }}>
             <button onClick={addItem} disabled={!selected} style={{ padding:'7px 16px', background: selected?'#0D1B4E':'#CCC', color:'white', border:'none', borderRadius:'7px', fontSize:'13px', fontWeight:'600', cursor: selected?'pointer':'not-allowed' }}>✓ Ajouter</button>
-            <button onClick={() => setShowSearch(false)} style={{ padding:'7px 12px', background:'transparent', color:'#666', border:'1px solid #DDD', borderRadius:'7px', fontSize:'13px', cursor:'pointer' }}>Fermer</button>
+            <button onClick={() => setShowAdd(false)} style={{ padding:'7px 12px', background:'transparent', color:'#666', border:'1px solid #DDD', borderRadius:'7px', fontSize:'13px', cursor:'pointer' }}>Fermer</button>
+          </div>
+        </div>
+      )}
+
+      {showAdd && log && mode === 'manual' && (
+        <div style={{ padding:'16px 20px', background:'#F5F8FF', borderBottom:'1px solid #EAEAEA' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:'10px', marginBottom:'10px' }}>
+            <div>
+              <label style={lbl}>Nom de l'aliment *</label>
+              <input value={manual.name} onChange={e => setManual(p=>({...p,name:e.target.value}))} placeholder="Ex: Poulet maison, wrap, gâteau…" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Quantité (g)</label>
+              <input type="number" value={manual.quantity} onChange={e => setManual(p=>({...p,quantity:e.target.value}))} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Repas (optionnel)</label>
+              <input value={mealName} onChange={e => setMealName(e.target.value)} placeholder="Déjeuner…" style={inp} />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px', marginBottom:'12px' }}>
+            {[['calories','🔥 Calories'],['protein','🥩 Protéines (g)'],['carbs','🌾 Glucides (g)'],['fat','🥑 Lipides (g)']].map(([k,l]) => (
+              <div key={k}>
+                <label style={lbl}>{l}</label>
+                <input type="number" value={manual[k]} onChange={e => setManual(p=>({...p,[k]:e.target.value}))} placeholder="0" style={inp} />
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:'11px', color:'#999', marginBottom:'10px' }}>💡 Les macros sont optionnelles — tu peux juste mettre le nom si tu veux noter rapidement.</div>
+          <div style={{ display:'flex', gap:'8px' }}>
+            <button onClick={addManualItem} disabled={!manual.name.trim()} style={{ padding:'7px 16px', background: manual.name.trim()?'#4A6FD4':'#CCC', color:'white', border:'none', borderRadius:'7px', fontSize:'13px', fontWeight:'600', cursor: manual.name.trim()?'pointer':'not-allowed' }}>✓ Ajouter</button>
+            <button onClick={() => setShowAdd(false)} style={{ padding:'7px 12px', background:'transparent', color:'#666', border:'1px solid #DDD', borderRadius:'7px', fontSize:'13px', cursor:'pointer' }}>Fermer</button>
           </div>
         </div>
       )}
 
       {items.length === 0 ? (
         <div style={{ padding:'24px', textAlign:'center', color:'#CCC', fontSize:'13px' }}>
-          {log ? 'Aucun aliment ajouté — clique sur "+ Ajouter un aliment"' : 'Saisis d\'abord tes apports du jour ci-dessus'}
+          {log ? 'Aucun aliment ajouté — clique sur "🔍 Rechercher" ou "✏️ Libre"' : 'Saisis d\'abord tes apports du jour ci-dessus'}
         </div>
       ) : (
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
