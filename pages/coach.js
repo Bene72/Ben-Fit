@@ -223,8 +223,8 @@ export default function CoachPanel() {
                   <div style={{ fontSize: '12px', color: '#6B7A99' }}>{selected.email}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[['overview','👁 Vue d\'ensemble'],['programme','🏋️ Programme'],['nutrition','🥗 Nutrition'],['bilan','📋 Bilan'],['messages','💬 Messages']].map(([t, label]) => (
-                    <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', border: 'none', background: tab === t ? '#0D1B4E' : 'transparent', color: tab === t ? 'white' : '#6B7A99', fontFamily: "'DM Sans',sans-serif" }}>{label}</button>
+                  {[['overview','👁 Vue d\'ensemble'],['programme','🏋️ Programme'],['nutrition','🥗 Nutrition'],['bilan','📋 Bilan'],['messages','💬 Messages'],['gestion','⚙️ Gestion']].map(([t, label]) => (
+                    <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', border: 'none', background: tab === t ? (t === 'gestion' ? '#C45C3A' : '#0D1B4E') : 'transparent', color: tab === t ? 'white' : '#6B7A99', fontFamily: "'DM Sans',sans-serif" }}>{label}</button>
                   ))}
                 </div>
               </div>
@@ -235,6 +235,7 @@ export default function CoachPanel() {
                 {tab === 'nutrition' && selected && <NutritionTab clientId={selected.id} clientName={selected.full_name} />}
                 {tab === 'bilan' && <BilanTab clientId={selected.id} clientName={selected.full_name} coachId={user.id} />}
                 {tab === 'messages' && <MessagesTab coachId={user.id} clientId={selected.id} clientName={selected.full_name} onRead={(clientId) => setUnreadCounts(prev => ({ ...prev, [clientId]: 0 }))} />}
+                {tab === 'gestion' && <GestionTab client={selected} session={null} onDelete={() => { setSelected(null); loadClients(user.id) }} />}
               </div>
             </>
           )}
@@ -973,6 +974,98 @@ function NutritionWeekView({ logs, plan, onSave, today }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ─── GESTION TAB ────────────────────────────────────────────
+function GestionTab({ client, onDelete }) {
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const resetPassword = async () => {
+    setResetting(true)
+    await supabase.auth.resetPasswordForEmail(client.email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    })
+    setResetting(false)
+    setResetDone(true)
+    setTimeout(() => setResetDone(false), 4000)
+  }
+
+  const deleteClient = async () => {
+    setDeleting(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('https://euoraelrducxdmipicbq.supabase.co/functions/v1/delete-client', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1b3JhZWxyZHVjeGRtaXBpY2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTM3MDEsImV4cCI6MjA4ODU2OTcwMX0.ivhvddWMc79rVv-Pmc1VjTkfB-ysV8V2oYEchYfTVvk'
+      },
+      body: JSON.stringify({ client_id: client.id })
+    })
+    const result = await res.json()
+    setDeleting(false)
+    if (res.ok && !result.error) {
+      onDelete()
+    } else {
+      alert('Erreur suppression : ' + (result.error || 'Inconnue'))
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: '540px' }}>
+      <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#0D1B4E', letterSpacing: '2px', marginBottom: '24px' }}>
+        GESTION — {client.full_name?.toUpperCase()}
+      </div>
+
+      {/* Reset mot de passe */}
+      <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '14px', padding: '24px', marginBottom: '16px' }}>
+        <div style={{ fontWeight: '600', fontSize: '15px', marginBottom: '6px' }}>🔑 Réinitialisation du mot de passe</div>
+        <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '16px' }}>
+          Envoie un email à <strong>{client.email}</strong> avec un lien pour choisir un nouveau mot de passe.
+        </div>
+        {resetDone ? (
+          <div style={{ background: '#E8F5E9', border: '1px solid #A5D6A7', borderRadius: '8px', padding: '10px 14px', color: '#2E7D32', fontSize: '13px', fontWeight: '600' }}>
+            ✅ Email envoyé à {client.email}
+          </div>
+        ) : (
+          <button onClick={resetPassword} disabled={resetting} style={{ padding: '9px 20px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+            {resetting ? 'Envoi…' : '📧 Envoyer le lien de réinitialisation'}
+          </button>
+        )}
+      </div>
+
+      {/* Supprimer le client */}
+      <div style={{ background: 'rgba(196,92,58,0.05)', border: '1px solid rgba(196,92,58,0.3)', borderRadius: '14px', padding: '24px' }}>
+        <div style={{ fontWeight: '600', fontSize: '15px', marginBottom: '6px', color: '#C45C3A' }}>🗑 Supprimer le compte client</div>
+        <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '16px' }}>
+          Supprime définitivement le compte de <strong>{client.full_name}</strong> — toutes ses données (programme, nutrition, messages, bilans) seront effacées. <strong>Action irréversible.</strong>
+        </div>
+
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)} style={{ padding: '9px 20px', background: 'rgba(196,92,58,0.1)', color: '#C45C3A', border: '1.5px solid #C45C3A', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+            🗑 Supprimer {client.full_name?.split(' ')[0]}
+          </button>
+        ) : (
+          <div style={{ background: 'rgba(196,92,58,0.08)', borderRadius: '10px', padding: '16px', border: '1px solid rgba(196,92,58,0.3)' }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#C45C3A', marginBottom: '12px' }}>
+              ⚠️ Confirmer la suppression de {client.full_name} ?
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={deleteClient} disabled={deleting} style={{ padding: '9px 20px', background: '#C45C3A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                {deleting ? 'Suppression…' : '✓ Oui, supprimer définitivement'}
+              </button>
+              <button onClick={() => setConfirmDelete(false)} style={{ padding: '9px 16px', background: 'transparent', color: '#6B7A99', border: '1px solid #C5D0F0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
