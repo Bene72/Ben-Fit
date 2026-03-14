@@ -19,6 +19,7 @@ export default function CoachPanel() {
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState(null)
   const [unreadCounts, setUnreadCounts] = useState({})
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
@@ -132,7 +133,14 @@ export default function CoachPanel() {
       <div style={{ display: 'flex', minHeight: '100vh', background: '#EEF0F5', fontFamily: "'DM Sans',sans-serif" }}>
 
         {/* SIDEBAR */}
-        <aside style={{ width: '260px', background: '#0D1B4E', position: 'fixed', top: 0, bottom: 0, left: 0, display: 'flex', flexDirection: 'column', zIndex: 100, overflowY: 'auto' }}>
+        {/* Toggle button — toujours visible */}
+        <button
+          onClick={() => setSidebarOpen(o => !o)}
+          style={{ position: 'fixed', top: '16px', left: sidebarOpen ? '218px' : '12px', zIndex: 200, width: '32px', height: '32px', background: '#0D1B4E', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: 'white', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.25s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          {sidebarOpen ? '←' : '☰'}
+        </button>
+
+        <aside style={{ width: sidebarOpen ? '260px' : '0px', background: '#0D1B4E', position: 'fixed', top: 0, bottom: 0, left: 0, display: 'flex', flexDirection: 'column', zIndex: 100, overflowY: sidebarOpen ? 'auto' : 'hidden', overflow: 'hidden', transition: 'width 0.25s ease' }}>
           <div style={{ padding: '20px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img src="/logo-small.png" alt="Ben&Fit" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
             <div>
@@ -230,7 +238,7 @@ export default function CoachPanel() {
           </div>
         )}
 
-        <main style={{ marginLeft: '260px', flex: 1 }}>
+        <main style={{ marginLeft: sidebarOpen ? '260px' : '0px', flex: 1, transition: 'margin-left 0.25s ease' }}>
           {!selected ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px', color: '#6B7A99' }}>
               <div style={{ fontSize: '48px' }}>👈</div>
