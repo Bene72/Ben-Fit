@@ -14,6 +14,15 @@ const NAV = [
 export default function Layout({ children, title = 'Dashboard', user, profileName }) {
   const router = useRouter()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Fermer sidebar par défaut sur mobile
+  useEffect(() => {
+    const checkMobile = () => setSidebarOpen(window.innerWidth >= 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
@@ -67,8 +76,15 @@ export default function Layout({ children, title = 'Dashboard', user, profileNam
       </Head>
       <div style={{ display: 'flex', minHeight: '100vh', background: '#EEF0F5', fontFamily: "'DM Sans',sans-serif" }}>
 
+        {/* TOGGLE BUTTON */}
+        <button
+          onClick={() => setSidebarOpen(o => !o)}
+          style={{ position: 'fixed', top: '14px', left: sidebarOpen ? '182px' : '12px', zIndex: 200, width: '32px', height: '32px', background: '#0D1B4E', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: 'white', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'left 0.25s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          {sidebarOpen ? '←' : '☰'}
+        </button>
+
         {/* SIDEBAR */}
-        <aside style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: '220px', background: '#0D1B4E', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
+        <aside style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: sidebarOpen ? '220px' : '0px', background: '#0D1B4E', display: 'flex', flexDirection: 'column', zIndex: 100, overflow: 'hidden', transition: 'width 0.25s ease' }}>
 
           {/* Logo */}
           <div onClick={() => router.push('/dashboard')} style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
@@ -116,9 +132,9 @@ export default function Layout({ children, title = 'Dashboard', user, profileNam
         </aside>
 
         {/* MAIN */}
-        <main style={{ marginLeft: '220px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <main style={{ marginLeft: sidebarOpen ? '220px' : '0px', flex: 1, display: 'flex', flexDirection: 'column', transition: 'margin-left 0.25s ease' }}>
           {/* TOPBAR */}
-          <div style={{ padding: '16px 36px', borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
+          <div style={{ padding: '16px 36px', paddingLeft: sidebarOpen ? '36px' : '56px', borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 1px 6px rgba(0,0,0,0.05)', transition: 'padding-left 0.25s ease' }}>
             <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '26px', letterSpacing: '2px', color: '#0D1B4E' }}>{title}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img src="/logo-small.png" alt="" style={{ width: '28px', height: '28px', objectFit: 'contain', opacity: 0.6 }} />
