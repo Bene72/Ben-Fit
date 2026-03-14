@@ -57,6 +57,24 @@ export default function BilanPage() {
       const current = (data || []).find(b => b.week_start === thisWeek)
       if (current) { setOpenBilan(current.id); setEditForm(current) }
 
+      // Realtime — nouveau bilan créé par le coach
+      const channel = supabase
+        .channel(`bilans-${user.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bilans',
+          filter: `client_id=eq.${user.id}`
+        }, payload => {
+          setBilans(prev => [payload.new, ...prev])
+          // Ouvrir automatiquement si c'est la semaine en cours
+          if (payload.new.week_start === getMondayOfWeek()) {
+            setOpenBilan(payload.new.id)
+            setEditForm(payload.new)
+          }
+        })
+        .subscribe()
+
       setLoading(false)
     }
     load()
