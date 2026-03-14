@@ -17,6 +17,7 @@ export default function CoachPanel() {
   const [newClient, setNewClient] = useState({ full_name: '', email: '', password: '' })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [createSuccess, setCreateSuccess] = useState(null)
   const [unreadCounts, setUnreadCounts] = useState({})
   const router = useRouter()
 
@@ -108,8 +109,8 @@ export default function CoachPanel() {
       }
       await loadClients(session.user.id)
       setShowNewClient(false)
+      setCreateSuccess({ name: newClient.full_name, email: newClient.email, password: newClient.password })
       setNewClient({ full_name: '', email: '', password: '' })
-      alert('✅ Client créé !\n\nEmail: ' + newClient.email + '\nMot de passe: ' + newClient.password + '\n\nEnvoie-lui ces identifiants pour qu\'il se connecte.')
     } catch(e) {
       setCreateError('Erreur: ' + e.message)
     }
@@ -202,9 +203,35 @@ export default function CoachPanel() {
               </div>
             </div>
           )}
-        </aside>
-
-        {/* MAIN */}
+          {/* SUCCESS MODAL après création client */}
+          {createSuccess && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: '#0D1B4E', border: '1px solid #3E3E30', borderRadius: '16px', padding: '28px', width: '400px', fontFamily: "'DM Sans',sans-serif" }}>
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '10px' }}>🎉</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '22px', color: 'white', letterSpacing: '2px' }}>CLIENT CRÉÉ !</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{createSuccess.name} est maintenant dans ta liste</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '10px' }}>Identifiants de connexion</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Email</span>
+                    <span style={{ fontSize: '13px', color: 'white', fontWeight: '600' }}>{createSuccess.email}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Mot de passe</span>
+                    <span style={{ fontSize: '13px', color: 'white', fontWeight: '600' }}>{createSuccess.password}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginBottom: '16px', textAlign: 'center' }}>
+                  📋 Copie ces identifiants et envoie-les à ton client
+                </div>
+                <button onClick={() => setCreateSuccess(null)} style={{ width: '100%', padding: '10px', background: '#4A6FD4', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                  ✓ C'est noté !
+                </button>
+              </div>
+            </div>
+          )}
         <main style={{ marginLeft: '260px', flex: 1 }}>
           {!selected ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px', color: '#6B7A99' }}>
@@ -1003,7 +1030,7 @@ function GestionTab({ client, onDelete }) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1b3JhZWxyZHVjeGRtaXBpY2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTM3MDEsImV4cCI6MjA4ODU2OTcwMX0.ivhvddWMc79rVv-Pmc1VjTkfB-ysV8V2oYEchYfTVvk'
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       },
       body: JSON.stringify({ client_id: client.id })
     })
