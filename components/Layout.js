@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Head from 'next/head'
+import { useEffect, useState } from 'react'
 
 const NAV = [
   { id: 'dashboard', label: 'Vue d\'ensemble', icon: '◉', href: '/dashboard' },
@@ -12,6 +13,45 @@ const NAV = [
 
 export default function Layout({ children, title = 'Dashboard', user, profileName }) {
   const router = useRouter()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!user?.id) return
+
+    // Charger les messages non lus
+    const loadUnread = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .eq('read', false)
+      setUnreadCount((data || []).length)
+    }
+    loadUnread()
+
+    // Realtime — nouveaux messages reçus
+    const channel = supabase
+      .channel(`layout-inbox-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`
+      }, () => {
+        setUnreadCount(prev => prev + 1)
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user?.id])
+
+  // Reset badge quand on va sur /messages
+  useEffect(() => {
+    if (router.pathname === '/messages' && user?.id) {
+      setUnreadCount(0)
+      supabase.from('messages').update({ read: true }).eq('receiver_id', user.id).eq('read', false)
+    }
+  }, [router.pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -48,6 +88,11 @@ export default function Layout({ children, title = 'Dashboard', user, profileNam
                 <button key={item.id} onClick={() => router.push(item.href)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', color: isActive ? 'white' : 'rgba(255,255,255,0.45)', fontSize: '13px', fontWeight: isActive ? '600' : '400', background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent', border: isActive ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent', width: '100%', textAlign: 'left', fontFamily: "'DM Sans',sans-serif", transition: 'all 0.15s', marginBottom: '2px' }}>
                   <span style={{ fontSize: '15px', width: '20px', textAlign: 'center' }}>{item.icon}</span>
                   {item.label}
+                  {item.id === 'messages' && unreadCount > 0 && (
+                    <span style={{ marginLeft: 'auto', background: '#E53935', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               )
             })}
