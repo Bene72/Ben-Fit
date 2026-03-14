@@ -7,6 +7,26 @@ import Head from 'next/head'
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
+// ─── HELPER EDGE FUNCTIONS ──────────────────────────────────
+async function callEdgeFunction(name, body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${name}`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  )
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error || 'Erreur inconnue')
+  return json
+}
+
 export default function CoachPanel() {
   const [user, setUser] = useState(null)
   const [clients, setClients] = useState([])
@@ -91,28 +111,20 @@ export default function CoachPanel() {
         setCreating(false); return
       }
 
-      const res = await supabase.functions.invoke('create-client', {
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        },
-        body: {
+      try {
+        const result = await callEdgeFunction('create-client', {
           full_name: newClient.full_name,
           email: newClient.email,
           password: newClient.password,
           coach_id: session.user.id
-        }
-      })
-      const result = res.data || {}
-      if (res.error || result.error) {
-        setCreateError('Erreur: ' + (res.error?.message || result.error || 'Inconnue')); setCreating(false); return
+        })
+        await loadClients(session.user.id)
+        setShowNewClient(false)
+        setCreateSuccess({ name: newClient.full_name, email: newClient.email, password: newClient.password })
+        setNewClient({ full_name: '', email: '', password: '' })
+      } catch(e) {
+        setCreateError('Erreur: ' + e.message)
       }
-      await loadClients(session.user.id)
-      setShowNewClient(false)
-      setCreateSuccess({ name: newClient.full_name, email: newClient.email, password: newClient.password })
-      setNewClient({ full_name: '', email: '', password: '' })
-    } catch(e) {
-      setCreateError('Erreur: ' + e.message)
-    }
     setCreating(false)
   }
 
@@ -1033,18 +1045,13 @@ function GestionTab({ client, onDelete }) {
 
   const deleteClient = async () => {
     setDeleting(true)
-    const res = await supabase.functions.invoke('delete-client', {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      },
-      body: { client_id: client.id }
-    })
-    setDeleting(false)
-    if (!res.error && !res.data?.error) {
+    try {
+      await callEdgeFunction('delete-client', { client_id: client.id })
       onDelete()
-    } else {
-      alert('Erreur suppression : ' + (res.error?.message || res.data?.error || 'Inconnue'))
+    } catch(e) {
+      alert('Erreur suppression : ' + e.message)
     }
+    setDeleting(false)
   }
 
   return (
