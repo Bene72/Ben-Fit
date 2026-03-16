@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import Head from 'next/head'
 import { useEffect, useState } from 'react'
 
+export const dynamic = 'force-dynamic
 const NAV = [
   { id: 'dashboard', label: 'Vue d\'ensemble', icon: '◉', href: '/dashboard' },
   { id: 'training', label: 'Programme', icon: '⚡', href: '/training' },
