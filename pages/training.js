@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
+export const dynamic = 'force-dynamic
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const REST_OPTIONS = ['30s', '45s', '60s', '90s', '2 min', '3 min', '4 min', '5 min']
 
