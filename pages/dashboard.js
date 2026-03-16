@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
+export const dynamic = 'force-dynamic'
+
 export default function Dashboard() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
