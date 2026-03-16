@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
 import Layout from '../../components/Layout'
 
+export const dynamic = 'force-dynamic'
+
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 export default function CoachClientNutrition() {
