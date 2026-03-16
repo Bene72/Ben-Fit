@@ -3,12 +3,14 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
+export const dynamic = 'force-dynamic'
+
 const BILAN_ITEMS = [
   { key: 'sommeil',            label: '😴 Sommeil',                              hasNote: true },
   { key: 'moral',              label: '🧠 Moral',                                hasNote: true },
   { key: 'assiduite_diete',    label: '🥗 Assiduité de la diète',               hasNote: true },
   { key: 'problemes_diete',    label: '⚠️ Problèmes rencontrés (diète)',        hasNote: false, noteOnly: true },
-  { key: 'assiduite_training', label: '🏋️ Assiduité de l\'entraînement',        hasNote: true },
+  { key: 'assiduite_training', label: "🏋️ Assiduité de l'entraînement",        hasNote: true },
   { key: 'problemes_training', label: '⚠️ Problèmes rencontrés (entraînement)', hasNote: false, noteOnly: true },
   { key: 'neat',               label: '🚶 NEAT (activité quotidienne)',          hasNote: true },
   { key: 'autre',              label: '📝 Autre point',                          hasNote: false, noteOnly: true },
@@ -52,12 +54,10 @@ export default function BilanPage() {
 
       setBilans(data || [])
 
-      // Ouvrir automatiquement le bilan de la semaine en cours s'il existe
       const thisWeek = getMondayOfWeek()
       const current = (data || []).find(b => b.week_start === thisWeek)
       if (current) { setOpenBilan(current.id); setEditForm(current) }
 
-      // Realtime — nouveau bilan créé par le coach
       const channel = supabase
         .channel(`bilans-${user.id}`)
         .on('postgres_changes', {
@@ -67,7 +67,6 @@ export default function BilanPage() {
           filter: `client_id=eq.${user.id}`
         }, payload => {
           setBilans(prev => [payload.new, ...prev])
-          // Ouvrir automatiquement si c'est la semaine en cours
           if (payload.new.week_start === getMondayOfWeek()) {
             setOpenBilan(payload.new.id)
             setEditForm(payload.new)
@@ -86,7 +85,6 @@ export default function BilanPage() {
     const exists = bilans.find(b => b.week_start === weekStart)
     if (exists) { setOpenBilan(exists.id); setEditForm(exists); setCreating(false); return }
 
-    // Récupérer le coach_id du client
     const { data: profile } = await supabase
       .from('profiles')
       .select('coach_id')
@@ -123,7 +121,6 @@ export default function BilanPage() {
   return (
     <Layout title="Mon Bilan" user={user}>
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '22px', fontWeight: '700', color: '#0D1B4E', marginBottom: '4px' }}>
