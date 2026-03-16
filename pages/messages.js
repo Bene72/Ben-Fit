@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
+export const dynamic = 'force-dynamic
 export default function Messages() {
   const [user, setUser] = useState(null)
   const [messages, setMessages] = useState([])
