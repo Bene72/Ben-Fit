@@ -306,8 +306,8 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete }) {
           ? <input value={ex.name} onChange={e => onUpdate(wId, ex.id, 'name', e.target.value)} style={cellInput} />
           : <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {ex.image_url
-                ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
-                : <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>💪</div>
+                ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
+                : <div style={{ width: '60px', height: '60px', borderRadius: '8px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>💪</div>
               }
               <div><div style={{ fontWeight: '500', fontSize: '14px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '12px', color: '#6B7A99' }}>{ex.note}</div>}</div>
             </div>
