@@ -38,6 +38,8 @@ export default function CoachPanel() {
   const [selected, setSelected] = useState(null)
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [duplicating, setDuplicating] = useState(false)
+  const [duplicateMessage, setDuplicateMessage] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ full_name: '', email: '', password: '' })
   const [creating, setCreating] = useState(false)
@@ -382,150 +384,44 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   const [showAdd, setShowAdd] = useState(false)
   const [newW, setNewW] = useState({ name: '', type: 'Push', day_of_week: 1, duration_min: 60 })
   const [loading, setLoading] = useState(true)
-  const [duplicating, setDuplicating] = useState(false)
-  const [duplicateMessage, setDuplicateMessage] = useState('')
-
-  const loadWorkouts = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('workouts')
-      .select('*, exercises(*)')
-      .eq('client_id', clientId)
-      .order('day_of_week')
-
-    if (error) {
-      console.error('Erreur chargement workouts:', error)
-      setWorkouts([])
-      setLoading(false)
-      return
-    }
-
-    setWorkouts(
-      (data || []).map(w => ({
-        ...w,
-        exercises: (w.exercises || []).sort((a, b) => a.order_index - b.order_index)
-      }))
-    )
-    setLoading(false)
-  }
 
   useEffect(() => {
-    loadWorkouts()
-    setOpenWorkout(null)
-    setEditMode(null)
-    setDuplicateMessage('')
+    const load = async () => {
+      const { data } = await supabase.from('workouts').select('*, exercises(*)').eq('client_id', clientId).order('day_of_week')
+      setWorkouts((data || []).map(w => ({ ...w, exercises: (w.exercises || []).sort((a, b) => a.order_index - b.order_index) })))
+      setLoading(false)
+    }
+    load()
+    setOpenWorkout(null); setEditMode(null)
   }, [clientId])
 
   const addWorkout = async () => {
     if (!newW.name.trim()) return
-
-    const { data, error } = await supabase
-      .from('workouts')
-      .insert({ ...newW, client_id: clientId })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Erreur ajout séance:', error)
-      return
-    }
-
-    if (data) {
-      setWorkouts(prev => [...prev, { ...data, exercises: [] }])
-      setShowAdd(false)
-      setNewW({ name: '', type: 'Push', day_of_week: 1, duration_min: 60 })
-      setOpenWorkout(data.id)
-      setEditMode(data.id)
-    }
+    const { data } = await supabase.from('workouts').insert({ ...newW, client_id: clientId }).select().single()
+    if (data) { setWorkouts(prev => [...prev, { ...data, exercises: [] }]); setShowAdd(false); setNewW({ name: '', type: 'Push', day_of_week: 1, duration_min: 60 }); setOpenWorkout(data.id); setEditMode(data.id) }
   }
 
   const deleteWorkout = async (id) => {
     if (!confirm('Supprimer cette séance ?')) return
-
-    const { error } = await supabase.from('workouts').delete().eq('id', id)
-
-    if (error) {
-      console.error('Erreur suppression séance:', error)
-      return
-    }
-
-    setWorkouts(prev => prev.filter(w => w.id !== id))
-    setOpenWorkout(null)
+    await supabase.from('workouts').delete().eq('id', id)
+    setWorkouts(prev => prev.filter(w => w.id !== id)); setOpenWorkout(null)
   }
 
   const addExercise = async (workoutId, groupType, groupId) => {
     const w = workouts.find(w => w.id === workoutId)
     const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
-
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert({
-        workout_id: workoutId,
-        name: 'Nouvel exercice',
-        sets: 3,
-        reps: '10',
-        rest: '90s',
-        note: '',
-        target_weight: '',
-        order_index: w?.exercises?.length || 0,
-        group_type: groupType || 'Normal',
-        group_id: gid
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Erreur ajout exercice:', error)
-      return
-    }
-
-    if (data) {
-      setWorkouts(prev =>
-        prev.map(w =>
-          w.id === workoutId
-            ? { ...w, exercises: [...(w.exercises || []), data] }
-            : w
-        )
-      )
-    }
+    const { data } = await supabase.from('exercises').insert({ workout_id: workoutId, name: 'Nouvel exercice', sets: 3, reps: '10', rest: '90s', note: '', target_weight: '', order_index: w?.exercises?.length || 0, group_type: groupType || 'Normal', group_id: gid }).select().single()
+    if (data) setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, exercises: [...(w.exercises || []), data] } : w))
   }
 
   const updateExercise = async (workoutId, exId, field, value) => {
-    setWorkouts(prev =>
-      prev.map(w =>
-        w.id === workoutId
-          ? {
-              ...w,
-              exercises: w.exercises.map(e =>
-                e.id === exId ? { ...e, [field]: value } : e
-              )
-            }
-          : w
-      )
-    )
-
-    const { error } = await supabase.from('exercises').update({ [field]: value }).eq('id', exId)
-
-    if (error) {
-      console.error('Erreur update exercice:', error)
-    }
+    setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, exercises: w.exercises.map(e => e.id === exId ? { ...e, [field]: value } : e) } : w))
+    await supabase.from('exercises').update({ [field]: value }).eq('id', exId)
   }
 
   const deleteExercise = async (workoutId, exId) => {
-    const { error } = await supabase.from('exercises').delete().eq('id', exId)
-
-    if (error) {
-      console.error('Erreur suppression exercice:', error)
-      return
-    }
-
-    setWorkouts(prev =>
-      prev.map(w =>
-        w.id === workoutId
-          ? { ...w, exercises: w.exercises.filter(e => e.id !== exId) }
-          : w
-      )
-    )
+    await supabase.from('exercises').delete().eq('id', exId)
+    setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, exercises: w.exercises.filter(e => e.id !== exId) } : w))
   }
 
   const duplicateProgram = async () => {
@@ -547,27 +443,23 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
         if ((a.day_of_week || 0) !== (b.day_of_week || 0)) {
           return (a.day_of_week || 0) - (b.day_of_week || 0)
         }
-        return (a.id || '').localeCompare(b.id || '')
+        return String(a.id).localeCompare(String(b.id))
       })
 
       for (const workout of sortedWorkouts) {
-        const workoutCopyPayload = {
-          client_id: clientId,
-          name: `${workout.name} (copie)`,
-          type: workout.type,
-          day_of_week: workout.day_of_week,
-          duration_min: workout.duration_min
-        }
-
         const { data: newWorkout, error: workoutError } = await supabase
           .from('workouts')
-          .insert(workoutCopyPayload)
+          .insert({
+            client_id: clientId,
+            name: `${workout.name} (copie)`,
+            type: workout.type,
+            day_of_week: workout.day_of_week,
+            duration_min: workout.duration_min
+          })
           .select()
           .single()
 
-        if (workoutError) {
-          throw workoutError
-        }
+        if (workoutError) throw workoutError
 
         const originalExercises = [...(workout.exercises || [])].sort(
           (a, b) => (a.order_index || 0) - (b.order_index || 0)
@@ -604,13 +496,23 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
             .from('exercises')
             .insert(copiedExercisesPayload)
 
-          if (exercisesError) {
-            throw exercisesError
-          }
+          if (exercisesError) throw exercisesError
         }
       }
 
-      await loadWorkouts()
+      const { data } = await supabase
+        .from('workouts')
+        .select('*, exercises(*)')
+        .eq('client_id', clientId)
+        .order('day_of_week')
+
+      setWorkouts(
+        (data || []).map(w => ({
+          ...w,
+          exercises: (w.exercises || []).sort((a, b) => a.order_index - b.order_index)
+        }))
+      )
+
       setDuplicateMessage('✅ Programme dupliqué avec succès.')
     } catch (error) {
       console.error('Erreur duplication programme:', error)
@@ -620,19 +522,9 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     }
   }
 
-  const groupColors = {
-    'Superset': '#C45C3A',
-    'Giant Set': '#8FA07A',
-    'Drop Set': '#4A6FD4'
-  }
+  const groupColors = { 'Superset': '#C45C3A', 'Giant Set': '#8FA07A', 'Drop Set': '#4A6FD4' }
 
-  if (loading) {
-    return (
-      <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>
-        Chargement…
-      </div>
-    )
-  }
+  if (loading) return <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>Chargement…</div>
 
   return (
     <div>
@@ -640,25 +532,9 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
         {DAYS.map((day, i) => {
           const workout = workouts.find(w => w.day_of_week === i + 1)
           return (
-            <div
-              key={day}
-              onClick={() => workout && setOpenWorkout(openWorkout === workout.id ? null : workout.id)}
-              style={{
-                background: workout ? '#0D1B4E' : '#F0F4FF',
-                border: '1px solid #C5D0F0',
-                borderRadius: '8px',
-                padding: '10px 6px',
-                textAlign: 'center',
-                cursor: workout ? 'pointer' : 'default',
-                opacity: workout ? 1 : 0.5
-              }}
-            >
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: workout ? '#D4E0CC' : '#6B7A99' }}>
-                {day}
-              </div>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: workout ? 'white' : '#9A9A8A', marginTop: '4px' }}>
-                {workout ? workout.name : '—'}
-              </div>
+            <div key={day} onClick={() => workout && setOpenWorkout(openWorkout === workout.id ? null : workout.id)} style={{ background: workout ? '#0D1B4E' : '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '8px', padding: '10px 6px', textAlign: 'center', cursor: workout ? 'pointer' : 'default', opacity: workout ? 1 : 0.5 }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', color: workout ? '#D4E0CC' : '#6B7A99' }}>{day}</div>
+              <div style={{ fontSize: '11px', fontWeight: '600', color: workout ? 'white' : '#9A9A8A', marginTop: '4px' }}>{workout ? workout.name : '—'}</div>
             </div>
           )
         })}
@@ -704,62 +580,22 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
       {showAdd && (
         <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '12px' }}>
-            <div>
-              <label style={lbl}>Nom</label>
-              <input
-                value={newW.name}
-                onChange={e => setNewW(p => ({ ...p, name: e.target.value }))}
-                placeholder="Push A"
-                style={inp}
-              />
-            </div>
-
-            <div>
-              <label style={lbl}>Type</label>
-              <select
-                value={newW.type}
-                onChange={e => setNewW(p => ({ ...p, type: e.target.value }))}
-                style={inp}
-              >
-                {['Push', 'Pull', 'Legs', 'Full Body', 'Upper', 'Lower', 'Cardio', 'Autre'].map(t => (
-                  <option key={t}>{t}</option>
-                ))}
+            <div><label style={lbl}>Nom</label><input value={newW.name} onChange={e => setNewW(p => ({ ...p, name: e.target.value }))} placeholder="Push A" style={inp} /></div>
+            <div><label style={lbl}>Type</label>
+              <select value={newW.type} onChange={e => setNewW(p => ({ ...p, type: e.target.value }))} style={inp}>
+                {['Push','Pull','Legs','Full Body','Upper','Lower','Cardio','Autre'].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-
-            <div>
-              <label style={lbl}>Jour</label>
-              <select
-                value={newW.day_of_week}
-                onChange={e => setNewW(p => ({ ...p, day_of_week: +e.target.value }))}
-                style={inp}
-              >
-                {DAYS_FR.map((d, i) => (
-                  <option key={d} value={i + 1}>
-                    {d}
-                  </option>
-                ))}
+            <div><label style={lbl}>Jour</label>
+              <select value={newW.day_of_week} onChange={e => setNewW(p => ({ ...p, day_of_week: +e.target.value }))} style={inp}>
+                {DAYS_FR.map((d, i) => <option key={d} value={i+1}>{d}</option>)}
               </select>
             </div>
-
-            <div>
-              <label style={lbl}>Durée (min)</label>
-              <input
-                type="number"
-                value={newW.duration_min}
-                onChange={e => setNewW(p => ({ ...p, duration_min: +e.target.value }))}
-                style={inp}
-              />
-            </div>
+            <div><label style={lbl}>Durée (min)</label><input type="number" value={newW.duration_min} onChange={e => setNewW(p => ({ ...p, duration_min: +e.target.value }))} style={inp} /></div>
           </div>
-
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addWorkout} style={btn('#0D1B4E', 'white')}>
-              ✓ Créer
-            </button>
-            <button onClick={() => setShowAdd(false)} style={btn('transparent', '#6B7A99', '#C5D0F0')}>
-              Annuler
-            </button>
+            <button onClick={addWorkout} style={btn('#0D1B4E', 'white')}>✓ Créer</button>
+            <button onClick={() => setShowAdd(false)} style={btn('transparent', '#6B7A99', '#C5D0F0')}>Annuler</button>
           </div>
         </div>
       )}
@@ -773,32 +609,14 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
       {workouts.map(workout => {
         const isOpen = openWorkout === workout.id
         const isEdit = editMode === workout.id
-
         return (
-          <div
-            key={workout.id}
-            style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}
-          >
-            <div
-              onClick={() => setOpenWorkout(isOpen ? null : workout.id)}
-              style={{
-                padding: '14px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                borderBottom: isOpen ? '1px solid #C5D0F0' : 'none'
-              }}
-            >
+          <div key={workout.id} style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
+            <div onClick={() => setOpenWorkout(isOpen ? null : workout.id)} style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: isOpen ? '1px solid #C5D0F0' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px', background: '#D4E0CC', color: '#0D1B4E' }}>
-                  {workout.type}
-                </span>
+                <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px', background: '#D4E0CC', color: '#0D1B4E' }}>{workout.type}</span>
                 <div>
                   <div style={{ fontWeight: '600', fontSize: '15px' }}>{workout.name}</div>
-                  <div style={{ fontSize: '12px', color: '#6B7A99' }}>
-                    {DAYS[(workout.day_of_week || 1) - 1]} · {workout.exercises?.length || 0} exercices · {workout.duration_min} min
-                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7A99' }}>{DAYS[(workout.day_of_week||1)-1]} · {workout.exercises?.length||0} exercices · {workout.duration_min} min</div>
                 </div>
               </div>
               <span style={{ color: '#6B7A99', fontSize: '12px' }}>{isOpen ? '▲' : '▼'}</span>
@@ -807,146 +625,53 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
             {isOpen && (
               <div style={{ padding: '16px 20px' }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => setEditMode(isEdit ? null : workout.id)}
-                    style={btn(isEdit ? '#0D1B4E' : 'white', isEdit ? 'white' : '#6B7A99', '#C5D0F0')}
-                  >
+                  <button onClick={() => setEditMode(isEdit ? null : workout.id)} style={btn(isEdit ? '#0D1B4E' : 'white', isEdit ? 'white' : '#6B7A99', '#C5D0F0')}>
                     {isEdit ? '✓ Terminer édition' : '✏️ Modifier'}
                   </button>
-
-                  {isEdit && (
-                    <button
-                      onClick={() => deleteWorkout(workout.id)}
-                      style={{ ...btn('rgba(196,92,58,0.1)', '#C45C3A'), marginLeft: 'auto' }}
-                    >
-                      🗑 Supprimer
-                    </button>
-                  )}
+                  {isEdit && <button onClick={() => deleteWorkout(workout.id)} style={{ ...btn('rgba(196,92,58,0.1)', '#C45C3A'), marginLeft: 'auto' }}>🗑 Supprimer</button>}
                 </div>
 
                 {workout.exercises?.length > 0 && (
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: isEdit ? '1fr 60px 70px 80px 90px 1fr 28px' : '1fr 60px 70px 80px 90px 1fr',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      marginBottom: '4px'
-                    }}
-                  >
-                    {['Exercice', 'Séries', 'Reps', 'Repos', 'Charge', 'Notes', isEdit ? '' : null]
-                      .filter(h => h !== null)
-                      .map(h => (
-                        <div key={h} style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99' }}>
-                          {h}
-                        </div>
-                      ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: isEdit ? '1fr 60px 70px 80px 90px 1fr 28px' : '1fr 60px 70px 80px 90px 1fr', gap: '6px', padding: '6px 10px', marginBottom: '4px' }}>
+                    {['Exercice','Séries','Reps','Repos','Charge','Notes',isEdit?'':null].filter(h => h !== null).map(h => (
+                      <div key={h} style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99' }}>{h}</div>
+                    ))}
                   </div>
                 )}
 
                 {(() => {
                   const exs = workout.exercises || []
                   const rendered = new Set()
-
                   return exs.map(ex => {
                     if (rendered.has(ex.id)) return null
-
                     if (ex.group_id && ex.group_type !== 'Normal') {
                       const group = exs.filter(e => e.group_id === ex.group_id)
                       group.forEach(e => rendered.add(e.id))
-
                       return (
-                        <div
-                          key={ex.group_id}
-                          style={{
-                            border: `2px solid ${groupColors[ex.group_type] || '#C5D0F0'}`,
-                            borderRadius: '10px',
-                            marginBottom: '10px',
-                            overflow: 'hidden'
-                          }}
-                        >
-                          <div
-                            style={{
-                              background: groupColors[ex.group_type] || '#C5D0F0',
-                              color: 'white',
-                              padding: '4px 12px',
-                              fontSize: '10px',
-                              fontWeight: '700',
-                              letterSpacing: '1px',
-                              textTransform: 'uppercase',
-                              display: 'flex',
-                              justifyContent: 'space-between'
-                            }}
-                          >
+                        <div key={ex.group_id} style={{ border: `2px solid ${groupColors[ex.group_type]||'#C5D0F0'}`, borderRadius: '10px', marginBottom: '10px', overflow: 'hidden' }}>
+                          <div style={{ background: groupColors[ex.group_type]||'#C5D0F0', color: 'white', padding: '4px 12px', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
                             <span>⚡ {ex.group_type}</span>
-                            {isEdit && (
-                              <button
-                                onClick={() => addExercise(workout.id, ex.group_type, ex.group_id)}
-                                style={{
-                                  background: 'rgba(255,255,255,0.25)',
-                                  border: 'none',
-                                  color: 'white',
-                                  borderRadius: '4px',
-                                  padding: '1px 6px',
-                                  fontSize: '10px',
-                                  cursor: 'pointer',
-                                  fontFamily: "'DM Sans',sans-serif"
-                                }}
-                              >
-                                + Exercice
-                              </button>
-                            )}
+                            {isEdit && <button onClick={() => addExercise(workout.id, ex.group_type, ex.group_id)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>+ Exercice</button>}
                           </div>
-
-                          {group.map(e => (
-                            <ExRow
-                              key={e.id}
-                              ex={e}
-                              wId={workout.id}
-                              edit={isEdit}
-                              onUpdate={updateExercise}
-                              onDelete={deleteExercise}
-                            />
-                          ))}
+                          {group.map(e => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} />)}
                         </div>
                       )
                     }
-
                     rendered.add(ex.id)
-
-                    return (
-                      <ExRow
-                        key={ex.id}
-                        ex={ex}
-                        wId={workout.id}
-                        edit={isEdit}
-                        onUpdate={updateExercise}
-                        onDelete={deleteExercise}
-                      />
-                    )
+                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} />
                   })
                 })()}
 
                 {workout.exercises?.length === 0 && !isEdit && (
-                  <div style={{ textAlign: 'center', color: '#6B7A99', fontSize: '13px', padding: '16px' }}>
-                    Passe en mode édition pour ajouter des exercices
-                  </div>
+                  <div style={{ textAlign: 'center', color: '#6B7A99', fontSize: '13px', padding: '16px' }}>Passe en mode édition pour ajouter des exercices</div>
                 )}
 
                 {isEdit && (
                   <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                    <button onClick={() => addExercise(workout.id, 'Normal', null)} style={btn('#0D1B4E', 'white')}>
-                      + Exercice
-                    </button>
-                    <button onClick={() => addExercise(workout.id, 'Superset', null)} style={btn('#C45C3A', 'white')}>
-                      ⚡ Superset
-                    </button>
-                    <button onClick={() => addExercise(workout.id, 'Giant Set', null)} style={btn('#8FA07A', 'white')}>
-                      🔥 Giant Set
-                    </button>
-                    <button onClick={() => addExercise(workout.id, 'Drop Set', null)} style={btn('#4A6FD4', 'white')}>
-                      📉 Drop Set
-                    </button>
+                    <button onClick={() => addExercise(workout.id, 'Normal', null)} style={btn('#0D1B4E', 'white')}>+ Exercice</button>
+                    <button onClick={() => addExercise(workout.id, 'Superset', null)} style={btn('#C45C3A', 'white')}>⚡ Superset</button>
+                    <button onClick={() => addExercise(workout.id, 'Giant Set', null)} style={btn('#8FA07A', 'white')}>🔥 Giant Set</button>
+                    <button onClick={() => addExercise(workout.id, 'Drop Set', null)} style={btn('#4A6FD4', 'white')}>📉 Drop Set</button>
                   </div>
                 )}
               </div>
