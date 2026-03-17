@@ -38,9 +38,7 @@ export default function CoachPanel() {
   const [selected, setSelected] = useState(null)
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(true)
-  const [duplicating, setDuplicating] = useState(false)
-  const [duplicateMessage, setDuplicateMessage] = useState('')
-  const [showNewClient, setShowNewClient] = useState(false)
+      const [showNewClient, setShowNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ full_name: '', email: '', password: '' })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -424,104 +422,6 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, exercises: w.exercises.filter(e => e.id !== exId) } : w))
   }
 
-  const duplicateProgram = async () => {
-    if (duplicating) return
-
-    if (!workouts.length) {
-      setDuplicateMessage('Aucun programme à dupliquer.')
-      return
-    }
-
-    const ok = confirm(`Dupliquer le programme actuel de ${clientName} ?`)
-    if (!ok) return
-
-    setDuplicating(true)
-    setDuplicateMessage('')
-
-    try {
-      const sortedWorkouts = [...workouts].sort((a, b) => {
-        if ((a.day_of_week || 0) !== (b.day_of_week || 0)) {
-          return (a.day_of_week || 0) - (b.day_of_week || 0)
-        }
-        return String(a.id).localeCompare(String(b.id))
-      })
-
-      for (const workout of sortedWorkouts) {
-        const { data: newWorkout, error: workoutError } = await supabase
-          .from('workouts')
-          .insert({
-            client_id: clientId,
-            name: `${workout.name} (copie)`,
-            type: workout.type,
-            day_of_week: workout.day_of_week,
-            duration_min: workout.duration_min
-          })
-          .select()
-          .single()
-
-        if (workoutError) throw workoutError
-
-        const originalExercises = [...(workout.exercises || [])].sort(
-          (a, b) => (a.order_index || 0) - (b.order_index || 0)
-        )
-
-        if (originalExercises.length > 0) {
-          const groupIdMap = {}
-
-          const copiedExercisesPayload = originalExercises.map((ex, index) => {
-            let newGroupId = null
-
-            if (ex.group_id && ex.group_type && ex.group_type !== 'Normal') {
-              if (!groupIdMap[ex.group_id]) {
-                groupIdMap[ex.group_id] = `${Date.now()}-${newWorkout.id}-${ex.group_id}`
-              }
-              newGroupId = groupIdMap[ex.group_id]
-            }
-
-            return {
-              workout_id: newWorkout.id,
-              name: ex.name,
-              sets: ex.sets,
-              reps: ex.reps,
-              rest: ex.rest,
-              note: ex.note,
-              target_weight: ex.target_weight,
-              order_index: index,
-              group_type: ex.group_type || 'Normal',
-              group_id: newGroupId
-            }
-          })
-
-          const { error: exercisesError } = await supabase
-            .from('exercises')
-            .insert(copiedExercisesPayload)
-
-          if (exercisesError) throw exercisesError
-        }
-      }
-
-      const { data } = await supabase
-        .from('workouts')
-        .select('*, exercises(*)')
-        .eq('client_id', clientId)
-        .order('day_of_week')
-
-      setWorkouts(
-        (data || []).map(w => ({
-          ...w,
-          exercises: (w.exercises || []).sort((a, b) => a.order_index - b.order_index)
-        }))
-      )
-
-      setDuplicateMessage('✅ Programme dupliqué avec succès.')
-    } catch (error) {
-      console.error('Erreur duplication programme:', error)
-      setDuplicateMessage(`❌ Erreur lors de la duplication : ${error.message || 'inconnue'}`)
-    } finally {
-      setDuplicating(false)
-    }
-  }
-
   const groupColors = { 'Superset': '#C45C3A', 'Giant Set': '#8FA07A', 'Drop Set': '#4A6FD4' }
 
   if (loading) return <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>Chargement…</div>
@@ -540,42 +440,10 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
         })}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '10px', flexWrap: 'wrap' }}>
-        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: '#0D1B4E', letterSpacing: '2px' }}>
-          PROGRAMME DE {clientName?.split(' ')[0]?.toUpperCase()}
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            onClick={duplicateProgram}
-            disabled={duplicating || workouts.length === 0}
-            style={btn(duplicating || workouts.length === 0 ? '#9FB2E8' : '#4A6FD4', 'white')}
-          >
-            {duplicating ? 'Duplication…' : '🔁 Dupliquer le programme'}
-          </button>
-
-          <button onClick={() => setShowAdd(true)} style={btn('#0D1B4E', 'white')}>
-            + Nouvelle séance
-          </button>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: '#0D1B4E', letterSpacing: '2px' }}>PROGRAMME DE {clientName?.split(' ')[0]?.toUpperCase()}</div>
+        <button onClick={() => setShowAdd(true)} style={btn('#0D1B4E', 'white')}>+ Nouvelle séance</button>
       </div>
-
-      {duplicateMessage && (
-        <div
-          style={{
-            marginBottom: '14px',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            background: duplicateMessage.startsWith('✅') ? '#EAF7EE' : '#FDEDED',
-            border: duplicateMessage.startsWith('✅') ? '1px solid #B8D8C2' : '1px solid #F0B7B7',
-            color: duplicateMessage.startsWith('✅') ? '#1E6B3A' : '#A33A3A',
-            fontSize: '13px',
-            fontWeight: '500'
-          }}
-        >
-          {duplicateMessage}
-        </div>
-      )}
 
       {showAdd && (
         <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '20px', marginBottom: '14px' }}>
