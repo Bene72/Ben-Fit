@@ -38,7 +38,7 @@ export default function CoachPanel() {
   const [selected, setSelected] = useState(null)
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(true)
-      const [showNewClient, setShowNewClient] = useState(false)
+  const [showNewClient, setShowNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ full_name: '', email: '', password: '' })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
