@@ -380,6 +380,10 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   const [showAdd, setShowAdd] = useState(false)
   const [newW, setNewW] = useState({ name: '', type: 'Push', day_of_week: 1, duration_min: 60 })
   const [loading, setLoading] = useState(true)
+  const [showDuplicate, setShowDuplicate] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
+  const [duplicateTarget, setDuplicateTarget] = useState('')
+  const [allClients, setAllClients] = useState([])
 
   useEffect(() => {
     const load = async () => {
@@ -401,6 +405,45 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     if (!confirm('Supprimer cette séance ?')) return
     await supabase.from('workouts').delete().eq('id', id)
     setWorkouts(prev => prev.filter(w => w.id !== id)); setOpenWorkout(null)
+  }
+
+  const duplicateProgram = async (targetClientId) => {
+    if (!targetClientId) return
+    setDuplicating(true)
+    for (const workout of workouts) {
+      const { data: newWorkout } = await supabase.from('workouts').insert({
+        client_id: targetClientId,
+        name: workout.name,
+        type: workout.type,
+        day_of_week: workout.day_of_week,
+        duration_min: workout.duration_min
+      }).select().single()
+      if (newWorkout && workout.exercises?.length) {
+        await supabase.from('exercises').insert(
+          workout.exercises.map(ex => ({
+            workout_id: newWorkout.id,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest: ex.rest,
+            note: ex.note,
+            target_weight: ex.target_weight,
+            order_index: ex.order_index,
+            group_type: ex.group_type,
+            group_id: ex.group_id,
+            image_url: ex.image_url
+          }))
+        )
+      }
+    }
+    setDuplicating(false)
+    setShowDuplicate(false)
+    alert('✅ Programme dupliqué avec succès !')
+  }
+
+  const loadAllClients = async () => {
+    const { data } = await supabase.from('profiles').select('id, full_name').eq('role', 'client').neq('id', clientId).order('full_name')
+    setAllClients(data || [])
   }
 
   const addExercise = async (workoutId, groupType, groupId) => {
@@ -440,8 +483,36 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: '#0D1B4E', letterSpacing: '2px' }}>PROGRAMME DE {clientName?.split(' ')[0]?.toUpperCase()}</div>
-        <button onClick={() => setShowAdd(true)} style={btn('#0D1B4E', 'white')}>+ Nouvelle séance</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {workouts.length > 0 && (
+            <button onClick={() => { setShowDuplicate(!showDuplicate); loadAllClients() }} style={btn('#EEF2FF', '#0D1B4E', '#4A6FD4')}>📋 Dupliquer vers…</button>
+          )}
+          <button onClick={() => setShowAdd(true)} style={btn('#0D1B4E', 'white')}>+ Nouvelle séance</button>
+        </div>
       </div>
+
+      {showDuplicate && (
+        <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ fontWeight: '600', fontSize: '14px', color: '#0D1B4E', marginBottom: '12px' }}>
+            📋 Dupliquer le programme de {clientName?.split(' ')[0]} vers :
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={duplicateTarget} onChange={e => setDuplicateTarget(e.target.value)}
+              style={{ padding: '8px 12px', border: '1.5px solid #C5D0F0', borderRadius: '8px', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", background: 'white', outline: 'none', color: '#0D1B4E', minWidth: '200px' }}>
+              <option value=''>— Choisir un client —</option>
+              {allClients.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+            </select>
+            <button onClick={() => duplicateProgram(duplicateTarget)} disabled={!duplicateTarget || duplicating}
+              style={btn(!duplicateTarget || duplicating ? '#CCC' : '#4A6FD4', 'white')}>
+              {duplicating ? 'Duplication…' : '✓ Dupliquer'}
+            </button>
+            <button onClick={() => setShowDuplicate(false)} style={btn('transparent', '#6B7A99', '#C5D0F0')}>Annuler</button>
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B7A99', marginTop: '10px' }}>
+            ⚠️ Les séances existantes du client cible ne seront pas supprimées.
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '20px', marginBottom: '14px' }}>
@@ -550,27 +621,10 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 }
 
 function ExRow({ ex, wId, edit, onUpdate, onDelete }) {
-  const [showImg, setShowImg] = useState(false)
   return (
-    <>
-      {showImg && ex.image_url && (
-        <div onClick={() => setShowImg(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', maxWidth: '500px', width: '90%' }}>
-            <img src={ex.image_url} alt={ex.name} style={{ width: '100%', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
-            <div style={{ textAlign: 'center', color: 'white', marginTop: '12px', fontWeight: '600', fontSize: '16px' }}>{ex.name}</div>
-            <button onClick={() => setShowImg(false)} style={{ position: 'absolute', top: '-12px', right: '-12px', width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-          </div>
-        </div>
-      )}
     <div style={{ display: 'grid', gridTemplateColumns: edit ? '1fr 60px 70px 80px 90px 1fr 28px' : '1fr 60px 70px 80px 90px 1fr', gap: '6px', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
       {edit ? <input value={ex.name} onChange={e => onUpdate(wId, ex.id, 'name', e.target.value)} style={ci} />
-        : <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {ex.image_url
-              ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '7px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
-              : <div style={{ width: '60px', height: '60px', borderRadius: '7px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>💪</div>
-            }
-            <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}</div>
-          </div>}
+        : <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}</div>}
       {edit ? <input type="number" value={ex.sets} onChange={e => onUpdate(wId, ex.id, 'sets', e.target.value)} style={{ ...ci, textAlign: 'center' }} />
         : <div style={{ fontSize: '13px', textAlign: 'center' }}>{ex.sets}</div>}
       {edit ? <input value={ex.reps} onChange={e => onUpdate(wId, ex.id, 'reps', e.target.value)} style={{ ...ci, textAlign: 'center' }} />
@@ -585,7 +639,6 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete }) {
         : <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}
       {edit && <button onClick={() => onDelete(wId, ex.id)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: 'none', background: 'rgba(196,92,58,0.12)', color: '#C45C3A', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
     </div>
-    </>
   )
 }
 
