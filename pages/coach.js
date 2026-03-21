@@ -1,6 +1,4 @@
 import NutritionClientView from './nutrition'
-
-export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
@@ -552,10 +550,27 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 }
 
 function ExRow({ ex, wId, edit, onUpdate, onDelete }) {
+  const [showImg, setShowImg] = useState(false)
   return (
+    <>
+      {showImg && ex.image_url && (
+        <div onClick={() => setShowImg(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'relative', maxWidth: '500px', width: '90%' }}>
+            <img src={ex.image_url} alt={ex.name} style={{ width: '100%', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
+            <div style={{ textAlign: 'center', color: 'white', marginTop: '12px', fontWeight: '600', fontSize: '16px' }}>{ex.name}</div>
+            <button onClick={() => setShowImg(false)} style={{ position: 'absolute', top: '-12px', right: '-12px', width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          </div>
+        </div>
+      )}
     <div style={{ display: 'grid', gridTemplateColumns: edit ? '1fr 60px 70px 80px 90px 1fr 28px' : '1fr 60px 70px 80px 90px 1fr', gap: '6px', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
       {edit ? <input value={ex.name} onChange={e => onUpdate(wId, ex.id, 'name', e.target.value)} style={ci} />
-        : <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}</div>}
+        : <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {ex.image_url
+              ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '7px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
+              : <div style={{ width: '60px', height: '60px', borderRadius: '7px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>💪</div>
+            }
+            <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}</div>
+          </div>}
       {edit ? <input type="number" value={ex.sets} onChange={e => onUpdate(wId, ex.id, 'sets', e.target.value)} style={{ ...ci, textAlign: 'center' }} />
         : <div style={{ fontSize: '13px', textAlign: 'center' }}>{ex.sets}</div>}
       {edit ? <input value={ex.reps} onChange={e => onUpdate(wId, ex.id, 'reps', e.target.value)} style={{ ...ci, textAlign: 'center' }} />
@@ -570,6 +585,7 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete }) {
         : <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}
       {edit && <button onClick={() => onDelete(wId, ex.id)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: 'none', background: 'rgba(196,92,58,0.12)', color: '#C45C3A', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
     </div>
+    </>
   )
 }
 
