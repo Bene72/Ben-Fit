@@ -8,8 +8,8 @@ const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 // ─── HELPER EDGE FUNCTIONS ──────────────────────────────────
-const SUPABASE_URL = 'https://euoraelrducxdmipicbq.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1b3JhZWxyZHVjeGRtaXBpY2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTM3MDEsImV4cCI6MjA4ODU2OTcwMX0.ivhvddWMc79rVv-Pmc1VjTkfB-ysV8V2oYEchYfTVvk'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 async function callEdgeFunction(name, body) {
   const { data: { session } } = await supabase.auth.getSession()
