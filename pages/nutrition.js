@@ -170,7 +170,7 @@ function Ring({ value, target, label, unit, color }) {
   )
 }
 
-function MacroBlock({ log, plan, date, onSave }) {
+function MacroBlock({ log, plan, date, onSave, combined, foodTotals }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ calories: log?.calories||'', protein: log?.protein||'', carbs: log?.carbs||'', fat: log?.fat||'' })
   const [saving, setSaving] = useState(false)
@@ -192,17 +192,32 @@ function MacroBlock({ log, plan, date, onSave }) {
     { key:'fat',      label:'Lipides',   unit:'g',   target:plan?.target_fat,      color:'#3A7BD5' }
   ]
 
+  const hasFoodContrib = foodTotals && (foodTotals.calories > 0 || foodTotals.protein > 0)
+  const displayValues = combined || { calories: log?.calories||0, protein: log?.protein||0, carbs: log?.carbs||0, fat: log?.fat||0 }
+
   return (
     <div style={{ background:'white', borderRadius:'14px', padding:'24px', border:'1px solid #EAEAEA', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:'16px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: hasFoodContrib ? '12px' : '24px' }}>
         <span style={{ fontWeight:'700', fontSize:'15px', color:'#0D1B4E' }}>📊 Apports du jour</span>
         <button onClick={() => setEditing(!editing)} style={{ padding:'5px 14px', background: editing?'#EEF0F5':'#0D1B4E', color: editing?'#666':'white', border:'none', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>
-          {editing ? 'Annuler' : log?.calories > 0 ? '✏️ Modifier' : '+ Saisir'}
+          {editing ? 'Annuler' : log?.calories > 0 ? '✏️ Modifier macros' : '+ Saisir macros'}
         </button>
       </div>
 
+      {hasFoodContrib && (
+        <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'16px', padding:'8px 12px', background:'#F0F4FF', borderRadius:'8px', fontSize:'11px', color:'#6B7A99' }}>
+          <span>🍽️ Aliments :</span>
+          <span style={{ color:'#0D1B4E', fontWeight:'700' }}>+{Math.round(foodTotals.calories)} kcal</span>
+          <span style={{ color:'#C45C3A', fontWeight:'600' }}>P +{Math.round(foodTotals.protein*10)/10}g</span>
+          <span style={{ color:'#2A50B0', fontWeight:'600' }}>G +{Math.round(foodTotals.carbs*10)/10}g</span>
+          <span style={{ color:'#3A7BD5', fontWeight:'600' }}>L +{Math.round(foodTotals.fat*10)/10}g</span>
+          {log?.calories > 0 && <span style={{ marginLeft:'4px', color:'#999' }}>· macros manuelles incluses</span>}
+        </div>
+      )}
+
       {editing ? (
         <div>
+          <div style={{ fontSize:'11px', color:'#999', marginBottom:'10px' }}>💡 Saisis tes totaux importés (ex: MyFitnessPal). Les aliments du détail s'ajouteront automatiquement.</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'16px' }}>
             {macros.map(m => (
               <div key={m.key}>
@@ -220,7 +235,7 @@ function MacroBlock({ log, plan, date, onSave }) {
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'8px', justifyItems:'center' }}>
           {macros.map(m => (
-            <Ring key={m.key} value={log?.[m.key]||0} target={m.target||0} label={m.label} unit={m.unit} color={m.color} />
+            <Ring key={m.key} value={displayValues[m.key]||0} target={m.target||0} label={m.label} unit={m.unit} color={m.color} />
           ))}
         </div>
       )}
@@ -228,7 +243,7 @@ function MacroBlock({ log, plan, date, onSave }) {
   )
 }
 
-function FoodDetailBlock({ log: initialLog, date, onSave }) {
+function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange }) {
   const [log, setLog] = useState(initialLog)
   const [items, setItems] = useState([])
   const [showAdd, setShowAdd] = useState(false)
@@ -323,6 +338,11 @@ function FoodDetailBlock({ log: initialLog, date, onSave }) {
   }
 
   const totals = items.reduce((a,i) => ({ calories:a.calories+(i.calories||0), protein:a.protein+(i.protein||0), carbs:a.carbs+(i.carbs||0), fat:a.fat+(i.fat||0), fiber:a.fiber+(i.fiber||0) }), {calories:0,protein:0,carbs:0,fat:0,fiber:0})
+
+  // Remonte les totaux au parent à chaque changement
+  useEffect(() => {
+    if (onItemsChange) onItemsChange({ calories: totals.calories, protein: totals.protein, carbs: totals.carbs, fat: totals.fat })
+  }, [items])
 
   return (
     <div style={{ background:'white', borderRadius:'14px', border:'1px solid #EAEAEA', overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -473,16 +493,23 @@ function FoodDetailBlock({ log: initialLog, date, onSave }) {
 
 function TodayView({ today, logs, plan, onSave }) {
   const log = logs.find(l => l.date === today)
+  const [foodTotals, setFoodTotals] = useState({ calories:0, protein:0, carbs:0, fat:0 })
+  const combined = {
+    calories: (log?.calories||0) + foodTotals.calories,
+    protein:  (log?.protein||0)  + foodTotals.protein,
+    carbs:    (log?.carbs||0)    + foodTotals.carbs,
+    fat:      (log?.fat||0)      + foodTotals.fat,
+  }
   return (
     <div>
       <div style={{ fontWeight:'700', fontSize:'17px', color:'#0D1B4E', marginBottom:'16px' }}>
         {new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}
       </div>
-      <MacroBlock log={log} plan={plan} date={today} onSave={onSave} />
-      <NutritionScore log={log} plan={plan} />
-      <Feedback log={log} plan={plan} />
+      <MacroBlock log={log} plan={plan} date={today} onSave={onSave} combined={combined} foodTotals={foodTotals} />
+      <NutritionScore log={{ ...log, ...combined }} plan={plan} />
+      <Feedback log={{ ...log, ...combined }} plan={plan} />
       <WeeklyGraph logs={logs} plan={plan} today={today} />
-      <div style={{ marginTop:'16px' }}><FoodDetailBlock log={log} date={today} onSave={onSave} /></div>
+      <div style={{ marginTop:'16px' }}><FoodDetailBlock log={log} date={today} onSave={onSave} onItemsChange={setFoodTotals} /></div>
     </div>
   )
 }
@@ -565,8 +592,7 @@ function WeekView({ logs, plan, onSave, today }) {
                   </div>
                   {isOpen && (
                     <div style={{ padding:'16px 20px', background:'#F5F8FF', borderBottom:'2px solid #E8ECFA' }}>
-                      <MacroBlock log={log} plan={plan} date={date} onSave={onSave} />
-                      <FoodDetailBlock log={log} date={date} onSave={onSave} />
+                      <WeekDayPanel log={log} plan={plan} date={date} onSave={onSave} />
                     </div>
                   )}
                 </div>
@@ -579,5 +605,19 @@ function WeekView({ logs, plan, onSave, today }) {
   )
 }
 
-const lbl = { display:'block', fontSize:'11px', letterSpacing:'1px', textTransform:'uppercase', color:'#999', marginBottom:'5px', fontWeight:'600' }
+function WeekDayPanel({ log, plan, date, onSave }) {
+  const [foodTotals, setFoodTotals] = useState({ calories:0, protein:0, carbs:0, fat:0 })
+  const combined = {
+    calories: (log?.calories||0) + foodTotals.calories,
+    protein:  (log?.protein||0)  + foodTotals.protein,
+    carbs:    (log?.carbs||0)    + foodTotals.carbs,
+    fat:      (log?.fat||0)      + foodTotals.fat,
+  }
+  return (
+    <>
+      <MacroBlock log={log} plan={plan} date={date} onSave={onSave} combined={combined} foodTotals={foodTotals} />
+      <FoodDetailBlock log={log} date={date} onSave={onSave} onItemsChange={setFoodTotals} />
+    </>
+  )
+}
 const inp = { width:'100%', padding:'8px 10px', border:'1.5px solid #E8E8E8', borderRadius:'7px', fontSize:'13px', fontFamily:"'DM Sans',sans-serif", background:'white', outline:'none', color:'#0D1B4E' }
