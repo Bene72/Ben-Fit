@@ -61,7 +61,7 @@ LECTURE DES DONNÉES :
 
 const JSON_SCHEMA = '{"cycle_name":"Cycle X - Mois Annee","reasoning":"Analyse detaillee : lecture du bilan, points forts, blocages identifies, logique de periodisation choisie et pourquoi","adjustments":"Ajustements precis vs cycle precedent et justification","volume_notes":"Repartition du volume par groupe musculaire ce cycle","workouts":[{"name":"Nom seance","type":"Push","day_of_week":1,"duration_min":75,"exercises":[{"name":"Exercice","sets":4,"reps":"8-10","rest":"2 min","note":"Consigne technique precise et pourquoi ce choix","target_weight":"","order_index":0,"group_type":"Normal","group_id":null}]}]}'
 
-const GEMINI_API_KEY = 'AIzaSyCZvIc3pYHpC80GE0WRDO8pzSJW75_ge_Y'
+const GEMINI_API_KEY = 'AIzaSyBrkE1UBcuvJ4U5zq-KLDKuzIYmNGVQpac'
 
 const callGemini = async (systemPrompt, userMessage) => {
   const response = await fetch(
