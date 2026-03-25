@@ -71,7 +71,7 @@ export default function Training() {
         setEditMode(data.id)
       }
     } catch (e) {
-      setError(e.message || 'Impossible de créer la séance')
+      setError(e.message || "Impossible de créer la séance")
     }
   }
 
@@ -83,7 +83,7 @@ export default function Training() {
       setWorkouts(prev => prev.filter(w => w.id !== workoutId))
       setOpenWorkout(null)
     } catch (e) {
-      setError(e.message || 'Impossible de supprimer la séance')
+      setError(e.message || "Impossible de supprimer la séance")
     }
   }
 
@@ -170,7 +170,7 @@ export default function Training() {
         w.id === workoutId ? { ...w, exercises: w.exercises.filter(e => e.id !== exId) } : w
       ))
     } catch (e) {
-      setError(e.message || 'Impossible de supprimer l'exercice')
+      setError(e.message || "Impossible de supprimer l'exercice")
     }
   }
 
@@ -203,7 +203,7 @@ export default function Training() {
         setLogInputs(prev => ({ ...prev, [exercise.id]: {} }))
       }
     } catch (e) {
-      setError(e.message || "Impossible d'enregistrer la perf")
+      setError(e.message || " d'enregistrer la perf")
     } finally {
       setLogging(prev => ({ ...prev, [exercise.id]: false }))
     }
@@ -216,7 +216,7 @@ export default function Training() {
       const data = await markWorkoutSessionDone({ client_id: user.id, workout_id: workoutId, date: today, completed: true })
       setSessions(prev => [...prev, data || { workout_id: workoutId, date: today }])
     } catch (e) {
-      setError(e.message || 'Impossible de marquer la séance comme faite')
+      setError(e.message || "Impossible de marquer la séance comme faite")
     }
   }
 
