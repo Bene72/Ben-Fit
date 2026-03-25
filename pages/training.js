@@ -157,7 +157,7 @@ export default function Training() {
       setError('')
       await updateExerciseField(exId, field, value)
     } catch (e) {
-      setError(e.message || 'Impossible de mettre à jour l'exercice')
+      setError(e.message || "Impossible de mettre à jour l'exercice")
       setWorkouts(previous)
     }
   }
