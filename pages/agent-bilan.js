@@ -2,6 +2,22 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 
+function scoreColor(value) {
+  const n = Number(value || 0)
+  if (n >= 8) return '#4A6FD4'
+  if (n >= 5) return '#8FA07A'
+  return '#C45C3A'
+}
+
+function cardStyle() {
+  return {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    boxShadow: '0 10px 28px rgba(0,0,0,0.18)',
+  }
+}
+
 export default function AgentBilanPage() {
   const router = useRouter()
   const { clientId, clientName } = router.query
@@ -10,12 +26,29 @@ export default function AgentBilanPage() {
   const [error, setError] = useState('')
   const [bilans, setBilans] = useState([])
   const [generated, setGenerated] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!clientId) return
     let active = true
 
     async function load() {
+      try {
+        setLoading(true)
+      } catch {}
+    }
+
+    load()
+    return () => {
+      active = false
+    }
+  }, [clientId])
+
+  useEffect(() => {
+    if (!clientId) return
+    let active = true
+
+    async function loadBilans() {
       try {
         setLoading(true)
         setError('')
@@ -37,7 +70,7 @@ export default function AgentBilanPage() {
       }
     }
 
-    load()
+    loadBilans()
     return () => {
       active = false
     }
@@ -45,150 +78,323 @@ export default function AgentBilanPage() {
 
   const latest = bilans[0] || null
 
-  const draft = useMemo(() => {
-    if (!latest) return ''
-    const notes = [
-      latest.sommeil_note,
-      latest.moral_note,
-      latest.assiduite_diete_note,
-      latest.assiduite_training_note,
-      latest.neat_note,
-      latest.autre_note,
-      latest.problemes_diete_note,
-      latest.problemes_training_note,
-    ].filter(Boolean)
-
-    const scores = [
+  const scoreItems = useMemo(() => {
+    if (!latest) return []
+    return [
       ['Sommeil', latest.sommeil_score],
       ['Moral', latest.moral_score],
       ['Diète', latest.assiduite_diete_score],
       ['Training', latest.assiduite_training_score],
       ['NEAT', latest.neat_score],
-    ].filter(([, v]) => v)
+    ]
+  }, [latest])
 
-    const good = scores.filter(([, v]) => Number(v) >= 7).map(([k]) => k.toLowerCase())
-    const medium = scores.filter(([, v]) => Number(v) >= 4 && Number(v) < 7).map(([k]) => k.toLowerCase())
-    const low = scores.filter(([, v]) => Number(v) < 4).map(([k]) => k.toLowerCase())
+  const noteItems = useMemo(() => {
+    if (!latest) return []
+    return [
+      ['Sommeil', latest.sommeil_note],
+      ['Moral', latest.moral_note],
+      ['Diète', latest.assiduite_diete_note],
+      ['Training', latest.assiduite_training_note],
+      ['NEAT', latest.neat_note],
+      ['Autres infos', latest.autre_note],
+      ['Problèmes diète', latest.problemes_diete_note],
+      ['Problèmes training', latest.problemes_training_note],
+    ].filter(([, value]) => value)
+  }, [latest])
+
+  const draft = useMemo(() => {
+    if (!latest) return ''
+    const good = scoreItems.filter(([, v]) => Number(v) >= 7).map(([k]) => k.toLowerCase())
+    const medium = scoreItems.filter(([, v]) => Number(v) >= 4 && Number(v) < 7).map(([k]) => k.toLowerCase())
+    const low = scoreItems.filter(([, v]) => Number(v) < 4).map(([k]) => k.toLowerCase())
 
     let text = `Salut ${clientName || ''},\n\n`
     text += `Merci pour ton bilan.\n\n`
 
-    if (good.length) {
-      text += `Les points forts de la semaine : ${good.join(', ')}.\n`
-    }
-    if (medium.length) {
-      text += `Les points à stabiliser : ${medium.join(', ')}.\n`
-    }
-    if (low.length) {
-      text += `Les points prioritaires à corriger : ${low.join(', ')}.\n`
-    }
+    if (good.length) text += `Les points forts de la semaine : ${good.join(', ')}.\n`
+    if (medium.length) text += `Les points à stabiliser : ${medium.join(', ')}.\n`
+    if (low.length) text += `Les priorités à corriger : ${low.join(', ')}.\n`
 
-    if (notes.length) {
-      text += `\nCe que je retiens de ton retour :\n- ${notes.join('\n- ')}\n`
+    if (noteItems.length) {
+      text += `\nCe que je retiens de ton retour :\n`
+      noteItems.forEach(([label, value]) => {
+        text += `- ${label} : ${value}\n`
+      })
     }
 
     text += `\nPlan pour la suite :\n`
-    text += `1. Garder ce qui fonctionne.\n`
-    text += `2. Corriger un seul point faible prioritaire cette semaine.\n`
-    text += `3. Me refaire un retour précis sur ton ressenti, ton énergie et ton adhérence.\n\n`
+    text += `1. Garder les bons automatismes déjà en place.\n`
+    text += `2. Corriger en priorité le point qui te freine le plus cette semaine.\n`
+    text += `3. Me refaire un retour précis sur ton énergie, ton adhérence et ton ressenti.\n\n`
     text += `On continue comme ça.`
     return text
-  }, [latest, clientName])
+  }, [latest, clientName, noteItems, scoreItems])
 
   useEffect(() => {
     setGenerated(draft)
   }, [draft])
 
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(generated)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {}
+  }
+
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 900 : false
+
   return (
-    <div style={{ minHeight: '100vh', background: '#EEF2FF', padding: 24, fontFamily: "'DM Sans',sans-serif" }}>
-      <div style={{ maxWidth: 980, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, letterSpacing: '2px', color: '#0D1B4E' }}>
-              AGENT BILAN
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #05070E 0%, #090E1B 100%)',
+        color: 'white',
+        padding: isMobile ? 16 : 28,
+        fontFamily: "'DM Sans',sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+        <div
+          style={{
+            ...cardStyle(),
+            padding: isMobile ? 18 : 24,
+            marginBottom: 18,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            gap: 16,
+            flexDirection: isMobile ? 'column' : 'row',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <div
+              style={{
+                width: isMobile ? 58 : 66,
+                height: isMobile ? 58 : 66,
+                borderRadius: 18,
+                background: 'linear-gradient(145deg, #6188FF 0%, #0D1B4E 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: isMobile ? 22 : 26,
+                boxShadow: '0 10px 24px rgba(74,111,212,0.35)',
+                flexShrink: 0,
+              }}
+            >
+              BF
             </div>
-            <div style={{ color: '#6B7A99' }}>
-              Assistant bilan pour {clientName || 'le client'}
+
+            <div>
+              <div
+                style={{
+                  fontFamily: "'Bebas Neue',sans-serif",
+                  letterSpacing: '2px',
+                  fontSize: isMobile ? 30 : 38,
+                  lineHeight: 1,
+                }}
+              >
+                AGENT BILAN
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.52)', marginTop: 6, fontSize: isMobile ? 14 : 16 }}>
+                Coach feedback · lecture intelligente du bilan
+              </div>
             </div>
           </div>
+
+          <div
+            style={{
+              minWidth: isMobile ? '100%' : 190,
+              padding: '14px 18px',
+              borderRadius: 22,
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(74,111,212,0.12)',
+            }}
+          >
+            <div style={{ fontSize: 15, color: '#7EA0FF', fontWeight: 700 }}>
+              {clientName || 'Client'}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.48)', marginTop: 4 }}>
+              Assistant bilan
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => router.back()}
-            style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #C5D0F0', background: 'white', cursor: 'pointer' }}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'white',
+              cursor: 'pointer',
+              fontFamily: "'DM Sans',sans-serif",
+            }}
           >
             Retour
+          </button>
+
+          <button
+            type="button"
+            onClick={copyText}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: 'none',
+              background: 'linear-gradient(135deg, #5F84FF 0%, #0D1B4E 100%)',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontFamily: "'DM Sans',sans-serif",
+              boxShadow: '0 12px 28px rgba(74,111,212,0.24)',
+            }}
+          >
+            {copied ? 'Copié' : 'Copier la réponse'}
           </button>
         </div>
 
         {error ? (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#B91C1C', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <div
+            style={{
+              ...cardStyle(),
+              padding: 16,
+              marginBottom: 18,
+              border: '1px solid rgba(196,92,58,0.4)',
+              background: 'rgba(196,92,58,0.1)',
+              color: '#FFB6A6',
+            }}
+          >
             {error}
           </div>
         ) : null}
 
         {loading ? (
-          <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 16, padding: 24 }}>
-            Chargement…
-          </div>
+          <div style={{ ...cardStyle(), padding: 22 }}>Chargement…</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 0.9fr) minmax(0, 1.1fr)', gap: 18 }}>
-            <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 16, padding: 18 }}>
-              <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 12 }}>Dernier bilan</div>
-              {latest ? (
-                <>
-                  <div style={{ fontSize: 13, color: '#6B7A99', marginBottom: 10 }}>
-                    Semaine du {latest.week_start || '—'}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                    {[
-                      ['Sommeil', latest.sommeil_score],
-                      ['Moral', latest.moral_score],
-                      ['Diète', latest.assiduite_diete_score],
-                      ['Training', latest.assiduite_training_score],
-                      ['NEAT', latest.neat_score],
-                    ].map(([label, value]) => (
-                      <div key={label} style={{ background: '#F8FAFF', border: '1px solid #DCE5FB', borderRadius: 12, padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#6B7A99', textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: '#0D1B4E' }}>{value || '—'}</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'minmax(320px, 0.92fr) minmax(0, 1.08fr)',
+              gap: 18,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ ...cardStyle(), padding: isMobile ? 16 : 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 24, color: 'white', marginBottom: 10 }}>
+                  Dernier bilan
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.52)', marginBottom: 16 }}>
+                  {latest?.week_start ? `Semaine du ${latest.week_start}` : 'Aucun bilan disponible'}
+                </div>
+
+                {latest ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                      gap: 12,
+                    }}
+                  >
+                    {scoreItems.map(([label, value]) => (
+                      <div
+                        key={label}
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: 18,
+                          padding: 14,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'rgba(255,255,255,0.44)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1.4px',
+                            marginBottom: 10,
+                          }}
+                        >
+                          {label}
+                        </div>
+                        <div style={{ fontSize: 34, fontWeight: 800, color: scoreColor(value) }}>
+                          {value || '—'}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </>
-              ) : (
-                <div style={{ color: '#6B7A99' }}>Aucun bilan trouvé.</div>
-              )}
+                ) : (
+                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>Aucun bilan trouvé pour ce client.</div>
+                )}
+              </div>
+
+              <div style={{ ...cardStyle(), padding: isMobile ? 16 : 20 }}>
+                <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 12 }}>
+                  Notes importantes
+                </div>
+
+                {noteItems.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {noteItems.map(([label, value]) => (
+                      <div
+                        key={label}
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: 16,
+                          padding: 14,
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#7EA0FF', marginBottom: 6 }}>
+                          {label}
+                        </div>
+                        <div style={{ lineHeight: 1.7, color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>Pas de notes détaillées sur ce bilan.</div>
+                )}
+              </div>
             </div>
 
-            <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 16, padding: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontWeight: 800, color: '#0D1B4E' }}>Réponse coach suggérée</div>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(generated)}
-                  style={{ padding: '8px 12px', borderRadius: 10, border: 'none', background: '#0D1B4E', color: 'white', cursor: 'pointer' }}
-                >
-                  Copier
-                </button>
+            <div style={{ ...cardStyle(), padding: isMobile ? 16 : 20 }}>
+              <div style={{ fontWeight: 800, fontSize: 24, marginBottom: 12 }}>
+                Réponse coach suggérée
               </div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 14 }}>
+                Brouillon clair, modifiable et directement copiable.
+              </div>
+
               <textarea
                 value={generated}
                 onChange={(e) => setGenerated(e.target.value)}
-                rows={22}
+                rows={isMobile ? 18 : 24}
                 style={{
                   width: '100%',
-                  borderRadius: 12,
-                  border: '1.5px solid #C5D0F0',
-                  padding: 14,
-                  fontSize: 14,
-                  fontFamily: "'DM Sans',sans-serif",
-                  lineHeight: 1.6,
+                  boxSizing: 'border-box',
+                  borderRadius: 18,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.04)',
+                  color: 'white',
+                  padding: 16,
+                  fontSize: isMobile ? 15 : 15,
+                  lineHeight: 1.75,
                   resize: 'vertical',
                   outline: 'none',
-                  boxSizing: 'border-box',
+                  fontFamily: "'DM Sans',sans-serif",
+                  minHeight: isMobile ? 360 : 520,
                 }}
               />
-              <div style={{ marginTop: 10, color: '#6B7A99', fontSize: 12 }}>
-                Cette page rétablit la route de l’assistant bilan. Elle génère un brouillon exploitable immédiatement, sans erreur 404.
+
+              <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.44)', fontSize: 12, lineHeight: 1.6 }}>
+                Astuce : adapte la réponse si tu veux durcir le ton, rassurer davantage, ou donner une consigne très concrète pour la semaine.
               </div>
             </div>
           </div>
