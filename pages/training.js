@@ -52,7 +52,7 @@ function latestPerfText(log) {
   const chunks = []
   if (log.weight_used) chunks.push(log.weight_used)
   if (log.reps_done) chunks.push(`${log.reps_done} reps`)
-  return chunks.length ? chunks.join(' · ') : 'Log enregistré'
+  return chunks.length ? chunks.join(' · ') : 'Log enregistr√©'
 }
 
 function getWorkoutDayLabel(day) {
@@ -305,7 +305,7 @@ export default function TrainingPage() {
         }
       } catch (e) {
         if (!active) return
-        setError(e.message || "Impossible de charger la séance")
+        setError(e.message || 'Impossible de charger la s√©ance')
       } finally {
         if (active) setLoading(false)
       }
@@ -356,7 +356,7 @@ export default function TrainingPage() {
         exercise_name: exercise.name,
         weight_used: input.weight ? String(input.weight) : null,
         reps_done: input.reps ? String(input.reps) : null,
-        notes: noteParts.length ? noteParts.join(' · ') : null,
+        notes: noteParts.length ? noteParts.join(' ¬∑ ') : null,
         logged_at: new Date().toISOString(),
       }
 
@@ -364,7 +364,7 @@ export default function TrainingPage() {
 
       setLogsByExerciseName((prev) => ({ ...prev, [exercise.name]: [row, ...(prev[exercise.name] || [])] }))
       setLogInputs((prev) => ({ ...prev, [exercise.id]: buildInputFromLog(row) }))
-      setSuccess('Performance enregistrée.')
+      setSuccess('Performance enregistr√©e.')
     } catch (e) {
       setError(e.message || "Impossible d'enregistrer la performance")
     } finally {
@@ -374,8 +374,8 @@ export default function TrainingPage() {
 
   if (loading) {
     return (
-      <AppShell title="Training" subtitle="Chargement de ta séance..." actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab} />}>
-        <SurfaceCard padded><div style={{ color: '#6B7A99' }}>Chargement…</div></SurfaceCard>
+      <AppShell title="Training" subtitle="Chargement de ta s√©ance..." actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab}>}>
+        <SurfaceCard padded><div style={{ color: '#6B7A99' }}>Chargement‚Ä¶</div></SurfaceCard>
       </AppShell>
     )
   }
@@ -383,23 +383,23 @@ export default function TrainingPage() {
   return (
     <AppShell
       title="Training"
-      subtitle="Un espace clair, premium et lisible pour naviguer entre tes séances, sélectionner un mouvement et enregistrer tes performances."
+      subtitle="Un espace clair, premium et lisible pour naviguer entre tes s√©ances, s√©lectionner un mouvement et enregistrer tes performances."
       actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab} />}
     >
       {error ? (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <SurfaceCard padded style={{ borderColor: '#F3C4C4', background: '#FEF2F2' }}>
-            <strong style={{ display: 'block', marginBottom: 6, color: '#B42318' }}>Erreur</strong>
-            <div style={{ color: '#B42318' }}>{error}</div>
+            <strong style={{ display: 'block', marginBottom: 4, color: '#B42318', fontSize: 13 }}>Erreur</strong>
+            <div style={{ color: '#B42318', fontSize: 13 }}>{error}</div>
           </SurfaceCard>
         </div>
       ) : null}
 
       {success ? (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <SurfaceCard padded style={{ borderColor: '#C9E9D5', background: '#F0FBF4' }}>
-            <strong style={{ display: 'block', marginBottom: 6, color: '#16804A' }}>OK</strong>
-            <div style={{ color: '#16804A' }}>{success}</div>
+            <strong style={{ display: 'block', marginBottom: 4, color: '#16804A', fontSize: 13 }}>OK</strong>
+            <div style={{ color: '#16804A', fontSize: 13 }}>{success}</div>
           </SurfaceCard>
         </div>
       ) : null}
@@ -411,19 +411,19 @@ export default function TrainingPage() {
       ) : null}
 
       {activeTab === 'session' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(250px, 0.92fr) minmax(420px, 1.4fr) minmax(260px, 0.92fr)', gap: 18, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(220px, 0.92fr) minmax(380px, 1.4fr) minmax(220px, 0.92fr)', gap: 14, alignItems: 'start' }}>
           <SurfaceCard padded sticky={!isMobile}>
-            <SectionHead title="Séances" caption="Choisis la séance active puis navigue exercice par exercice." />
+            <SectionHead title="S√©ances" caption="Choisis la s√©ance active puis navigue exercice par exercice." />
             {workouts.length ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {workouts.map((workout) => {
                   const active = workout.id === openWorkout
                   return (
-                    <button key={workout.id} type="button" onClick={() => openSession(workout.id)} style={{ width: '100%', textAlign: 'left', borderRadius: 16, border: active ? '1.5px solid #2C64E5' : '1px solid #DCE5F3', background: active ? '#F5F8FF' : '#FFFFFF', padding: '16px 18px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                    <button key={workout.id} type="button" onClick={() => openSession(workout.id)} style={{ width: '100%', textAlign: 'left', borderRadius: 12, border: active ? '1.5px solid #2C64E5' : '1px solid #DCE5F3', background: active ? '#F5F8FF' : '#FFFFFF', padding: '12px 14px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                         <div>
-                          <div style={{ fontWeight: 900, fontSize: 18, color: '#0D1B4E', marginBottom: 4 }}>{workout.name}</div>
-                          <div style={{ color: '#6B7A99', fontSize: 14 }}>{getWorkoutDayLabel(workout.day_of_week)} · {(workout.exercises || []).length} exercice(s)</div>
+                          <div style={{ fontWeight: 900, fontSize: 15, color: '#0D1B4E', marginBottom: 2 }}>{workout.name}</div>
+                          <div style={{ color: '#6B7A99', fontSize: 12 }}>{getWorkoutDayLabel(workout.day_of_week)} ¬∑ {(workout.exercises || []).length} exercice(s)</div>
                         </div>
                         {active ? <StatusBadge tone="accent">Active</StatusBadge> : null}
                       </div>
@@ -431,11 +431,11 @@ export default function TrainingPage() {
                   )
                 })}
               </div>
-            ) : <EmptyPanel title="Aucune séance" description="Ton coach n'a pas encore chargé de séance active." />}
+            ) : <EmptyPanel title="Aucune s√©ance" description="Ton coach n'a pas encore charg√© de s√©ance active." />}
 
-            <div style={{ marginTop: 18 }}>
-              <SectionHead title="Vue rapide" caption="Résumé de la séance sélectionnée." />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+            <div style={{ marginTop: 14 }}>
+              <SectionHead title="Vue rapide" caption="R√©sum√© de la s√©ance s√©lectionn√©e." />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
                 <MiniKpi label="Exos" value={currentWorkout?.exercises?.length || 0} />
                 <MiniKpi label="Blocs" value={currentWorkout ? buildExerciseGroups(currentWorkout.exercises).length : 0} />
                 <MiniKpi label="Logs" value={currentWorkout ? workoutLogCount(currentWorkout, logsByExerciseName) : 0} />
@@ -446,12 +446,12 @@ export default function TrainingPage() {
           <SurfaceCard padded>
             <SectionHead
               title={currentWorkout?.name || 'Programme'}
-              caption={isMobile ? "Appuie sur un exercice : son détail s'ouvre directement juste en dessous." : "Sélectionne un exercice depuis la liste. Le détail s'affiche dans l'espace de travail juste en dessous."}
+              caption={isMobile ? "Appuie sur un exercice : son d√©tail s'ouvre directement juste en dessous." : "S√©lectionne un exercice depuis la liste. Le d√©tail s'affiche dans l'espace de travail juste en dessous."}
               action={currentWorkout?.type ? <StatusBadge tone="default">{currentWorkout.type}</StatusBadge> : null}
             />
 
             {currentWorkout ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {exerciseBlocks.map((block) => {
                   if (block.kind === 'group' && block.groupType === 'Workout Block') {
                     let meta = {}
@@ -462,33 +462,33 @@ export default function TrainingPage() {
                     }
                     const tc = typeColors[meta.type] || '#0D1B4E'
                     return (
-                      <div key={block.id} style={{ borderRadius: 16, overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 20px rgba(13,27,78,0.15)', marginBottom: 4 }}>
-                        <div style={{ background: tc, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 18 }}>🔥</span>
+                      <div key={block.id} style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 20px rgba(13,27,78,0.15)', marginBottom: 2 }}>
+                        <div style={{ background: tc, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 16 }}>ðî</span>
                           <div>
-                            <div style={{ color: 'white', fontWeight: 800, fontSize: 13, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                            <div style={{ color: 'white', fontWeight: 800, fontSize: 11, letterSpacing: '1px', textTransform: 'uppercase' }}>
                               {meta.type || 'Workout Block'}
-                              {meta.cap ? ` — CAP ${meta.cap} min` : ''}
-                              {meta.rounds && meta.rounds > 1 ? ` · ${meta.rounds} rounds` : ''}
+                              {meta.cap ? ` ‚Äî CAP ${meta.cap} min` : ''}
+                              {meta.rounds && meta.rounds > 1 ? ` ¬∑ ${meta.rounds} rounds` : ''}
                             </div>
-                            {meta.objective && <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>🎯 {meta.objective}</div>}
+                            {meta.objective && <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, marginTop: 1 }}>üéØ {meta.objective}</div>}
                           </div>
                         </div>
-                        <div style={{ background: '#0D1B4E', padding: '12px 16px' }}>
+                        <div style={{ background: '#0D1B4E', padding: '10px 12px' }}>
                           {block.exercises.map((e, i) => (
-                            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < block.exercises.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
-                              <span style={{ color: tc, fontSize: 13, fontWeight: 800, minWidth: 16 }}>•</span>
-                              <span style={{ color: 'white', fontSize: 14, fontWeight: 500 }}>{e.name}</span>
+                            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: i < block.exercises.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+                              <span style={{ color: tc, fontSize: 11, fontWeight: 800, minWidth: 14 }}>‚Ä¢</span>
+                              <span style={{ color: 'white', fontSize: 12, fontWeight: 500 }}>{e.name}</span>
                             </div>
                           ))}
                           {meta.coachNote && (
-                            <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.06)', borderRadius: 8, borderLeft: `3px solid ${tc}` }}>
-                              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, letterSpacing: '1px', textTransform: 'uppercase' }}>🧠 Note coach </span>
-                              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 }}>{meta.coachNote}</span>
+                            <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: 6, borderLeft: `3px solid ${tc}` }}>
+                              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase' }}>üßÝ Note coach</span>
+                              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11 }}>{meta.coachNote}</span>
                             </div>
                           )}
                           {meta.rest && meta.rest !== '0s' && (
-                            <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>⏱ Repos entre rounds : {meta.rest}</div>
+                            <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>‚è± Repos entre rounds : {meta.rest}</div>
                           )}
                         </div>
                       </div>
@@ -499,11 +499,11 @@ export default function TrainingPage() {
                     const groupBorderColors = { 'Superset': '#C45C3A', 'Giant Set': '#3A5FD4', 'Drop Set': '#2C64E5' }
                     const gc = groupBorderColors[block.groupType] || '#3A5FD4'
                     return (
-                      <div key={block.id} style={{ borderRadius: 18, border: `2px solid ${gc}22`, overflow: 'hidden', background: 'white' }}>
-                        <div style={{ background: gc, color: 'white', padding: '10px 14px', fontWeight: 800, letterSpacing: '1.2px', fontSize: 13, textTransform: 'uppercase' }}>
-                          ⚡ {block.groupType}
+                      <div key={block.id} style={{ borderRadius: 14, border: `2px solid ${gc}22`, overflow: 'hidden', background: 'white' }}>
+                        <div style={{ background: gc, color: 'white', padding: '8px 12px', fontWeight: 800, letterSpacing: '1.2px', fontSize: 11, textTransform: 'uppercase' }}>
+                          ‚ö° {block.groupType}
                         </div>
-                        <div style={{ padding: 12 }}>
+                        <div style={{ padding: 10 }}>
                           {block.exercises.map((exercise) => (
                             <div key={exercise.id}>
                               <ExerciseRow
@@ -513,7 +513,7 @@ export default function TrainingPage() {
                                 onSelect={() => setSelectedExerciseId(selectedExerciseId === exercise.id ? null : exercise.id)}
                               />
                               {isMobile && selectedExerciseId === exercise.id ? (
-                                <div style={{ marginTop: -2, marginBottom: 12 }}>
+                                <div style={{ marginTop: -2, marginBottom: 10 }}>
                                   <ExerciseWorkspace
                                     exercise={exercise}
                                     input={logInputs[exercise.id] || {}}
@@ -574,66 +574,66 @@ export default function TrainingPage() {
                 ) : null}
               </div>
             ) : (
-              <EmptyPanel title="Aucune séance ouverte" description="Choisis une séance pour faire apparaître le détail premium." />
+              <EmptyPanel title="Aucune s√©ance ouverte" description="Choisis une s√©ance pour faire appara√Ætre le d√©tail premium." />
             )}
           </SurfaceCard>
 
           {!isMobile ? (
             <SurfaceCard padded sticky>
-              <SectionHead title="Historique mouvement" caption="Repères rapides sur l'exercice sélectionné." />
+              <SectionHead title="Historique mouvement" caption="Rep√®res rapides sur l'exercice s√©lectionn√©." />
               {selectedExercise ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {selectedExercise.image_url ? (
-                    <button type="button" onClick={() => setImageLightbox(selectedExercise.image_url)} style={{ padding: 0, border: '1px solid #DCE5F3', borderRadius: 18, overflow: 'hidden', cursor: 'pointer', background: 'white' }}>
+                    <button type="button" onClick={() => setImageLightbox(selectedExercise.image_url)} style={{ padding: 0, border: '1px solid #DCE5F3', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', background: 'white' }}>
                       <img src={selectedExercise.image_url} alt={selectedExercise.name} style={{ width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
                     </button>
                   ) : null}
 
                   <InfoCard title="Exercice" value={selectedExercise.name} />
-                  <InfoCard title="Dernière entrée" value={selectedLatestLog ? `${latestPerfText(selectedLatestLog)} · ${safeDateLabel(getLogDate(selectedLatestLog))}` : "Aucune donnée pour cet exercice."} />
+                  <InfoCard title="Derni√®re entr√©e" value={selectedLatestLog ? `${latestPerfText(selectedLatestLog)} ¬∑ ${safeDateLabel(getLogDate(selectedLatestLog))}` : 'Aucune donn√©e pour cet exercice.'} />
 
-                  <div style={{ border: '1px solid #DCE5F3', borderRadius: 18, background: '#FFFFFF', padding: 14 }}>
-                    <div style={{ fontWeight: 900, color: '#0D1B4E', marginBottom: 10 }}>Historique rapide</div>
+                  <div style={{ border: '1px solid #DCE5F3', borderRadius: 14, background: '#FFFFFF', padding: 12 }}>
+                    <div style={{ fontWeight: 900, color: '#0D1B4E', marginBottom: 8, fontSize: 12 }}>Historique rapide</div>
                     {selectedLogs.length ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {selectedLogs.slice(0, 8).map((log) => (
-                          <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                          <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, alignItems: 'center' }}>
                             <div>
-                              <div style={{ fontWeight: 700, color: '#0D1B4E', fontSize: 14 }}>{latestPerfText(log)}</div>
-                              <div style={{ color: '#6B7A99', fontSize: 12 }}>{safeDateLabel(getLogDate(log))}</div>
+                              <div style={{ fontWeight: 700, color: '#0D1B4E', fontSize: 12 }}>{latestPerfText(log)}</div>
+                              <div style={{ color: '#6B7A99', fontSize: 11 }}>{safeDateLabel(getLogDate(log))}</div>
                             </div>
                             {getLogNote(log) ? <StatusBadge tone="accent">{getLogNote(log)}</StatusBadge> : null}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ color: '#6B7A99', fontSize: 14 }}>Pas encore d'historique exploitable.</div>
+                      <div style={{ color: '#6B7A99', fontSize: 12 }}>Pas encore d'historique exploitable.</div>
                     )}
                   </div>
                 </div>
               ) : (
-                <EmptyPanel title="Sélectionne un exercice" description="Le détail historique s'affiche ici automatiquement." />
+                <EmptyPanel title="S√©lectionne un exercice" description="Le d√©tail historique s'affiche ici automatiquement." />
               )}
             </SurfaceCard>
           ) : null}
         </div>
       ) : (
         <SurfaceCard padded>
-          <SectionHead title="Historique complet" caption="Toutes tes performances enregistrées, triées par exercice." />
+          <SectionHead title="Historique complet" caption="Toutes tes performances enregistr√©es, tri√©es par exercice." />
           {Object.keys(logsByExerciseName).length ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(logsByExerciseName).map(([exerciseName, list]) => (
-                <div key={exerciseName} style={{ border: '1px solid #DCE5F3', borderRadius: 18, background: '#FFFFFF', padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10, alignItems: 'center' }}>
-                    <div style={{ fontWeight: 900, color: '#0D1B4E' }}>{exerciseName}</div>
+                <div key={exerciseName} style={{ border: '1px solid #DCE5F3', borderRadius: 14, background: '#FFFFFF', padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <div style={{ fontWeight: 900, color: '#0D1B4E', fontSize: 13 }}>{exerciseName}</div>
                     <StatusBadge tone="default">{list.length} log(s)</StatusBadge>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {list.slice(0, 8).map((log) => (
-                      <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                      <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, alignItems: 'center' }}>
                         <div>
-                          <div style={{ fontWeight: 700, color: '#0D1B4E', fontSize: 14 }}>{latestPerfText(log)}</div>
-                          <div style={{ color: '#6B7A99', fontSize: 12 }}>{safeDateLabel(getLogDate(log))}</div>
+                          <div style={{ fontWeight: 700, color: '#0D1B4E', fontSize: 12 }}>{latestPerfText(log)}</div>
+                          <div style={{ color: '#6B7A99', fontSize: 11 }}>{safeDateLabel(getLogDate(log))}</div>
                         </div>
                         {getLogNote(log) ? <StatusBadge tone="accent">{getLogNote(log)}</StatusBadge> : null}
                       </div>
@@ -643,7 +643,7 @@ export default function TrainingPage() {
               ))}
             </div>
           ) : (
-            <EmptyPanel title="Aucun log" description="Commence à enregistrer tes performances pour remplir cet historique." />
+            <EmptyPanel title="Aucun log" description="Commence √† enregistrer tes performances pour remplir cet historique." />
           )}
         </SurfaceCard>
       )}
@@ -661,122 +661,28 @@ function ExerciseRow({ exercise, selected, latestLog, onSelect }) {
         textAlign: 'left',
         background: selected ? '#EEF4FF' : '#FAFCFF',
         border: selected ? '2px solid #2C64E5' : '1.5px solid #C5D8F5',
-        borderRadius: 16,
-        padding: 14,
+        borderRadius: 12,
+        padding: 10,
         cursor: 'pointer',
         fontFamily: "'DM Sans',sans-serif",
-        marginBottom: 10,
+        marginBottom: 8,
         boxShadow: selected ? '0 0 0 3px rgba(44,100,229,0.08)' : 'none',
         transition: 'all 0.15s',
       }}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '80px minmax(0,1fr) auto', gap: 14, alignItems: 'center' }}>
-        <div style={{ width: 80, height: 80, borderRadius: 12, overflow: 'hidden', background: '#E8F0FF', border: '1.5px solid #C5D8F5', flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', background: '#E8F0FF', border: '1.5px solid #C5D8F5', flexShrink: 0 }}>
           {exercise.image_url ? (
             <img src={exercise.image_url} alt={exercise.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 26 }}>💪</div>
+            <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 20 }}>üí™</div>
           )}
         </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16, color: '#0D1B4E', marginBottom: 7 }}>{exercise.name}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} × {exercise.reps}</span>
-            <span style={{ fontSize: 12, padding: '3px 9px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20, border: '1px solid #C5D8F5' }}>⏱ {exercise.rest || '—'}</span>
-            {exercise.target_weight ? <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', background: '#FFF3EE', color: '#C45C3A', borderRadius: 20 }}>🎯 {exercise.target_weight}</span> : null}
+          <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', marginBottom: 4 }}>{exercise.name}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} √ó {exercise.reps}</span>
+            <span style={{ fontSize: 11, padding: '2px 7px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20, border: '1px solid #C5D8F5' }}>‚è± {exercise.rest || '‚Äî'}</span>
+            {exercise.target_weight ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', background: '#FFF3EE', color: '#C45C3A', borderRadius: 20 }}>üéØ {exercise.target_weight}</span> : null}
           </div>
-          {latestLog ? <div style={{ color: '#6B8ED6', marginTop: 8, fontSize: 12, fontWeight: 500 }}>🕐 Dernier log : {latestPerfText(latestLog)}</div> : null}
-        </div>
-
-        <div style={{ color: selected ? '#2C64E5' : '#B8CCEF', fontWeight: 800, fontSize: 20 }}>{selected ? '●' : '○'}</div>
-      </div>
-    </button>
-  )
-}
-
-function ExerciseWorkspace({ exercise, input, onInput, onLog, logging, onImageOpen, latestLog, isMobile }) {
-  return (
-    <div style={{ borderRadius: 18, border: '2px solid #2C64E5', background: '#EEF4FF', padding: 18, marginBottom: 12, boxShadow: '0 4px 20px rgba(44,100,229,0.1)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ fontWeight: 900, fontSize: 16, color: '#0D1B4E' }}>{exercise.name}</div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>Ouvert</span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(240px, 0.9fr) minmax(0, 1.1fr)', gap: 14, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {exercise.image_url ? (
-            <button type="button" onClick={() => onImageOpen(exercise.image_url)} style={{ padding: 0, border: '1.5px solid #C5D8F5', borderRadius: 14, overflow: 'hidden', cursor: 'pointer', background: 'white' }}>
-              <img src={exercise.image_url} alt={exercise.name} style={{ width: '100%', aspectRatio: '16 / 10', objectFit: 'cover' }} />
-            </button>
-          ) : null}
-          <div style={{ border: '1.5px solid #C5D8F5', borderRadius: 14, background: 'white', padding: 14 }}>
-            <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 8, fontSize: 13, letterSpacing: '0.5px' }}>PRESCRIPTION</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} × {exercise.reps}</span>
-              <span style={{ fontSize: 13, padding: '4px 10px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20, border: '1px solid #C5D8F5' }}>⏱ {exercise.rest || '—'}</span>
-            </div>
-            <div style={{ color: '#4A6FB5', lineHeight: 1.7, fontSize: 14 }}>{exercise.note || 'Aucune note particulière.'}</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ border: '1.5px solid #C5D8F5', borderRadius: 14, background: 'white', padding: 16 }}>
-            <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 12, fontSize: 13, letterSpacing: '0.5px' }}>MON RÉSULTAT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-              <Field label="Charge"><input value={input.weight || ''} onChange={(e) => onInput('weight', e.target.value)} placeholder="ex. 60 kg" style={inputStyle()} /></Field>
-              <Field label="Reps"><input value={input.reps || ''} onChange={(e) => onInput('reps', e.target.value)} placeholder="ex. 10" style={inputStyle()} /></Field>
-              <Field label="RPE"><input value={input.rpe || ''} onChange={(e) => onInput('rpe', e.target.value)} placeholder="ex. 8" style={inputStyle()} /></Field>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <Field label="Commentaire">
-                <textarea value={input.note || ''} onChange={(e) => onInput('note', e.target.value)} placeholder="Ressenti, difficulté, repère utile…" style={{ ...inputStyle(), minHeight: 90, resize: 'vertical' }} />
-              </Field>
-            </div>
-            <button type="button" onClick={onLog} disabled={logging}
-              style={{ marginTop: 12, width: '100%', border: 'none', background: logging ? '#7FA3E8' : '#2C64E5', color: 'white', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 800, cursor: logging ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
-              {logging ? 'Enregistrement…' : '✓ Enregistrer'}
-            </button>
-          </div>
-          {latestLog && (
-            <div style={{ border: '1.5px solid #C5D8F5', borderRadius: 14, background: 'white', padding: 14 }}>
-              <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 12, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Dernière perf</div>
-              <div style={{ color: '#2C64E5', fontWeight: 700, fontSize: 15 }}>{latestPerfText(latestLog)}</div>
-              <div style={{ color: '#6B8ED6', fontSize: 12, marginTop: 2 }}>{safeDateLabel(getLogDate(latestLog))}{getLogNote(latestLog) ? ` · ${getLogNote(latestLog)}` : ''}</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function inputStyle() {
-  return {
-    width: '100%',
-    boxSizing: 'border-box',
-    padding: '12px 14px',
-    borderRadius: 14,
-    border: '1.5px solid #B8CCEF',
-    background: '#F0F5FF',
-    outline: 'none',
-    fontSize: 14,
-    color: '#0D1B4E',
-    fontFamily: "'DM Sans',sans-serif",
-  }
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: 12, fontWeight: 800, color: '#6B7A99', marginBottom: 6 }}>{label}</div>
-      {children}
-    </div>
-  )
-}
-
-function MiniKpi({ label, value }) {
-  return <div style={{ border: '1.5px solid #C5D8F5', borderRadius: 14, background: '#EEF4FF', padding: 12 }}><div style={{ fontSize: 11, color: '#6B8ED6', textTransform: 'uppercase', letterSpacing: '1.1px', marginBottom: 6, fontWeight: 700 }}>{label}</div><div style={{ fontWeight: 900, fontSize: 26, color: '#0D1B4E' }}>{value}</div></div>
-}
-
-function InfoCard({ title, value }) {
-  return <div style={{ border: '1.5px solid #C5D8F5', borderRadius: 14, background: 'white', padding: 14 }}><div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 8, fontSize: 12, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{title}</div><div style={{ color: '#4A6FB5', lineHeight: 1.7, fontSize: 14 }}>{value}</div></div>
-}
+          {latestLog ? <div style={{ color: '#6B8ED6', marginTop: 4, fontSize: 11, fontWeight: 500 }}>üïê Dernier log : {
