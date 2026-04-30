@@ -1,14 +1,26 @@
+import { useEffect, useState } from 'react'
+
 export default function SurfaceCard({ children, padded = true, sticky = false, style = {} }) {
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 980)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
     <div
       style={{
         background: 'rgba(255,255,255,0.9)',
         border: '1px solid #DCE5F3',
-        borderRadius: 22,
+        borderRadius: isMobile ? 16 : 22,
         boxShadow: '0 10px 30px rgba(13,27,78,0.06)',
-        padding: padded ? 18 : 0,
+        // Padding réduit sur mobile (12px au lieu de 18px)
+        padding: padded ? (isMobile ? 12 : 18) : 0, 
         position: sticky ? 'sticky' : 'relative',
-        top: sticky ? 20 : 'auto',
+        top: sticky ? (isMobile ? 10 : 20) : 'auto',
         backdropFilter: 'blur(8px)',
         ...style,
       }}
