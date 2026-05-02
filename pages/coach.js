@@ -1411,7 +1411,7 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
             <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Exercice</label>
             <input value={ex.name} onChange={e => onUpdate(wId, ex.id, 'name', e.target.value)}
-              style={{ ...ci, fontWeight: '700', fontSize: '15px', padding: '10px 12px' }} />
+              style={{ ...ci, fontWeight: '700', fontSize: '15px', padding: '15px 20px' }} />
           </div>
           <button onClick={() => onDelete(wId, ex.id)}
             style={{ width: '30px', height: '30px', borderRadius: '7px', border: 'none', background: 'rgba(196,92,58,0.12)', color: '#C45C3A', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '18px' }}>×</button>
