@@ -134,7 +134,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '2px solid #E8ECFA', paddingBottom: '0' }}>
           {[
             { id: 'dashboard', label: '📊 Tableau de bord' },
-            { id: 'recipe', label: '🍽️ Recette du jour' },
+            { id: 'recipe', label: '🍽️ Recette du de la semaine' },
           ].map(tab => (
             <button
               key={tab.id}
