@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: '/nutrition', label: 'Nutrition', icon: '🥗' },
   { href: '/bilan', label: 'Bilan', icon: '📋' },
   { href: '/messages', label: 'Messages', icon: '💬' },
+  { href: '/weight', label: 'Poids', icon: '⚖️' },
 ]
 
 export default function AppNav({ profile }) {
