@@ -402,27 +402,43 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   const confirmAddExercise = async (name, imageUrl) => {
-    if (!exPicker || !name.trim()) return
+  if (!exPicker || !name.trim()) return
 
-    const { workoutId, groupType, groupId } = exPicker
-    const w = workouts.find(w => w.id === workoutId)
-    const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
+  const { workoutId, groupType, groupId } = exPicker
+  
+  // Debug
+  console.log('=== DÉBOGAGE INSERTION EXERCICE ===')
+  console.log('workoutId reçu:', workoutId)
+  console.log('type de workoutId:', typeof workoutId)
+  console.log('groupId:', groupId)
+  console.log('groupType:', groupType)
 
-    // INSERT PROPRE EN UNE SEULE REQUÊTE
-    const payload = {
-      workout_id: workoutId,
-      name: name.trim(),
-      sets: 3,
-      reps: '10',
-      rest: '90s',
-      note: '',
-      target_weight: '',
-      order_index: w?.exercises?.length || 0,
-      group_type: groupType || 'Normal',
-      group_id: gid,
-      image_url: imageUrl || null,
-    }
+  const w = workouts.find(w => w.id === workoutId)
+  if (!w) {
+    console.error('Workout non trouvé avec ID:', workoutId)
+    alert('Erreur: Séance introuvable')
+    return
+  }
 
+  const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
+
+  // Construction du payload
+  const payload = {
+    workout_id: workoutId,
+    name: name.trim(),
+    sets: 3,
+    reps: '10',
+    rest: '90s',
+    note: '',
+    target_weight: '',
+    order_index: w?.exercises?.length || 0,
+    group_type: groupType || 'Normal',
+    group_id: gid
+  }
+
+  console.log('Payload final:', JSON.stringify(payload, null, 2))
+
+  try {
     const { data, error } = await supabase
       .from('exercises')
       .insert(payload)
@@ -430,10 +446,15 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
       .single()
 
     if (error) {
-      console.error('Erreur insertion:', error)
-      alert('Erreur: ' + error.message)
+      console.error('Erreur Supabase détaillée:', error)
+      console.error('Code erreur:', error.code)
+      console.error('Message:', error.message)
+      console.error('Détails:', error.details)
+      alert(`Erreur: ${error.message}\n${error.details || ''}`)
       return
     }
+
+    console.log('Exercice inséré avec succès:', data)
 
     if (data) {
       setWorkouts(prev => prev.map(w => {
@@ -451,7 +472,11 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     }
 
     setExPicker(null)
+  } catch (err) {
+    console.error('Exception catch:', err)
+    alert('Erreur inattendue: ' + err.message)
   }
+}
 
   const [wbPicker, setWbPicker] = useState(null)
   const [wbForm, setWbForm] = useState({
