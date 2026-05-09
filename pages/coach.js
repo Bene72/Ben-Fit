@@ -401,20 +401,11 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     setExPickerFree('')
   }
 
-  const confirmAddExercise = async (name, imageUrl) => {
+ const confirmAddExercise = async (name, imageUrl) => {
   if (!exPicker || !name.trim()) return
-
   const { workoutId, groupType, groupId } = exPicker
-
   const w = workouts.find(w => w.id === workoutId)
-  if (!w) {
-    alert('Erreur: Séance introuvable')
-    return
-  }
-
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
-
-  // Payload SANS aucune colonne image
   const payload = {
     workout_id: workoutId,
     name: name.trim(),
@@ -423,42 +414,26 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     rest: '90s',
     note: '',
     target_weight: '',
-    order_index: w.exercises?.length || 0,
+    order_index: w?.exercises?.length || 0,
     group_type: groupType || 'Normal',
-    group_id: gid
+    group_id: gid,
+    image_url: imageUrl || null
   }
-
-  try {
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert(payload)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Erreur:', error)
-      alert(`Erreur: ${error.message}`)
-      return
-    }
-
-    if (data) {
-      setWorkouts(prev => prev.map(w => {
-        if (w.id === workoutId) {
-          return {
-            ...w,
-            exercises: [...(w.exercises || []), data]
-              .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-          }
-        }
-        return w
-      }))
-    }
-
-    setExPicker(null)
-  } catch (err) {
-    console.error('Exception:', err)
-    alert('Erreur inattendue: ' + err.message)
+  const { data, error } = await supabase.from('exercises').insert(payload).select().single()
+  if (error) {
+    console.error('Erreur:', error)
+    alert('Erreur: ' + error.message)
+    return
   }
+  if (data) {
+    setWorkouts(prev => prev.map(w => {
+      if (w.id === workoutId) {
+        return { ...w, exercises: [...(w.exercises || []), data] }
+      }
+      return w
+    }))
+  }
+  setExPicker(null)
 }
 
   const [wbPicker, setWbPicker] = useState(null)
