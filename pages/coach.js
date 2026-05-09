@@ -401,11 +401,25 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     setExPickerFree('')
   }
 
-  const confirmAddExercise = async (name, imageUrl) => {
+ const confirmAddExercise = async (name, imageUrl) => {
   if (!exPicker || !name.trim()) return
 
   const { workoutId, groupType, groupId } = exPicker
+  
+  // Vérification : est-ce que workoutId est un UUID ?
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(workoutId)) {
+    console.error('workoutId invalide:', workoutId)
+    alert('Erreur: ID de séance invalide')
+    return
+  }
+
   const w = workouts.find(w => w.id === workoutId)
+  if (!w) {
+    alert('Erreur: Séance non trouvée')
+    return
+  }
+
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
   const payload = {
@@ -416,11 +430,13 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     rest: '90s',
     note: '',
     target_weight: '',
-    order_index: w?.exercises?.length || 0,
+    order_index: w.exercises?.length || 0,
     group_type: groupType || 'Normal',
     group_id: gid,
     image_url: imageUrl || null,
   }
+
+  console.log('Insertion payload:', payload)
 
   const { data, error } = await supabase
     .from('exercises')
@@ -429,8 +445,8 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     .single()
 
   if (error) {
-    console.error('Erreur insertion:', error)
-    alert('Erreur: ' + error.message)
+    console.error('Erreur complète:', error)
+    alert(`Erreur: ${error.message}\nDétails: ${error.details || 'Non spécifié'}`)
     return
   }
 
