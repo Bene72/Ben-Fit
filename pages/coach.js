@@ -414,44 +414,35 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-  // Construction du payload - utilise "image" au lieu de "image_url"
-  const payload = {
-    workout_id: workoutId,
-    name: name.trim(),
-    sets: 3,
-    reps: '10',
-    rest: '90s',
-    note: '',
-    target_weight: '',
-    order_index: w.exercises?.length || 0,
-    group_type: groupType || 'Normal',
-    group_id: gid,
-    image: imageUrl || null  // ← utilise "image"
-  }
-
-  console.log('Payload envoyé:', payload)
-
   try {
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert(payload)
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('insert_exercise', {
+      p_workout_id: workoutId,
+      p_name: name.trim(),
+      p_sets: 3,
+      p_reps: '10',
+      p_rest: '90s',
+      p_note: '',
+      p_target_weight: '',
+      p_order_index: w.exercises?.length || 0,
+      p_group_type: groupType || 'Normal',
+      p_group_id: gid,
+      p_image_url: imageUrl || null
+    })
 
     if (error) {
-      console.error('Erreur Supabase:', error)
+      console.error('Erreur RPC:', error)
       alert(`Erreur: ${error.message}`)
       return
     }
 
-    console.log('Exercice inséré:', data)
+    console.log('Exercice inséré via RPC:', data)
 
-    if (data) {
+    if (data && data[0]) {
       setWorkouts(prev => prev.map(w => {
         if (w.id === workoutId) {
           return {
             ...w,
-            exercises: [...(w.exercises || []), data]
+            exercises: [...(w.exercises || []), data[0]]
               .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
           }
         }
