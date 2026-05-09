@@ -1,6 +1,6 @@
 import NutritionClientView from './nutrition'
 import { useEffect, useState, useRef } from 'react'
-import { useRouter }next/router'
+import { useRouter }from next/router'
 import { supabase } from '../lib/supabase'
 import Head from 'next/head'
 
