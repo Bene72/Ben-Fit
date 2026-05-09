@@ -13,7 +13,6 @@ const TRAINING_TABS = [
   { label: 'Historique', value: 'history' },
 ]
 
-
 // ========== CORRECTION DATE LOCALE (timezone-safe) ==========
 function getLocalDateString(date) {
   const d = new Date(date)
@@ -169,7 +168,6 @@ function getWeekDays(offset = 0) {
 
 /** Mappe day_of_week (1=Lun…7=Dim) vers getDay() JS (0=Dim…6=Sam) */
 function dowToJS(dow) {
-  // 1=Lun→1, 7=Dim→0
   return dow === 7 ? 0 : dow
 }
 
@@ -206,8 +204,11 @@ export default function TrainingPage() {
   const [loggingIds, setLoggingIds] = useState({})
   const [imageLightbox, setImageLightbox] = useState(null)
 
+  // ── NOUVEAU : Cycle actuel et historique archivé ──
+  const [currentCycleName, setCurrentCycleName] = useState('')
+  const [archivedWorkouts, setArchivedWorkouts] = useState([])
+
   // ── Calendrier ─────────────────────────────────────────────
-  // weekOffset=0 → semaine courante, -1 → semaine passée, etc.
   const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
@@ -230,12 +231,31 @@ export default function TrainingPage() {
         if (!active) return
         setUser(currentUser)
 
+        // Charger les workouts actifs et les logs en parallèle
         const [{ data: workoutData, error: workoutError }, logsData] = await Promise.all([
           supabase.from('workouts').select('*, exercises(*)').eq('client_id', currentUser.id).eq('is_archived', false).order('day_of_week', { ascending: true }),
           loadLogsForClient(currentUser.id),
         ])
 
         if (workoutError) throw workoutError
+
+        // Charger le profil pour récupérer le nom du cycle actuel
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('current_cycle_name')
+          .eq('id', currentUser.id)
+          .single()
+        setCurrentCycleName(profileData?.current_cycle_name || '')
+
+        // Charger les workouts archivés
+        const { data: archivedData } = await supabase
+          .from('workouts')
+          .select('*, exercises(*)')
+          .eq('client_id', currentUser.id)
+          .eq('is_archived', true)
+          .order('archived_at', { ascending: false })
+        setArchivedWorkouts(archivedData || [])
+
         if (!active) return
 
         const mapped = (workoutData || []).map((workout) => ({ ...workout, exercises: normalizeExercises(workout.exercises || []) }))
@@ -249,7 +269,7 @@ export default function TrainingPage() {
         setWorkouts(mapped)
         setLogsByExerciseName(groupedLogs)
 
-        // Prefill depuis valeurs coach — chaque jour repart des prescriptions
+        // Prefill depuis valeurs coach
         const prefills = {}
         mapped.forEach((workout) => {
           ;(workout.exercises || []).forEach((exercise) => {
@@ -263,8 +283,6 @@ export default function TrainingPage() {
         })
         setLogInputs(prefills)
 
-        // Sur mobile, on n'ouvre pas de séance par défaut pour afficher la liste d'abord
-        // Sur desktop, on ouvre la première
         if (mapped.length && !isMobile) {
           setOpenWorkout(mapped[0].id)
           if (mapped[0].exercises?.length) setSelectedExerciseId(mapped[0].exercises[0].id)
@@ -278,7 +296,7 @@ export default function TrainingPage() {
     }
     boot()
     return () => { active = false }
-  }, [router])
+  }, [router, isMobile])
 
   const currentWorkout = useMemo(() => workouts.find((workout) => workout.id === openWorkout) || null, [workouts, openWorkout])
   const selectedExercise = useMemo(() => {
@@ -293,7 +311,6 @@ export default function TrainingPage() {
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset])
   const todayStr = useMemo(() => getTodayLocalString(), [])
 
-  // Map jsDay → workout(s) de ce jour
   const workoutByJsDay = useMemo(() => {
     const map = {}
     workouts.forEach(w => {
@@ -304,23 +321,19 @@ export default function TrainingPage() {
     return map
   }, [workouts])
 
-  // Sélection du jour dans le calendrier
   const [selectedCalDay, setSelectedCalDay] = useState(null)
 
-  // Au montage, pré-sélectionner aujourd'hui si un workout correspond
   useEffect(() => {
     if (workouts.length && selectedCalDay === null) {
       const todayJsDay = new Date().getDay()
       const todayWorkouts = workoutByJsDay[todayJsDay] || []
       if (todayWorkouts.length) {
-        setSelectedCalDay(new Date().toISOString().split('T')[0])
-        // Ouvrir la séance du jour automatiquement
+        setSelectedCalDay(getTodayLocalString())
         openSession(todayWorkouts[0].id)
       }
     }
   }, [workouts, workoutByJsDay])
 
-  // Workouts du jour sélectionné dans le calendrier
   const calDayWorkouts = useMemo(() => {
     if (!selectedCalDay) return []
     const parts = selectedCalDay.split('-'); const jsDay = new Date(+parts[0], +parts[1]-1, +parts[2]).getDay()
@@ -351,7 +364,6 @@ export default function TrainingPage() {
       const payload = { client_id: user.id, workout_id: exercise.workout_id || null, exercise_id: exercise.id || null, exercise_name: exercise.name, weight_used: input.weight ? String(input.weight) : null, reps_done: input.reps ? String(input.reps) : null, notes: noteParts.length ? noteParts.join(' · ') : null, logged_at: new Date().toISOString() }
       const { row } = await insertWorkoutLogWithFallback(payload)
       setLogsByExerciseName((prev) => ({ ...prev, [exercise.name]: [row, ...(prev[exercise.name] || [])] }))
-      // Reset aux valeurs coach après log — chaque série est indépendante
       setLogInputs((prev) => ({ ...prev, [exercise.id]: {
         weight: exercise.target_weight || '',
         reps: exercise.reps || '',
@@ -377,10 +389,9 @@ export default function TrainingPage() {
 
       {activeTab === 'session' ? (
         <>
-          {/* LAYOUT MOBILE : Affiche soit la liste, soit le détail de la séance sélectionnée */}
           {isMobile ? (
             openWorkout ? (
-              // VUE DÉTAIL SÉANCE (prend tout l'écran)
+              // VUE DÉTAIL SÉANCE (mobile)
               <div>
                 <button onClick={() => setOpenWorkout(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: '#6B7A99', fontSize: 13, fontWeight: 700, padding: '4px 0 12px', cursor: 'pointer' }}>
                   ← Retour aux séances
@@ -442,12 +453,18 @@ export default function TrainingPage() {
                 </SurfaceCard>
               </div>
             ) : (
-              // VUE LISTE DES SÉANCES + CALENDRIER
+              // VUE LISTE DES SÉANCES MOBILE + CALENDRIER
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Affichage du cycle actuel */}
+                {currentCycleName && (
+                  <div style={{ background: '#EEF4FF', borderRadius: 10, padding: '8px 12px', border: '1px solid #2C64E5' }}>
+                    <span style={{ fontSize: 11, color: '#2C64E5', fontWeight: 700 }}>🏆 Cycle actuel</span>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E' }}>{currentCycleName}</div>
+                  </div>
+                )}
 
                 {/* ── CALENDRIER HEBDOMADAIRE ── */}
                 <div style={{ background: 'white', borderRadius: 16, border: '1px solid #DCE5F3', overflow: 'hidden', boxShadow: '0 2px 8px rgba(13,27,78,0.06)' }}>
-                  {/* Header semaine */}
                   <div style={{ background: '#0D1B4E', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
                     <div style={{ color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
@@ -457,7 +474,6 @@ export default function TrainingPage() {
                     <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
                   </div>
 
-                  {/* Grille 7 jours */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '10px 8px 12px', gap: 4 }}>
                     {weekDays.map((day) => {
                       const dateStr = getLocalDateString(day)
@@ -482,15 +498,12 @@ export default function TrainingPage() {
                             transition: 'all 0.15s',
                             fontFamily: "'DM Sans',sans-serif",
                           }}>
-                          {/* Jour abrégé */}
                           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: isSelected ? 'rgba(255,255,255,0.75)' : '#6B7A99' }}>
                             {DAY_LABELS_SHORT[jsDay]}
                           </span>
-                          {/* Numéro du jour */}
                           <span style={{ fontSize: 15, fontWeight: isToday || isSelected ? 900 : 600, color: isSelected ? 'white' : isToday ? '#2C64E5' : isPast ? '#B0B8CC' : '#0D1B4E', lineHeight: 1 }}>
                             {day.getDate()}
                           </span>
-                          {/* Indicateurs */}
                           <div style={{ display: 'flex', gap: 2, height: 6, alignItems: 'center' }}>
                             {hasWorkout && <div style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.7)' : '#2C64E5' }} />}
                             {hasLogs && <div style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.9)' : '#3A7A5A' }} />}
@@ -500,7 +513,6 @@ export default function TrainingPage() {
                     })}
                   </div>
 
-                  {/* Légende */}
                   <div style={{ display: 'flex', gap: 14, padding: '0 16px 12px', justifyContent: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7A99' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#2C64E5' }} /> Séance programmée
@@ -549,7 +561,6 @@ export default function TrainingPage() {
                         return (
                           <button key={workout.id} type="button" onClick={() => openSession(workout.id)}
                             style={{ width: '100%', textAlign: 'left', borderRadius: 10, border: isActive ? '1.5px solid #2C64E5' : '1px solid #DCE5F3', background: isActive ? '#F5F8FF' : '#FAFBFF', padding: '10px 12px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {/* Cercle jour */}
                             <div style={{ width: 38, height: 38, borderRadius: 10, background: isActive ? '#2C64E5' : '#EEF4FF', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: isActive ? 'rgba(255,255,255,0.7)' : '#6B7A99', lineHeight: 1 }}>{DAY_LABELS_SHORT[jsDay]}</span>
                               <span style={{ fontSize: 15, fontWeight: 900, color: isActive ? 'white' : '#0D1B4E', lineHeight: 1.1 }}>{dowToJS(workout.day_of_week) === new Date().getDay() ? new Date().getDate() : ''}</span>
@@ -566,13 +577,19 @@ export default function TrainingPage() {
                     </div>
                   ) : <EmptyPanel title="Aucune séance" description="Ton coach n'a pas encore chargé de séance active." />}
                 </div>
-
               </div>
             )
           ) : (
             // LAYOUT DESKTOP (3 colonnes)
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 0.92fr) minmax(380px, 1.4fr) minmax(220px, 0.92fr)', gap: 14, alignItems: 'start' }}>
               <SurfaceCard padded sticky>
+                {/* Affichage du cycle actuel */}
+                {currentCycleName && (
+                  <div style={{ background: '#EEF4FF', borderRadius: 10, padding: '8px 12px', marginBottom: 12, border: '1px solid #2C64E5' }}>
+                    <span style={{ fontSize: 11, color: '#2C64E5', fontWeight: 700 }}>🏆 Cycle actuel</span>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E' }}>{currentCycleName}</div>
+                  </div>
+                )}
                 <SectionHead title="Séances" caption="Choisis la séance active puis navigue exercice par exercice." />
                 {workouts.length ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -701,6 +718,7 @@ export default function TrainingPage() {
           todayStr={todayStr}
           logsByExerciseName={logsByExerciseName}
           workoutByJsDay={workoutByJsDay}
+          archivedWorkouts={archivedWorkouts}
           isMobile={isMobile}
         />
       )}
@@ -708,16 +726,14 @@ export default function TrainingPage() {
   )
 }
 
-// ── HISTORIQUE CALENDRIER ─────────────────────────────────────
-function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsByExerciseName, workoutByJsDay, isMobile }) {
+// ── HISTORIQUE CALENDRIER (modifié pour inclure les cycles archivés) ──
+function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsByExerciseName, workoutByJsDay, archivedWorkouts, isMobile }) {
   const [selectedDay, setSelectedDay] = useState(null)
 
-  // Init : sélectionner aujourd'hui au montage
   useEffect(() => {
     setSelectedDay(todayStr)
   }, [todayStr])
 
-  // Logs du jour sélectionné
   const logsForDay = useMemo(() => {
     if (!selectedDay) return {}
     const result = {}
@@ -731,7 +747,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
     return result
   }, [selectedDay, logsByExerciseName])
 
-  // Jours qui ont des logs
   const daysWithLogs = useMemo(() => {
     const days = new Set()
     Object.values(logsByExerciseName).forEach(logs => {
@@ -750,7 +765,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SurfaceCard padded>
-        {/* Navigation semaine */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: '#EEF4FF', border: '1px solid #C5D8F5', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, color: '#2C64E5', fontSize: 16 }}>‹</button>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1B4E', textAlign: 'center' }}>
@@ -760,7 +774,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
           <button onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0} style={{ background: weekOffset >= 0 ? '#F5F5F5' : '#EEF4FF', border: '1px solid #C5D8F5', borderRadius: 8, padding: '6px 12px', cursor: weekOffset >= 0 ? 'not-allowed' : 'pointer', fontWeight: 700, color: weekOffset >= 0 ? '#CCC' : '#2C64E5', fontSize: 16 }}>›</button>
         </div>
 
-        {/* Grille 7 jours */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
           {weekDays.map(day => {
             const dateStr = getLocalDateString(day)
@@ -794,7 +807,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
                 <div style={{ fontSize: 15, fontWeight: 900, color: isSelected ? 'white' : isToday ? '#2C64E5' : '#0D1B4E' }}>
                   {day.getDate()}
                 </div>
-                {/* Indicateurs */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, minHeight: 6 }}>
                   {hasLogs && <div style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.9)' : '#2C64E5' }} />}
                   {hasWorkout && !hasLogs && <div style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.5)' : '#C5D8F5' }} />}
@@ -804,7 +816,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
           })}
         </div>
 
-        {/* Légende */}
         <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 10, color: '#6B8ED6' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2C64E5' }} />
@@ -817,7 +828,6 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
         </div>
       </SurfaceCard>
 
-      {/* Logs du jour sélectionné */}
       <SurfaceCard padded>
         <SectionHead
           title={selectedDayLabel || 'Sélectionne un jour'}
@@ -828,12 +838,10 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(logsForDay).map(([exName, logs]) => (
               <div key={exName} style={{ border: '1.5px solid #C5D8F5', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
-                {/* Header exo */}
                 <div style={{ background: '#EEF4FF', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontWeight: 800, color: '#0D1B4E', fontSize: 13 }}>{exName}</div>
                   <StatusBadge tone="default">{logs.length} série(s)</StatusBadge>
                 </div>
-                {/* Logs */}
                 <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {logs.map((log, i) => {
                     const perf = latestPerfText(log)
@@ -861,11 +869,78 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
           />
         )}
       </SurfaceCard>
+
+      {/* Section cycles archivés */}
+      <ArchivedCyclesView archivedWorkouts={archivedWorkouts} />
     </div>
   )
 }
 
-// COMPOSANT EXERCICE COMPACT
+// ── COMPOSANT POUR AFFICHER L'HISTORIQUE DES CYCLES ARCHIVÉS ──
+function ArchivedCyclesView({ archivedWorkouts }) {
+  const [openCycle, setOpenCycle] = useState(null)
+  const [openWorkout, setOpenWorkout] = useState(null)
+
+  // Grouper par cycle_name ou par archived_at si pas de nom
+  const cycles = useMemo(() => {
+    const groups = {}
+    archivedWorkouts.forEach(w => {
+      const key = w.cycle_name || `Archivé le ${new Date(w.archived_at).toLocaleDateString('fr-FR')}`
+      if (!groups[key]) groups[key] = []
+      groups[key].push(w)
+    })
+    return Object.entries(groups).map(([name, workouts]) => ({ name, workouts }))
+  }, [archivedWorkouts])
+
+  if (archivedWorkouts.length === 0) return null
+
+  return (
+    <SurfaceCard padded>
+      <SectionHead title="📚 Cycles précédents" caption="Tes anciens programmes d'entraînement" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {cycles.map(cycle => (
+          <div key={cycle.name} style={{ border: '1px solid #DCE5F3', borderRadius: 12, overflow: 'hidden' }}>
+            <button
+              onClick={() => setOpenCycle(openCycle === cycle.name ? null : cycle.name)}
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: '#F8FAFF', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <span style={{ fontWeight: 800, color: '#0D1B4E' }}>{cycle.name}</span>
+              <span>{openCycle === cycle.name ? '▲' : '▼'}</span>
+            </button>
+            {openCycle === cycle.name && (
+              <div style={{ padding: '12px 16px', background: 'white', borderTop: '1px solid #E8ECF5' }}>
+                {cycle.workouts.map(workout => (
+                  <div key={workout.id} style={{ marginBottom: 12 }}>
+                    <button
+                      onClick={() => setOpenWorkout(openWorkout === workout.id ? null : workout.id)}
+                      style={{ width: '100%', textAlign: 'left', background: '#FAFBFF', border: '1px solid #DCE5F3', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}
+                    >
+                      <div style={{ fontWeight: 700 }}>{workout.name}</div>
+                      <div style={{ fontSize: 11, color: '#6B7A99' }}>{getWorkoutDayLabel(workout.day_of_week)} · {(workout.exercises || []).length} exos</div>
+                    </button>
+                    {openWorkout === workout.id && (
+                      <div style={{ marginTop: 8, paddingLeft: 16, borderLeft: '2px solid #2C64E5' }}>
+                        {(workout.exercises || []).map(ex => (
+                          <div key={ex.id} style={{ padding: '8px 0', borderBottom: '1px solid #F0F5FF' }}>
+                            <div style={{ fontWeight: 600 }}>{ex.name}</div>
+                            <div style={{ fontSize: 12, color: '#6B7A99' }}>{ex.sets} × {ex.reps} · {ex.rest}</div>
+                            {ex.note && <div style={{ fontSize: 11, color: '#4A6FB5' }}>📝 {ex.note}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </SurfaceCard>
+  )
+}
+
+// COMPOSANT EXERCICE COMPACT (inchangé)
 function CompactExerciseRow({ exercise, selected, latestLog, onSelect, isMobile }) {
   return (
     <button
