@@ -402,56 +402,55 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   const confirmAddExercise = async (name, imageUrl) => {
-    if (!exPicker || !name.trim()) return
+  if (!exPicker || !name.trim()) return
 
-    const { workoutId, groupType, groupId } = exPicker
-    const w = workouts.find(w => w.id === workoutId)
-    const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
+  const { workoutId, groupType, groupId } = exPicker
+  const w = workouts.find(w => w.id === workoutId)
+  const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-    // INSERT PROPRE EN UNE SEULE REQUÊTE
-    const payload = {
-      workout_id: workoutId,
-      name: name.trim(),
-      sets: 3,
-      reps: '10',
-      rest: '90s',
-      note: '',
-      target_weight: '',
-      order_index: w?.exercises?.length || 0,
-      group_type: groupType || 'Normal',
-      group_id: gid,
-      image_url: imageUrl || null,
-    }
-
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert(payload)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Erreur insertion:', error)
-      alert('Erreur: ' + error.message)
-      return
-    }
-
-    if (data) {
-      setWorkouts(prev => prev.map(w => {
-        if (w.id === workoutId) {
-          return {
-            ...w,
-            exercises: [
-              ...(w.exercises || []),
-              data
-            ].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-          }
-        }
-        return w
-      }))
-    }
-
-    setExPicker(null)
+  const payload = {
+    workout_id: workoutId,
+    name: name.trim(),
+    sets: 3,
+    reps: '10',
+    rest: '90s',
+    note: '',
+    target_weight: '',
+    order_index: w?.exercises?.length || 0,
+    group_type: groupType || 'Normal',
+    group_id: gid,
+    image_url: imageUrl || null,
   }
+
+  const { data, error } = await supabase
+    .from('exercises')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Erreur insertion:', error)
+    alert('Erreur: ' + error.message)
+    return
+  }
+
+  if (data) {
+    setWorkouts(prev => prev.map(w => {
+      if (w.id === workoutId) {
+        return {
+          ...w,
+          exercises: [
+            ...(w.exercises || []),
+            data
+          ].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        }
+      }
+      return w
+    }))
+  }
+
+  setExPicker(null)
+}
 
   const [wbPicker, setWbPicker] = useState(null)
   const [wbForm, setWbForm] = useState({
