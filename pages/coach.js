@@ -405,24 +405,16 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   if (!exPicker || !name.trim()) return
 
   const { workoutId, groupType, groupId } = exPicker
-  
-  // Debug
-  console.log('=== DÉBOGAGE INSERTION EXERCICE ===')
-  console.log('workoutId reçu:', workoutId)
-  console.log('type de workoutId:', typeof workoutId)
-  console.log('groupId:', groupId)
-  console.log('groupType:', groupType)
 
   const w = workouts.find(w => w.id === workoutId)
   if (!w) {
-    console.error('Workout non trouvé avec ID:', workoutId)
     alert('Erreur: Séance introuvable')
     return
   }
 
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-  // Construction du payload
+  // Construction du payload - utilise "image" au lieu de "image_url"
   const payload = {
     workout_id: workoutId,
     name: name.trim(),
@@ -431,12 +423,13 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     rest: '90s',
     note: '',
     target_weight: '',
-    order_index: w?.exercises?.length || 0,
+    order_index: w.exercises?.length || 0,
     group_type: groupType || 'Normal',
-    group_id: gid
+    group_id: gid,
+    image: imageUrl || null  // ← utilise "image"
   }
 
-  console.log('Payload final:', JSON.stringify(payload, null, 2))
+  console.log('Payload envoyé:', payload)
 
   try {
     const { data, error } = await supabase
@@ -446,25 +439,20 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
       .single()
 
     if (error) {
-      console.error('Erreur Supabase détaillée:', error)
-      console.error('Code erreur:', error.code)
-      console.error('Message:', error.message)
-      console.error('Détails:', error.details)
-      alert(`Erreur: ${error.message}\n${error.details || ''}`)
+      console.error('Erreur Supabase:', error)
+      alert(`Erreur: ${error.message}`)
       return
     }
 
-    console.log('Exercice inséré avec succès:', data)
+    console.log('Exercice inséré:', data)
 
     if (data) {
       setWorkouts(prev => prev.map(w => {
         if (w.id === workoutId) {
           return {
             ...w,
-            exercises: [
-              ...(w.exercises || []),
-              data
-            ].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+            exercises: [...(w.exercises || []), data]
+              .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
           }
         }
         return w
@@ -473,7 +461,7 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 
     setExPicker(null)
   } catch (err) {
-    console.error('Exception catch:', err)
+    console.error('Exception:', err)
     alert('Erreur inattendue: ' + err.message)
   }
 }
