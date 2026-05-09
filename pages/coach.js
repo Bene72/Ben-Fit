@@ -406,19 +406,19 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   const { workoutId, groupType, groupId } = exPicker
   const w = workouts.find(w => w.id === workoutId)
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
-  const payload = {
-    workout_id: workoutId,
-    name: name.trim(),
-    sets: 3,
-    reps: '10',
-    rest: '90s',
-    note: '',
-    target_weight: '',
-    order_index: w?.exercises?.length || 0,
-    group_type: groupType || 'Normal',
-    group_id: gid,
-    image_url: imageUrl || null
-  }
+ const payload = {
+  workout_id: workoutId,
+  name: name.trim(),
+  sets: 3,
+  reps: '10',
+  rest: '90s',
+  note: '',
+  target_weight: '',
+  order_index: w?.exercises?.length || 0,
+  group_type: groupType || 'Normal',
+  group_id: gid,
+  image: imageUrl || null  // ← CHANGE image_url → image
+}
   const { data, error } = await supabase.from('exercises').insert(payload).select().single()
   if (error) {
     console.error('Erreur:', error)
