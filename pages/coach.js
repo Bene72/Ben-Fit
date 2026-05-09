@@ -423,23 +423,30 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
   // Construction du payload avec validation des types
-  const payload = {
-    workout_id: workoutId,
-    name: name.trim(),
-    sets: parseInt(3) || null,        // force le type number
-    reps: String('10'),                // force le type string
-    rest: String('90s'),               // force le type string
-    note: '',
-    target_weight: '',
-    order_index: parseInt(w.exercises?.length || 0),  // force number
-    group_type: String(groupType || 'Normal'),
-    group_id: gid,
-  }
+  const { workoutId, groupType, groupId } = exPicker
+const w = workouts.find(w => w.id === workoutId)
+const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-  // Ajoute image_url seulement si fournie
-  if (imageUrl) {
-    payload.image_url = imageUrl
-  }
+const payload = {
+  workout_id: workoutId,
+  name: name.trim(),
+  sets: 3,
+  reps: '10',
+  rest: '90s',
+  note: '',
+  target_weight: '',
+  order_index: w?.exercises?.length || 0,
+  group_type: groupType || 'Normal',
+  group_id: gid,
+  // image_url: imageUrl || null,  ← SUPPRIME cette ligne
+}
+
+// Envoie sans image_url d'abord
+const { data, error } = await supabase
+  .from('exercises')
+  .insert(payload)
+  .select()
+  .single()
 
   console.log('Payload final:', JSON.stringify(payload, null, 2))
 
