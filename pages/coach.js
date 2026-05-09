@@ -406,66 +406,81 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 
   const { workoutId, groupType, groupId } = exPicker
   
-  // Vérification : est-ce que workoutId est un UUID ?
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-  if (!uuidRegex.test(workoutId)) {
-    console.error('workoutId invalide:', workoutId)
-    alert('Erreur: ID de séance invalide')
-    return
-  }
+  // Debug
+  console.log('=== DÉBOGAGE INSERTION EXERCICE ===')
+  console.log('workoutId reçu:', workoutId)
+  console.log('type de workoutId:', typeof workoutId)
+  console.log('groupId:', groupId)
+  console.log('groupType:', groupType)
 
   const w = workouts.find(w => w.id === workoutId)
   if (!w) {
-    alert('Erreur: Séance non trouvée')
+    console.error('Workout non trouvé avec ID:', workoutId)
+    alert('Erreur: Séance introuvable')
     return
   }
 
   const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
+  // Construction du payload avec validation des types
   const payload = {
     workout_id: workoutId,
     name: name.trim(),
-    sets: 3,
-    reps: '10',
-    rest: '90s',
+    sets: parseInt(3) || null,        // force le type number
+    reps: String('10'),                // force le type string
+    rest: String('90s'),               // force le type string
     note: '',
     target_weight: '',
-    order_index: w.exercises?.length || 0,
-    group_type: groupType || 'Normal',
+    order_index: parseInt(w.exercises?.length || 0),  // force number
+    group_type: String(groupType || 'Normal'),
     group_id: gid,
-    image_url: imageUrl || null,
   }
 
-  console.log('Insertion payload:', payload)
-
-  const { data, error } = await supabase
-    .from('exercises')
-    .insert(payload)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Erreur complète:', error)
-    alert(`Erreur: ${error.message}\nDétails: ${error.details || 'Non spécifié'}`)
-    return
+  // Ajoute image_url seulement si fournie
+  if (imageUrl) {
+    payload.image_url = imageUrl
   }
 
-  if (data) {
-    setWorkouts(prev => prev.map(w => {
-      if (w.id === workoutId) {
-        return {
-          ...w,
-          exercises: [
-            ...(w.exercises || []),
-            data
-          ].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+  console.log('Payload final:', JSON.stringify(payload, null, 2))
+
+  try {
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Erreur Supabase détaillée:', error)
+      console.error('Code erreur:', error.code)
+      console.error('Message:', error.message)
+      console.error('Détails:', error.details)
+      alert(`Erreur: ${error.message}\n${error.details || ''}`)
+      return
+    }
+
+    console.log('Exercice inséré avec succès:', data)
+
+    if (data) {
+      setWorkouts(prev => prev.map(w => {
+        if (w.id === workoutId) {
+          return {
+            ...w,
+            exercises: [
+              ...(w.exercises || []),
+              data
+            ].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+          }
         }
-      }
-      return w
-    }))
-  }
+        return w
+      }))
+    }
 
-  setExPicker(null)
+    setExPicker(null)
+  } catch (err) {
+    console.error('Exception catch:', err)
+    alert('Erreur inattendue: ' + err.message)
+  }
 }
 
   const [wbPicker, setWbPicker] = useState(null)
