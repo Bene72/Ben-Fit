@@ -1164,18 +1164,18 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
 
       {exPicker && (
         <ExercisePicker
-          picker={exPicker}
-          query={exPickerQuery}
-          setQuery={setExPickerQuery}
-          mode={exPickerMode}
-          setMode={setExPickerMode}
-          freeVal={exPickerFree}
-          setFreeVal={setExPickerFree}
-          onConfirm={confirmAddExercise}
-          onClose={() => setExPicker(null)}
-          exerciseFiles={exerciseImageFiles}
-          supabaseUrl={SUPABASE_URL}
-          loading={imageFilesLoading}
+  picker={exPicker}
+  query={exPickerQuery}
+  setQuery={setExPickerQuery}
+  mode={exPickerMode}
+  setMode={setExPickerMode}
+  freeVal={exPickerFree}
+  setFreeVal={setExPickerFree}
+  onConfirm={confirmAddExercise}
+  onClose={() => setExPicker(null)}
+  exerciseFiles={exerciseImageFiles}
+  supabaseUrl={SUPABASE_URL}
+  loading={imageFilesLoading}
         />
       )}
     </div>
