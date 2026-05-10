@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp, sessionsThisWeek, lastWeight } from '../../lib/coachUtils'
+import { btn, lbl, inp } from '../../lib/coachUtils'
 
-function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
+export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
   const [note, setNote] = useState(client.coach_note || '')
   const [program, setProgram] = useState(client.current_program || '')
   const [sessionTarget, setSessionTarget] = useState(client.session_target || 5)
@@ -15,9 +15,17 @@ function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }
     const updates = { coach_note: note, current_program: program, session_target: +sessionTarget }
     await supabase.from('profiles').update(updates).eq('id', client.id)
     if (newWeight) {
-      await supabase.from('measures').insert({ client_id: client.id, date: new Date().toISOString().split('T')[0], weight: +newWeight })
+      await supabase.from('measures').insert({ 
+        client_id: client.id, 
+        date: new Date().toISOString().split('T')[0], 
+        weight: +newWeight 
+      })
     }
-    onUpdate({ ...client, ...updates, measures: newWeight ? [{ weight: +newWeight, date: new Date().toISOString().split('T')[0] }, ...(client.measures || [])] : client.measures })
+    onUpdate({ 
+      ...client, 
+      ...updates, 
+      measures: newWeight ? [{ weight: +newWeight, date: new Date().toISOString().split('T')[0] }, ...(client.measures || [])] : client.measures 
+    })
     setNewWeight('')
     setEditStats(false)
     setSaving(false)
@@ -74,11 +82,10 @@ function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }
       <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '14px', padding: '24px' }}>
         <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>📌 Message / Note pour {client.full_name?.split(' ')[0]}</div>
         <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Écris une note ou message pour le client…" rows={5} style={{ width: '100%', padding: '12px', border: '1.5px solid #C5D0F0', borderRadius: '10px', fontSize: '14px', fontFamily: "'DM Sans',sans-serif", background: 'white', resize: 'vertical', outline: 'none', lineHeight: '1.6' }} />
-        <button onClick={saveAll} disabled={saving} style={{ marginTop: '10px', padding: '8px 20px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+        <button onClick={saveAll} disabled={saving} style={{ marginTop: '10px', padding: '8px 20px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
           {saving ? 'Sauvegarde…' : '✓ Enregistrer'}
         </button>
       </div>
     </div>
   )
 }
-
