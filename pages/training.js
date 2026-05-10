@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import AppShell from '../components/ui/AppShell'
@@ -77,38 +77,31 @@ function getLogDate(log) {
   return log?.logged_at || log?.created_at || log?.date || null
 }
 
-function buildInputFromLog(log) {
-  if (!log) return {}
-  const noteText = log?.notes || log?.note || log?.comment || ''
-  let cleanNote = noteText || ''
-  let rpe = ''
-  const match = cleanNote.match(/(?:^|·)\sRPE\s([0-9]+(?:[.,][0-9]+)?)/i)
-  if (match) {
-    rpe = String(match[1]).replace(',', '.')
-    cleanNote = cleanNote.replace(match[0], '').replace(/^\s*·\s*|\s*·\s*$/g, '').trim()
-  }
+// ========== NOUVEAU : Récupère la dernière charge loguée pour un exercice ==========
+function getLastLoggedWeight(logs) {
+  if (!logs || logs.length === 0) return null
+  const lastLog = logs[0]
   return {
-    weight: log?.weight_used || '',
-    reps: log?.reps_done || '',
-    rpe,
-    note: cleanNote,
+    weight: lastLog.weight_used || '',
+    reps: lastLog.reps_done || '',
+    note: getLogNote(lastLog)
   }
 }
 
 async function loadLogsForClient(currentUserId) {
   const attempts = [
     async () => {
-      const { data, error } = await supabase.from('workout_logs').select('').eq('client_id', currentUserId).order('logged_at', { ascending: false }).limit(300)
+      const { data, error } = await supabase.from('workout_logs').select('*').eq('client_id', currentUserId).order('logged_at', { ascending: false }).limit(500)
       if (error) throw error
       return data || []
     },
     async () => {
-      const { data, error } = await supabase.from('workout_logs').select('').eq('client_id', currentUserId).order('created_at', { ascending: false }).limit(300)
+      const { data, error } = await supabase.from('workout_logs').select('*').eq('client_id', currentUserId).order('created_at', { ascending: false }).limit(500)
       if (error) throw error
       return data || []
     },
     async () => {
-      const { data, error } = await supabase.from('workout_sessions').select('*').eq('client_id', currentUserId).order('created_at', { ascending: false }).limit(300)
+      const { data, error } = await supabase.from('workout_sessions').select('*').eq('client_id', currentUserId).order('created_at', { ascending: false }).limit(500)
       if (error) throw error
       return (data || []).map((row) => ({ ...row, exercise_name: row.exercise_name || row.exercise || row.name, weight_used: row.weight_used || row.weight || null, reps_done: row.reps_done || row.reps || null, notes: row.notes || row.note || row.comment || null, logged_at: row.logged_at || row.created_at || null }))
     },
@@ -146,7 +139,7 @@ const DAY_LABELS_FULL  = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Ve
 /** Retourne le lundi de la semaine contenant `date` */
 function getMondayOf(date) {
   const d = new Date(date)
-  const day = d.getDay() // 0=dim
+  const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
   d.setHours(0, 0, 0, 0)
@@ -204,12 +197,60 @@ export default function TrainingPage() {
   const [loggingIds, setLoggingIds] = useState({})
   const [imageLightbox, setImageLightbox] = useState(null)
 
-  // ── NOUVEAU : Cycle actuel et historique archivé ──
   const [currentCycleName, setCurrentCycleName] = useState('')
   const [archivedWorkouts, setArchivedWorkouts] = useState([])
 
-  // ── Calendrier ─────────────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0)
+
+  // ========== NOUVEAU : Sauvegarde locale des inputs ==========
+  const saveInputToLocalStorage = useCallback((exerciseId, input) => {
+    try {
+      const key = `training_input_${user?.id}_${exerciseId}`
+      localStorage.setItem(key, JSON.stringify(input))
+    } catch (e) {}
+  }, [user?.id])
+
+  const loadInputFromLocalStorage = useCallback((exerciseId) => {
+    try {
+      const key = `training_input_${user?.id}_${exerciseId}`
+      const saved = localStorage.getItem(key)
+      if (saved) return JSON.parse(saved)
+    } catch (e) {}
+    return null
+  }, [user?.id])
+
+  // ========== Initialise les inputs avec priorité au dernier log ==========
+  const initializeInputs = useCallback((workoutsData, logsData) => {
+    const inputs = {}
+    workoutsData.forEach(workout => {
+      (workout.exercises || []).forEach(exercise => {
+        const exerciseLogs = logsData[exercise.name] || []
+        const lastLog = getLastLoggedWeight(exerciseLogs)
+        
+        // Priorité : 1. localStorage, 2. dernier log, 3. valeurs coach
+        const savedInput = loadInputFromLocalStorage(exercise.id)
+        
+        if (savedInput && (savedInput.weight || savedInput.reps)) {
+          inputs[exercise.id] = savedInput
+        } else if (lastLog && (lastLog.weight || lastLog.reps)) {
+          inputs[exercise.id] = {
+            weight: lastLog.weight,
+            reps: lastLog.reps,
+            rpe: '',
+            note: lastLog.note || ''
+          }
+        } else {
+          inputs[exercise.id] = {
+            weight: exercise.target_weight || '',
+            reps: exercise.reps || '',
+            rpe: '',
+            note: ''
+          }
+        }
+      })
+    })
+    return inputs
+  }, [loadInputFromLocalStorage])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 980)
@@ -231,7 +272,6 @@ export default function TrainingPage() {
         if (!active) return
         setUser(currentUser)
 
-        // Charger les workouts actifs et les logs en parallèle
         const [{ data: workoutData, error: workoutError }, logsData] = await Promise.all([
           supabase.from('workouts').select('*, exercises(*)').eq('client_id', currentUser.id).eq('is_archived', false).order('day_of_week', { ascending: true }),
           loadLogsForClient(currentUser.id),
@@ -239,7 +279,6 @@ export default function TrainingPage() {
 
         if (workoutError) throw workoutError
 
-        // Charger le profil pour récupérer le nom du cycle actuel
         const { data: profileData } = await supabase
           .from('profiles')
           .select('current_cycle_name')
@@ -247,7 +286,6 @@ export default function TrainingPage() {
           .single()
         setCurrentCycleName(profileData?.current_cycle_name || '')
 
-        // Charger les workouts archivés
         const { data: archivedData } = await supabase
           .from('workouts')
           .select('*, exercises(*)')
@@ -269,19 +307,9 @@ export default function TrainingPage() {
         setWorkouts(mapped)
         setLogsByExerciseName(groupedLogs)
 
-        // Prefill depuis valeurs coach
-        const prefills = {}
-        mapped.forEach((workout) => {
-          ;(workout.exercises || []).forEach((exercise) => {
-            prefills[exercise.id] = {
-              weight: exercise.target_weight || '',
-              reps: exercise.reps || '',
-              rpe: '',
-              note: ''
-            }
-          })
-        })
-        setLogInputs(prefills)
+        // Initialisation intelligente des inputs
+        const inputs = initializeInputs(mapped, groupedLogs)
+        setLogInputs(inputs)
 
         if (mapped.length && !isMobile) {
           setOpenWorkout(mapped[0].id)
@@ -296,7 +324,7 @@ export default function TrainingPage() {
     }
     boot()
     return () => { active = false }
-  }, [router, isMobile])
+  }, [router, isMobile, initializeInputs])
 
   const currentWorkout = useMemo(() => workouts.find((workout) => workout.id === openWorkout) || null, [workouts, openWorkout])
   const selectedExercise = useMemo(() => {
@@ -304,10 +332,8 @@ export default function TrainingPage() {
     return (currentWorkout.exercises || []).find((item) => item.id === selectedExerciseId) || currentWorkout.exercises?.[0] || null
   }, [currentWorkout, selectedExerciseId])
   const selectedLogs = useMemo(() => (selectedExercise ? logsByExerciseName[selectedExercise.name] || [] : []), [selectedExercise, logsByExerciseName])
-  const selectedLatestLog = selectedLogs[0] || null
   const exerciseBlocks = useMemo(() => (currentWorkout ? buildExerciseGroups(currentWorkout.exercises) : []), [currentWorkout])
 
-  // ── Calendrier calculé ─────────────────────────────────────
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset])
   const todayStr = useMemo(() => getTodayLocalString(), [])
 
@@ -347,8 +373,31 @@ export default function TrainingPage() {
     else setSelectedExerciseId(null)
   }
 
+  // ========== NOUVEAU : Reset aux valeurs coach ==========
+  function resetToCoachValues(exerciseId, exercise) {
+    setLogInputs(prev => ({
+      ...prev,
+      [exerciseId]: {
+        weight: exercise.target_weight || '',
+        reps: exercise.reps || '',
+        rpe: '',
+        note: ''
+      }
+    }))
+    // Supprimer localStorage pour cet exercice
+    try {
+      const key = `training_input_${user?.id}_${exerciseId}`
+      localStorage.removeItem(key)
+    } catch (e) {}
+  }
+
   function onLogInput(exerciseId, field, value) {
-    setLogInputs((prev) => ({ ...prev, [exerciseId]: { ...(prev[exerciseId] || {}), [field]: value } }))
+    setLogInputs((prev) => {
+      const newInput = { ...(prev[exerciseId] || {}), [field]: value }
+      // Sauvegarder dans localStorage
+      saveInputToLocalStorage(exerciseId, newInput)
+      return { ...prev, [exerciseId]: newInput }
+    })
   }
 
   async function logPerformance(exercise) {
@@ -363,13 +412,22 @@ export default function TrainingPage() {
       if (input.note) noteParts.push(input.note)
       const payload = { client_id: user.id, workout_id: exercise.workout_id || null, exercise_id: exercise.id || null, exercise_name: exercise.name, weight_used: input.weight ? String(input.weight) : null, reps_done: input.reps ? String(input.reps) : null, notes: noteParts.length ? noteParts.join(' · ') : null, logged_at: new Date().toISOString() }
       const { row } = await insertWorkoutLogWithFallback(payload)
+      
+      // Mettre à jour les logs
       setLogsByExerciseName((prev) => ({ ...prev, [exercise.name]: [row, ...(prev[exercise.name] || [])] }))
-      setLogInputs((prev) => ({ ...prev, [exercise.id]: {
-        weight: exercise.target_weight || '',
-        reps: exercise.reps || '',
-        rpe: '',
-        note: ''
-      }}))
+      
+      // Remplacer l'input actuel par la valeur qu'on vient de logger (pour le prochain set)
+      setLogInputs((prev) => ({
+        ...prev,
+        [exercise.id]: {
+          weight: input.weight,
+          reps: input.reps,
+          rpe: '',
+          note: ''
+        }
+      }))
+      
+      saveInputToLocalStorage(exercise.id, { weight: input.weight, reps: input.reps, rpe: '', note: '' })
       setSuccess('Performance enregistrée.')
     } catch (e) {
       setError(e.message || "Impossible d'enregistrer la performance")
@@ -428,7 +486,18 @@ export default function TrainingPage() {
                                   <CompactExerciseRow exercise={exercise} selected={selectedExerciseId === exercise.id} latestLog={(logsByExerciseName[exercise.name] || [])[0]} onSelect={() => setSelectedExerciseId(selectedExerciseId === exercise.id ? null : exercise.id)} isMobile={isMobile} />
                                   {selectedExerciseId === exercise.id ? (
                                     <div style={{ marginTop: 2, marginBottom: 8 }}>
-                                      <ExerciseWorkspace exercise={exercise} input={logInputs[exercise.id] || {}} onInput={(field, value) => onLogInput(exercise.id, field, value)} onLog={() => logPerformance(exercise)} logging={!!loggingIds[exercise.id]} onImageOpen={setImageLightbox} latestLog={(logsByExerciseName[exercise.name] || [])[0]} isMobile={isMobile} recentLogs={logsByExerciseName[exercise.name] || []} />
+                                      <ExerciseWorkspace 
+                                        exercise={exercise} 
+                                        input={logInputs[exercise.id] || {}} 
+                                        onInput={(field, value) => onLogInput(exercise.id, field, value)} 
+                                        onLog={() => logPerformance(exercise)} 
+                                        onReset={() => resetToCoachValues(exercise.id, exercise)}
+                                        logging={!!loggingIds[exercise.id]} 
+                                        onImageOpen={setImageLightbox} 
+                                        latestLog={(logsByExerciseName[exercise.name] || [])[0]} 
+                                        isMobile={isMobile} 
+                                        recentLogs={logsByExerciseName[exercise.name] || []} 
+                                      />
                                     </div>
                                   ) : null}
                                 </div>
@@ -443,7 +512,18 @@ export default function TrainingPage() {
                           <CompactExerciseRow exercise={exercise} selected={selectedExerciseId === exercise.id} latestLog={(logsByExerciseName[exercise.name] || [])[0]} onSelect={() => setSelectedExerciseId(selectedExerciseId === exercise.id ? null : exercise.id)} isMobile={isMobile} />
                           {selectedExerciseId === exercise.id ? (
                             <div style={{ marginTop: 2 }}>
-                              <ExerciseWorkspace exercise={exercise} input={logInputs[exercise.id] || {}} onInput={(field, value) => onLogInput(exercise.id, field, value)} onLog={() => logPerformance(exercise)} logging={!!loggingIds[exercise.id]} onImageOpen={setImageLightbox} latestLog={(logsByExerciseName[exercise.name] || [])[0]} isMobile={isMobile} recentLogs={logsByExerciseName[exercise.name] || []} />
+                              <ExerciseWorkspace 
+                                exercise={exercise} 
+                                input={logInputs[exercise.id] || {}} 
+                                onInput={(field, value) => onLogInput(exercise.id, field, value)} 
+                                onLog={() => logPerformance(exercise)} 
+                                onReset={() => resetToCoachValues(exercise.id, exercise)}
+                                logging={!!loggingIds[exercise.id]} 
+                                onImageOpen={setImageLightbox} 
+                                latestLog={(logsByExerciseName[exercise.name] || [])[0]} 
+                                isMobile={isMobile} 
+                                recentLogs={logsByExerciseName[exercise.name] || []} 
+                              />
                             </div>
                           ) : null}
                         </div>
@@ -453,9 +533,8 @@ export default function TrainingPage() {
                 </SurfaceCard>
               </div>
             ) : (
-              // VUE LISTE DES SÉANCES MOBILE + CALENDRIER
+              // VUE LISTE DES SÉANCES MOBILE + CALENDRIER (inchangée)
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Affichage du cycle actuel */}
                 {currentCycleName && (
                   <div style={{ background: '#EEF4FF', borderRadius: 10, padding: '8px 12px', border: '1px solid #2C64E5' }}>
                     <span style={{ fontSize: 11, color: '#2C64E5', fontWeight: 700 }}>🏆 Cycle actuel</span>
@@ -463,7 +542,7 @@ export default function TrainingPage() {
                   </div>
                 )}
 
-                {/* ── CALENDRIER HEBDOMADAIRE ── */}
+                {/* CALENDRIER HEBDOMADAIRE */}
                 <div style={{ background: 'white', borderRadius: 16, border: '1px solid #DCE5F3', overflow: 'hidden', boxShadow: '0 2px 8px rgba(13,27,78,0.06)' }}>
                   <div style={{ background: '#0D1B4E', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
@@ -523,7 +602,6 @@ export default function TrainingPage() {
                   </div>
                 </div>
 
-                {/* ── SÉANCES DU JOUR SÉLECTIONNÉ ── */}
                 {selectedCalDay && calDayWorkouts.length > 0 && (
                   <div style={{ background: '#EEF4FF', borderRadius: 12, padding: '10px 12px', border: '1.5px solid #2C64E5' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: '#2C64E5', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -546,7 +624,6 @@ export default function TrainingPage() {
                   </div>
                 )}
 
-                {/* ── TOUTES LES SÉANCES ── */}
                 <div style={{ background: 'white', borderRadius: 14, border: '1px solid #DCE5F3', overflow: 'hidden' }}>
                   <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid #E8ECF5' }}>
                     <div style={{ fontWeight: 800, fontSize: 13, color: '#0D1B4E' }}>📋 Programme complet</div>
@@ -580,10 +657,9 @@ export default function TrainingPage() {
               </div>
             )
           ) : (
-            // LAYOUT DESKTOP (3 colonnes)
+            // LAYOUT DESKTOP (3 colonnes) inchangé mais avec appel au nouvel ExerciceWorkspace
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 0.92fr) minmax(380px, 1.4fr) minmax(220px, 0.92fr)', gap: 14, alignItems: 'start' }}>
               <SurfaceCard padded sticky>
-                {/* Affichage du cycle actuel */}
                 {currentCycleName && (
                   <div style={{ background: '#EEF4FF', borderRadius: 10, padding: '8px 12px', marginBottom: 12, border: '1px solid #2C64E5' }}>
                     <span style={{ fontSize: 11, color: '#2C64E5', fontWeight: 700 }}>🏆 Cycle actuel</span>
@@ -654,7 +730,18 @@ export default function TrainingPage() {
                                   <CompactExerciseRow exercise={exercise} selected={selectedExerciseId === exercise.id} latestLog={(logsByExerciseName[exercise.name] || [])[0]} onSelect={() => setSelectedExerciseId(selectedExerciseId === exercise.id ? null : exercise.id)} isMobile={isMobile} />
                                   {selectedExerciseId === exercise.id ? (
                                     <div style={{ marginTop: 2, marginBottom: 8 }}>
-                                      <ExerciseWorkspace exercise={exercise} input={logInputs[exercise.id] || {}} onInput={(field, value) => onLogInput(exercise.id, field, value)} onLog={() => logPerformance(exercise)} logging={!!loggingIds[exercise.id]} onImageOpen={setImageLightbox} latestLog={(logsByExerciseName[exercise.name] || [])[0]} isMobile={isMobile} recentLogs={logsByExerciseName[exercise.name] || []} />
+                                      <ExerciseWorkspace 
+                                        exercise={exercise} 
+                                        input={logInputs[exercise.id] || {}} 
+                                        onInput={(field, value) => onLogInput(exercise.id, field, value)} 
+                                        onLog={() => logPerformance(exercise)} 
+                                        onReset={() => resetToCoachValues(exercise.id, exercise)}
+                                        logging={!!loggingIds[exercise.id]} 
+                                        onImageOpen={setImageLightbox} 
+                                        latestLog={(logsByExerciseName[exercise.name] || [])[0]} 
+                                        isMobile={isMobile} 
+                                        recentLogs={logsByExerciseName[exercise.name] || []} 
+                                      />
                                     </div>
                                   ) : null}
                                 </div>
@@ -669,7 +756,18 @@ export default function TrainingPage() {
                           <CompactExerciseRow exercise={exercise} selected={selectedExerciseId === exercise.id} latestLog={(logsByExerciseName[exercise.name] || [])[0]} onSelect={() => setSelectedExerciseId(selectedExerciseId === exercise.id ? null : exercise.id)} isMobile={isMobile} />
                           {selectedExerciseId === exercise.id ? (
                             <div style={{ marginTop: 2 }}>
-                              <ExerciseWorkspace exercise={exercise} input={logInputs[exercise.id] || {}} onInput={(field, value) => onLogInput(exercise.id, field, value)} onLog={() => logPerformance(exercise)} logging={!!loggingIds[exercise.id]} onImageOpen={setImageLightbox} latestLog={(logsByExerciseName[exercise.name] || [])[0]} isMobile={isMobile} recentLogs={logsByExerciseName[exercise.name] || []} />
+                              <ExerciseWorkspace 
+                                exercise={exercise} 
+                                input={logInputs[exercise.id] || {}} 
+                                onInput={(field, value) => onLogInput(exercise.id, field, value)} 
+                                onLog={() => logPerformance(exercise)} 
+                                onReset={() => resetToCoachValues(exercise.id, exercise)}
+                                logging={!!loggingIds[exercise.id]} 
+                                onImageOpen={setImageLightbox} 
+                                latestLog={(logsByExerciseName[exercise.name] || [])[0]} 
+                                isMobile={isMobile} 
+                                recentLogs={logsByExerciseName[exercise.name] || []} 
+                              />
                             </div>
                           ) : null}
                         </div>
@@ -726,7 +824,81 @@ export default function TrainingPage() {
   )
 }
 
-// ── HISTORIQUE CALENDRIER (modifié pour inclure les cycles archivés) ──
+// ========== COMPOSANT EXERCICE WORKSPACE AVEC BOUTON RESET ==========
+function ExerciseWorkspace({ exercise, input, onInput, onLog, onReset, logging, onImageOpen, latestLog, isMobile, recentLogs }) {
+  const hasUserValue = input.weight || input.reps
+  
+  return (
+    <div style={{ borderRadius: 10, border: '1.5px solid #2C64E5', background: '#F8FBFF', padding: isMobile ? 12 : 16, marginBottom: 8 }}>
+      {exercise.note && (
+        <div style={{ marginBottom: 10, padding: '7px 12px', background: 'white', borderRadius: 8, borderLeft: '3px solid #2C64E5', fontSize: 13, color: '#0D1B4E', lineHeight: 1.6 }}>
+          📋 <span style={{ fontWeight: 700 }}>Note coach :</span> {exercise.note}
+        </div>
+      )}
+      
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontWeight: 900, fontSize: 14, color: '#0D1B4E' }}>{exercise.name}</div>
+        {latestLog && (
+          <div style={{ fontSize: 11, background: '#EEF4FF', padding: '4px 8px', borderRadius: 16, color: '#2C64E5' }}>
+            📊 Dernier log : {latestPerfText(latestLog)}
+          </div>
+        )}
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+        <div>
+          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>PRESCRIPTION</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} × {exercise.reps}</span>
+            <span style={{ fontSize: 12, padding: '4px 10px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20 }}>⏱ {exercise.rest}</span>
+          </div>
+          <div style={{ color: '#4A6FB5', lineHeight: 1.5, fontSize: 12 }}>{exercise.note || 'Aucune note.'}</div>
+        </div>
+        
+        <div>
+          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>RÉSULTAT</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <Field label="Charge (kg)">
+              <input 
+                value={input.weight || ''} 
+                onChange={(e) => onInput('weight', e.target.value)} 
+                placeholder={exercise.target_weight || "kg"} 
+                style={inputStyle()} 
+              />
+            </Field>
+            <Field label="Reps">
+              <input 
+                value={input.reps || ''} 
+                onChange={(e) => onInput('reps', e.target.value)} 
+                placeholder={exercise.reps || "reps"} 
+                style={inputStyle()} 
+              />
+            </Field>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button type="button" onClick={onLog} disabled={logging} style={{ flex: 2, border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+              {logging ? '...' : '✓ Enregistrer'}
+            </button>
+            {hasUserValue && (
+              <button type="button" onClick={onReset} style={{ flex: 1, border: '1px solid #C5D8F5', background: 'white', color: '#6B7A99', borderRadius: 8, padding: '10px', fontSize: 12, cursor: 'pointer' }}>
+                ↺ Reset
+              </button>
+            )}
+          </div>
+          
+          {!hasUserValue && exercise.target_weight && (
+            <div style={{ marginTop: 8, fontSize: 11, color: '#9AAAD4', textAlign: 'center' }}>
+              💡 Valeur coach : {exercise.target_weight} kg
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ========== COMPOSANTS INCHANGÉS ==========
 function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsByExerciseName, workoutByJsDay, archivedWorkouts, isMobile }) {
   const [selectedDay, setSelectedDay] = useState(null)
 
@@ -870,18 +1042,15 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
         )}
       </SurfaceCard>
 
-      {/* Section cycles archivés */}
       <ArchivedCyclesView archivedWorkouts={archivedWorkouts} />
     </div>
   )
 }
 
-// ── COMPOSANT POUR AFFICHER L'HISTORIQUE DES CYCLES ARCHIVÉS ──
 function ArchivedCyclesView({ archivedWorkouts }) {
   const [openCycle, setOpenCycle] = useState(null)
   const [openWorkout, setOpenWorkout] = useState(null)
 
-  // Grouper par cycle_name ou par archived_at si pas de nom
   const cycles = useMemo(() => {
     const groups = {}
     archivedWorkouts.forEach(w => {
@@ -940,7 +1109,6 @@ function ArchivedCyclesView({ archivedWorkouts }) {
   )
 }
 
-// COMPOSANT EXERCICE COMPACT (inchangé)
 function CompactExerciseRow({ exercise, selected, latestLog, onSelect, isMobile }) {
   return (
     <button
@@ -981,41 +1149,6 @@ function CompactExerciseRow({ exercise, selected, latestLog, onSelect, isMobile 
 
       <div style={{ color: selected ? '#2C64E5' : '#E0E0E0', fontSize: 20 }}>{selected ? '●' : '○'}</div>
     </button>
-  )
-}
-
-function ExerciseWorkspace({ exercise, input, onInput, onLog, logging, onImageOpen, latestLog, isMobile, recentLogs }) {
-  return (
-    <div style={{ borderRadius: 10, border: '1.5px solid #2C64E5', background: '#F8FBFF', padding: isMobile ? 12 : 16, marginBottom: 8 }}>
-      {exercise.note && (
-        <div style={{ marginBottom: 10, padding: '7px 12px', background: 'white', borderRadius: 8, borderLeft: '3px solid #2C64E5', fontSize: 13, color: '#0D1B4E', lineHeight: 1.6 }}>
-          📋 <span style={{ fontWeight: 700 }}>Note coach :</span> {exercise.note}
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <div style={{ fontWeight: 900, fontSize: 14, color: '#0D1B4E' }}>{exercise.name}</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-        <div>
-          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>PRESCRIPTION</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} × {exercise.reps}</span>
-            <span style={{ fontSize: 12, padding: '4px 10px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20 }}>⏱ {exercise.rest}</span>
-          </div>
-          <div style={{ color: '#4A6FB5', lineHeight: 1.5, fontSize: 12 }}>{exercise.note || 'Aucune note.'}</div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>RÉSULTAT</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <Field label="Charge"><input value={input.weight || ''} onChange={(e) => onInput('weight', e.target.value)} placeholder="kg" style={inputStyle()} /></Field>
-            <Field label="Reps"><input value={input.reps || ''} onChange={(e) => onInput('reps', e.target.value)} placeholder="reps" style={inputStyle()} /></Field>
-          </div>
-          <button type="button" onClick={onLog} disabled={logging} style={{ marginTop: 8, width: '100%', border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-            {logging ? '...' : '✓ Enregistrer'}
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 
