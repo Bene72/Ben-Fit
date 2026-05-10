@@ -1,8 +1,33 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp } from '../../lib/coachUtils'
+import { btn } from '../../lib/coachUtils'
 
-function BilanTab({ clientId, clientName, coachId }) {
+const BILAN_ITEMS = [
+  { key: 'sommeil',            label: '😴 Sommeil',                      noteOnly: false },
+  { key: 'moral',              label: '🧠 Moral',                         noteOnly: false },
+  { key: 'assiduite_diete',    label: '🥗 Assiduité de la diète',        noteOnly: false },
+  { key: 'problemes_diete',    label: '⚠️ Problèmes rencontrés (diète)', noteOnly: true },
+  { key: 'assiduite_training', label: '🏋️ Assiduité de l\'entraînement', noteOnly: false },
+  { key: 'problemes_training', label: '⚠️ Problèmes rencontrés (entraînement)', noteOnly: true },
+  { key: 'neat',               label: '🚶 NEAT (activité quotidienne)',   noteOnly: false },
+  { key: 'autre',              label: '📝 Autre point',                   noteOnly: true },
+]
+
+function getMondayOfWeek(date = new Date()) {
+  const d = new Date(date)
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  d.setDate(d.getDate() - day + 1)
+  return d.toISOString().split('T')[0]
+}
+
+function getWeekLabel(dateStr) {
+  const d = new Date(dateStr)
+  const end = new Date(d)
+  end.setDate(end.getDate() + 6)
+  return `Semaine du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+}
+
+export default function BilanTab({ clientId, clientName, coachId }) {
   const [bilans, setBilans] = useState([])
   const [loading, setLoading] = useState(true)
   const [openBilan, setOpenBilan] = useState(null)
@@ -29,12 +54,22 @@ function BilanTab({ clientId, clientName, coachId }) {
     setCreating(true)
     const weekStart = getMondayOfWeek()
     const exists = bilans.find(b => b.week_start === weekStart)
-    if (exists) { setOpenBilan(exists.id); setEditForm(exists); setCreating(false); return }
+    if (exists) { 
+      setOpenBilan(exists.id)
+      setEditForm(exists)
+      setCreating(false)
+      return 
+    }
     const { data } = await supabase
       .from('bilans')
       .insert({ client_id: clientId, coach_id: coachId, week_start: weekStart })
-      .select().single()
-    if (data) { setBilans(prev => [data, ...prev]); setOpenBilan(data.id); setEditForm(data) }
+      .select()
+      .single()
+    if (data) { 
+      setBilans(prev => [data, ...prev])
+      setOpenBilan(data.id)
+      setEditForm(data)
+    }
     setCreating(false)
   }
 
@@ -47,8 +82,6 @@ function BilanTab({ clientId, clientName, coachId }) {
 
   if (loading) return <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>Chargement…</div>
 
-  const currentBilan = bilans.find(b => b.id === openBilan)
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -56,10 +89,12 @@ function BilanTab({ clientId, clientName, coachId }) {
           BILANS HEBDOMADAIRES — {clientName?.split(' ')[0]?.toUpperCase()}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => window.open('/agent-bilan?clientId=' + clientId + '&clientName=' + encodeURIComponent(clientName), '_blank')} style={{ padding: '8px 18px', background: '#8FA07A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+          <button onClick={() => window.open('/agent-bilan?clientId=' + clientId + '&clientName=' + encodeURIComponent(clientName), '_blank')} 
+            style={{ padding: '8px 18px', background: '#8FA07A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
             🤖 Aide IA bilan
           </button>
-          <button onClick={createBilan} disabled={creating} style={{ padding: '8px 18px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+          <button onClick={createBilan} disabled={creating} 
+            style={{ padding: '8px 18px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
             {creating ? '…' : '+ Bilan cette semaine'}
           </button>
         </div>
@@ -130,7 +165,7 @@ function BilanTab({ clientId, clientName, coachId }) {
                   ))}
                 </div>
                 <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
-                  <button onClick={saveBilan} disabled={saving} style={{ padding: '9px 22px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                  <button onClick={saveBilan} disabled={saving} style={{ padding: '9px 22px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                     {saving ? 'Sauvegarde…' : '✓ Enregistrer le bilan'}
                   </button>
                 </div>
@@ -142,4 +177,3 @@ function BilanTab({ clientId, clientName, coachId }) {
     </div>
   )
 }
-
