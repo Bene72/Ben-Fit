@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, lbl, inp, sessionsThisWeek, lastWeight } from '../../lib/coachUtils'
 
-function default OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
+function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
   const [note, setNote] = useState(client.coach_note || '')
   const [program, setProgram] = useState(client.current_program || '')
   const [sessionTarget, setSessionTarget] = useState(client.session_target || 5)
