@@ -65,6 +65,52 @@ export default function CoachHub({ clients, user, sessionsThisWeek, lastWeight, 
         </div>
       </div>
 
+// Composant Heatmap à ajouter dans CoachHub ou ProfilClient
+function AdherenceHeatmap({ clientId, year, month }) {
+  const [data, setData] = useState({})
+  
+  useEffect(() => {
+    loadHeatmap()
+  }, [clientId, year, month])
+  
+  const loadHeatmap = async () => {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+    
+    const { data: sessions } = await supabase
+      .from('workout_sessions')
+      .select('date')
+      .eq('client_id', clientId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+    
+    const sessionDates = new Set(sessions?.map(s => s.date) || [])
+    setData(sessionDates)
+  }
+  
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const firstDay = new Date(year, month-1, 1).getDay()
+  
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#6B7A99', marginBottom: 8 }}>🔥 Adhérence - {new Date(year, month-1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+        {['L','M','M','J','V','S','D'].map(d => <div key={d} style={{ fontSize: 9, textAlign: 'center', color: '#9BA8C0' }}>{d}</div>)}
+        {Array(firstDay === 0 ? 6 : firstDay - 1).fill().map((_, i) => <div key={`empty-${i}`} style={{ aspectRatio: '1', background: '#F5F5F5', borderRadius: 4 }} />)}
+        {Array(daysInMonth).fill().map((_, i) => {
+          const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`
+          const hasSession = data.has(dateStr)
+          return (
+            <div key={i} style={{ aspectRatio: '1', background: hasSession ? '#8FA07A' : '#EEF2FF', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: hasSession ? 700 : 400, color: hasSession ? 'white' : '#9BA8C0' }}>
+              {i+1}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+      
       {/* Contenu dynamique */}
       {cockpitView === 'clients' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 12 }}>
