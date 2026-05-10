@@ -14,6 +14,8 @@ const NUTRITION_TABS = [
   { label: 'Semaine', value: 'week' },
 ]
 
+const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
 function todayString() {
   return new Date().toISOString().split('T')[0]
 }
@@ -30,6 +32,204 @@ function formatDate(dateStr) {
 function clampPercent(value, target) {
   if (!target) return 0
   return Math.max(0, Math.min(100, Math.round((Number(value || 0) / Number(target || 1)) * 100)))
+}
+
+function getWeekStart(dateStr) {
+  const d = new Date(dateStr)
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  const mon = new Date(d)
+  mon.setDate(d.getDate() - day + 1)
+  return mon.toISOString().split('T')[0]
+}
+
+// ============================================
+// NUTRITION WEEK TABLE - Composant manquant
+// ============================================
+function NutritionWeekTable({ logs, plan, isMobile, onOpenDay }) {
+  const [openDay, setOpenDay] = useState(null)
+  const today = todayString()
+  
+  const weeks = {}
+  const thisWeek = getWeekStart(today)
+  weeks[thisWeek] = []
+  
+  logs.forEach(log => {
+    const wk = getWeekStart(log.date)
+    if (!weeks[wk]) weeks[wk] = []
+    weeks[wk].push(log)
+  })
+  
+  const sortedWeeks = Object.keys(weeks).sort((a, b) => b.localeCompare(a))
+  
+  const getWeekLabel = (wk) => {
+    const s = new Date(wk)
+    const e = new Date(wk)
+    e.setDate(e.getDate() + 6)
+    return `${s.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+  }
+  
+  const macros = [
+    { key: 'calories', label: 'Calories', unit: 'kcal', target: 'target_calories', color: '#0D1B4E' },
+    { key: 'protein', label: 'Protéines', unit: 'g', target: 'target_protein', color: '#C45C3A' },
+    { key: 'carbs', label: 'Glucides', unit: 'g', target: 'target_carbs', color: '#2A50B0' },
+    { key: 'fat', label: 'Lipides', unit: 'g', target: 'target_fat', color: '#3A7BD5' },
+  ]
+  
+  const handleDayClick = (date, isFuture) => {
+    if (!isFuture) {
+      setOpenDay(openDay === date ? null : date)
+    }
+  }
+  
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {sortedWeeks.map(weekStart => {
+        const weekLogs = weeks[weekStart]
+        const isCurrent = weekStart === getWeekStart(today)
+        const days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(weekStart)
+          d.setDate(d.getDate() + i)
+          const ds = d.toISOString().split('T')[0]
+          return {
+            date: ds,
+            log: weekLogs.find(l => l.date === ds) || null,
+            isToday: ds === today,
+            isFuture: ds > today
+          }
+        })
+        
+        return (
+          <div key={weekStart} style={{
+            background: 'white',
+            borderRadius: 12,
+            border: `1px solid ${isCurrent ? '#C0CAEF' : '#EAEAEA'}`,
+            overflow: 'hidden',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{
+              padding: '10px 16px',
+              background: isCurrent ? '#EEF2FF' : '#F5F7FF',
+              borderBottom: '1px solid #EAEAEA',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#0D1B4E' }}>📅 {getWeekLabel(weekStart)}</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{weekLogs.filter(l => l.calories > 0).length}/7 jours</div>
+            </div>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '130px 1fr 1fr 1fr 1fr',
+              background: '#F8FAFF',
+              borderBottom: '1px solid #F0F0F0'
+            }}>
+              {['Jour', 'Calories', 'Protéines', 'Glucides', 'Lipides'].map(h => (
+                <div key={h} style={{
+                  fontSize: 9,
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  color: '#999',
+                  fontWeight: 600,
+                  padding: '6px 12px'
+                }}>{h}</div>
+              ))}
+            </div>
+            
+            {days.map(({ date, log, isToday, isFuture }) => {
+              const isOpen = openDay === date
+              const dayIndex = new Date(date).getDay()
+              const dayName = DAYS_FR[dayIndex === 0 ? 6 : dayIndex - 1]
+              const hasData = log && log.calories > 0
+              
+              return (
+                <div key={date}>
+                  <div
+                    onClick={() => handleDayClick(date, isFuture)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '130px 1fr 1fr 1fr 1fr',
+                      borderBottom: '1px solid #F5F5F5',
+                      background: isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent',
+                      cursor: isFuture ? 'default' : 'pointer'
+                    }}
+                    onMouseEnter={e => { if (!isFuture) e.currentTarget.style.background = '#F0F4FF' }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent'
+                    }}
+                  >
+                    <div style={{ padding: '9px 12px' }}>
+                      <div style={{
+                        fontSize: 12,
+                        fontWeight: isToday ? 700 : 500,
+                        color: isFuture ? '#CCC' : '#0D1B4E'
+                      }}>
+                        {isToday ? '📍 ' : ''}{dayName}
+                      </div>
+                    </div>
+                    
+                    {macros.map(m => {
+                      const val = log?.[m.key] || 0
+                      const target = plan?.[m.target]
+                      const pct = target && val ? Math.min(100, (val / target) * 100) : 0
+                      
+                      return (
+                        <div key={m.key} style={{ padding: '9px 12px' }}>
+                          {hasData && val > 0 ? (
+                            <>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: m.color }}>
+                                {Math.round(val)}<span style={{ fontSize: 9, color: '#BBB' }}> {m.unit}</span>
+                              </div>
+                              {target && (
+                                <div style={{
+                                  marginTop: 2,
+                                  height: 3,
+                                  width: 60,
+                                  background: '#F0F0F0',
+                                  borderRadius: 2,
+                                  overflow: 'hidden'
+                                }}>
+                                  <div style={{ height: '100%', background: m.color, width: `${pct}%` }} />
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ color: '#DDD', fontSize: 12 }}>—</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  
+                  {isOpen && !isFuture && onOpenDay && (
+                    <div style={{
+                      padding: '14px 16px',
+                      background: '#F5F8FF',
+                      borderBottom: '2px solid #E8ECFA'
+                    }}>
+                      <button
+                        onClick={() => onOpenDay(date)}
+                        style={{
+                          background: '#0D1B4E',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '8px 16px',
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        📝 Voir/modifier cette journée
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function NutritionPage() {
@@ -152,6 +352,11 @@ export default function NutritionPage() {
     }
   }
 
+  const handleOpenDay = (date) => {
+    setSelectedDate(date)
+    setActiveTab('today')
+  }
+
   const combinedValues = {
     calories: Number(form.calories || 0) + Number(foodTotals.calories || 0),
     protein: Number(form.protein || 0) + Number(foodTotals.protein || 0),
@@ -263,7 +468,7 @@ export default function NutritionPage() {
               </SurfaceCard>
             </>
           ) : (
-            <NutritionWeekTable logs={logs} plan={plan} isMobile={isMobile} onOpenDay={(date) => { setSelectedDate(date); setActiveTab('today') }} />
+            <NutritionWeekTable logs={logs} plan={plan} isMobile={isMobile} onOpenDay={handleOpenDay} />
           )}
         </div>
 
@@ -284,6 +489,10 @@ export default function NutritionPage() {
     </AppShell>
   )
 }
+
+// ============================================
+// COMPOSANTS INTERNES
+// ============================================
 
 function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange, isMobile }) {
   const [log, setLog] = useState(initialLog)
