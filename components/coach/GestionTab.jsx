@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { callEdgeFunction } from '../../lib/coachUtils'
 import { btn, lbl, inp } from '../../lib/coachUtils'
 
-function GestionTab({ client, onDelete }) {
+export default function GestionTab({ client, onDelete }) {
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -80,4 +81,3 @@ function GestionTab({ client, onDelete }) {
     </div>
   )
 }
-
