@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { btn, sessionsThisWeek, lastWeight } from '../../lib/coachUtils'
 
-function CoachHub({ clients, user, sessionsThisWeek, lastWeight, unreadCounts, onSelectClient, onNewClient }) {
+export default function CoachHub({ clients, user, sessionsThisWeek, lastWeight, unreadCounts, onSelectClient, onNewClient }) {
   const [clientsOpen, setClientsOpen] = useState(true)
   const now = new Date()
   const hour = now.getHours()
@@ -211,6 +211,3 @@ function CoachHub({ clients, user, sessionsThisWeek, lastWeight, unreadCounts, o
     </div>
   )
 }
-
-
-export default CoachHub
