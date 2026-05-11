@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ci } from '../../lib/coachUtils'
 
-function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
+export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
   const [showImg, setShowImg] = useState(false)
 
   if (edit) {
@@ -86,5 +86,3 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
     </>
   )
 }
-
-// ==================== AUTRES COMPOSANTS (inchangés) ====================
