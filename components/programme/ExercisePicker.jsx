@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function ExercisePicker({ picker, query, setQuery, mode, setMode, freeVal, setFreeVal, onConfirm, onClose, exerciseFiles, supabaseUrl, loading }) {
+export default function ExercisePicker({ picker, query, setQuery, mode, setMode, freeVal, setFreeVal, onConfirm, onClose, exerciseFiles, supabaseUrl, loading }) {
   const normalizedFiles = exerciseFiles.map(name => ({
     name: name.replace(/\.[^.]+$/, ''),
     url: `${supabaseUrl}/storage/v1/object/public/exercise-images/${encodeURIComponent(name)}`
@@ -94,4 +94,3 @@ function ExercisePicker({ picker, query, setQuery, mode, setMode, freeVal, setFr
     </div>
   )
 }
-
