@@ -185,7 +185,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }))
   }
 
+  // ✅ FONCTION MOVE EXERCICE CORRIGÉE
   const moveExercise = async (workoutId, exId, direction) => {
+    console.log('moveExercise appelé', { workoutId, exId, direction })
+    
     const w = workouts.find(w => w.id === workoutId)
     if (!w) return
     
@@ -194,17 +197,35 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const newIdx = idx + direction
     if (newIdx < 0 || newIdx >= exs.length) return
     
-    const tmp = exs[idx]
-    exs[idx] = exs[newIdx]
-    exs[newIdx] = tmp
-    exs.forEach((ex, i) => { ex.order_index = i })
+    // Récupérer les deux exercices concernés
+    const ex1 = exs[idx]
+    const ex2 = exs[newIdx]
     
-    setWorkouts(prev => prev.map(ww => ww.id === workoutId ? { ...ww, exercises: exs } : ww))
+    // Sauvegarder leurs order_index actuels
+    const order1 = ex1.order_index
+    const order2 = ex2.order_index
     
-    await Promise.all([
-      supabase.from('exercises').update({ order_index: newIdx }).eq('id', exs[idx].id),
-      supabase.from('exercises').update({ order_index: idx }).eq('id', exs[newIdx].id),
-    ])
+    // Échanger les order_index dans la BDD
+    await supabase
+      .from('exercises')
+      .update({ order_index: order2 })
+      .eq('id', ex1.id)
+    
+    await supabase
+      .from('exercises')
+      .update({ order_index: order1 })
+      .eq('id', ex2.id)
+    
+    // Mettre à jour le state local
+    const newExercises = [...exs]
+    newExercises[idx] = { ...ex2, order_index: order2 }
+    newExercises[newIdx] = { ...ex1, order_index: order1 }
+    
+    setWorkouts(prev => prev.map(ww => 
+      ww.id === workoutId ? { ...ww, exercises: newExercises } : ww
+    ))
+    
+    console.log('✅ Ordre mis à jour')
   }
 
   const loadAllClients = async () => {
