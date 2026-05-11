@@ -25,6 +25,8 @@ export default function Layout({ title, user, children }) {
         minHeight: '100vh',
         background: '#EEF0F5',
         fontFamily: "'DM Sans',sans-serif",
+        overflowY: 'auto',      // ← PERMET LE SCROLL VERTICAL
+        overflowX: 'hidden',    // ← ÉVITE LE SCROLL HORIZONTAL
       }}
     >
       <AppNav user={user} onLogout={logout} mobileOpen={navOpen} setMobileOpen={setNavOpen} />
@@ -35,6 +37,7 @@ export default function Layout({ title, user, children }) {
           flex: 1,
           transition: 'margin-left 0.25s ease',
           minWidth: 0,
+          overflowY: 'visible',  // ← PERMET AU CONTENU DE DÉBORDER
         }}
       >
         <div
