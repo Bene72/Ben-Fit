@@ -2,7 +2,11 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, lbl, inp, getMondayOfWeek, getWeekLabel } from '../../lib/coachUtils'
 
-function NutritionTab({ clientId, clientName }) {
+// ========== CONSTANTES MANQUANTES ==========
+const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+// ========== COMPOSANT PRINCIPAL ==========
+export default function NutritionTab({ clientId, clientName }) {
   const [plan, setPlan] = useState(null)
   const [logs, setLogs] = useState([])
   const [editPlan, setEditPlan] = useState(false)
@@ -100,6 +104,8 @@ function NutritionTab({ clientId, clientName }) {
     </div>
   )
 }
+
+// ========== COMPOSANTS INTERNES ==========
 
 function NutritionRing({ value, target, label, unit, color }) {
   const percent = target ? Math.min(100, (value / target) * 100) : 0
@@ -232,7 +238,7 @@ function NutritionWeekGraph({ logs, plan, today }) {
 function NutritionFoodBlock({ log, clientId }) {
   const [items, setItems] = useState([])
   const [showSearch, setShowSearch] = useState(false)
-  const [mode, setMode] = useState('search') // 'search' | 'manual'
+  const [mode, setMode] = useState('search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [selected, setSelected] = useState(null)
@@ -413,7 +419,8 @@ function NutritionWeekView({ logs, plan, onSave, today }) {
             </div>
             {days.map(({ date, log, isToday, isFuture }) => {
               const isOpen = openDay === date
-              const dayName = DAYS_FR[new Date(date).getDay()===0?6:new Date(date).getDay()-1]
+              const dayIndex = new Date(date).getDay()
+              const dayName = DAYS_FR[dayIndex === 0 ? 6 : dayIndex - 1]
               const hasData = log && log.calories > 0
               return (
                 <div key={date}>
@@ -453,4 +460,3 @@ function NutritionWeekView({ logs, plan, onSave, today }) {
     </div>
   )
 }
-
