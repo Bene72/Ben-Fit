@@ -11,6 +11,7 @@ import MessagesTab   from '../components/coach/MessagesTab'
 import GestionTab    from '../components/coach/GestionTab'
 import ProgrammeTab  from '../components/programme/ProgrammeTab'
 import NutritionTab  from '../components/nutrition/NutritionTab'
+import BillingTab    from '../components/billing/BillingTab'
 import LoadingScreen from '../components/coach/LoadingScreen'
 
 // ─── Styles boutons inline réutilisables ─────────────────────
@@ -189,12 +190,14 @@ export default function CoachPanel() {
                     </div>
                     <span style={{ fontSize: '12px', fontWeight: '700' }}>{selected.full_name}</span>
                   </button>
-                  {tab !== 'overview' && <>
-                    <span style={{ color: '#C5D0F0', fontSize: '16px' }}>›</span>
-                    <span style={{ fontSize: '12px', color: '#4A6FD4', fontWeight: '700' }}>
-                      {tab === 'programme' ? 'Programme' : tab === 'nutrition' ? 'Nutrition' : tab === 'bilan' ? 'Bilan' : tab === 'messages' ? 'Messages' : 'Gestion'}
-                    </span>
-                  </>}
+                  {tab !== 'overview' && (
+                    <>
+                      <span style={{ color: '#C5D0F0', fontSize: '16px' }}>›</span>
+                      <span style={{ fontSize: '12px', color: '#4A6FD4', fontWeight: '700' }}>
+                        {tab === 'programme' ? 'Programme' : tab === 'nutrition' ? 'Nutrition' : tab === 'bilan' ? 'Bilan' : tab === 'messages' ? 'Messages' : tab === 'gestion' ? 'Gestion' : 'Facturation'}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ fontSize: '11px', color: '#9BA8C0' }}>{selected.email}</div>
@@ -206,6 +209,7 @@ export default function CoachPanel() {
                       ['bilan', 'Bilan'],
                       ['messages', 'Messages'],
                       ['gestion', 'Gestion'],
+                      ['billing', '💰 Facturation'],
                     ].map(([t, label]) => (
                       <button key={t} onClick={() => setTab(t)}
                         style={{ padding: '6px 12px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', border: 'none', background: tab === t ? (t === 'gestion' ? '#C45C3A' : '#0D1B4E') : 'transparent', color: tab === t ? 'white' : '#6B7A99', fontFamily: "'DM Sans',sans-serif", transition: 'all 0.15s' }}>
@@ -224,6 +228,7 @@ export default function CoachPanel() {
                 {tab === 'bilan'      && <BilanTab clientId={selected.id} clientName={selected.full_name} coachId={user?.id} />}
                 {tab === 'messages'   && <MessagesTab coachId={user?.id} clientId={selected.id} clientName={selected.full_name} onRead={() => setUnreadCounts(prev => ({ ...prev, [selected.id]: 0 }))} />}
                 {tab === 'gestion'    && <GestionTab client={selected} onDelete={() => { setSelected(null); loadClients(user.id) }} />}
+                {tab === 'billing'    && <BillingTab coachId={user?.id} />}
               </div>
             </>
           )}
