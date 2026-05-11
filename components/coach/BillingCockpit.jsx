@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp } from '../../lib/coachUtils'
+import { btn } from '../../lib/coachUtils'
 import InvoiceGenerator from '../billing/InvoiceGenerator'
 import InvoiceList from '../billing/InvoiceList'
 import ClientBillingForm from '../billing/ClientBillingForm'
+import SessionManager from '../billing/SessionManager'
+import CoachBillingSettings from '../billing/CoachBillingSettings'  
 
 export default function BillingCockpit({ coachId }) {
   const [view, setView] = useState('clients') // clients, sessions, invoices, settings
