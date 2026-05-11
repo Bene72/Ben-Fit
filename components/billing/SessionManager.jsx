@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { btn, lbl, inp } from '../../lib/coachUtils'
 import { formatPrice } from '../../lib/invoiceUtils'
 
-export default function SessionManager({ coachId, selectedClient, onGenerateInvoice }) {
+export default function SessionManager({ coachId, selectedClient, onGenerateInvoice, onSessionAdded }) {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -57,6 +57,7 @@ export default function SessionManager({ coachId, selectedClient, onGenerateInvo
     }
     
     await loadSessions()
+    onSessionAdded?.() // ← Appelle la fonction de callback si elle existe
     setShowAddForm(false)
     setNewSession({
       date: new Date().toISOString().split('T')[0],
@@ -81,6 +82,7 @@ export default function SessionManager({ coachId, selectedClient, onGenerateInvo
     }
     
     await loadSessions()
+    onSessionAdded?.() // ← Appelle la fonction de callback si elle existe
   }
 
   const totalHours = sessions.reduce((sum, s) => sum + s.hours, 0)
