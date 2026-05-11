@@ -7,46 +7,39 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
   
   return (
     <div style={{ 
-      width: '210mm', 
-      minHeight: '297mm', 
-      padding: '20mm 15mm', 
-      background: 'white', 
+      width: '100%',
+      maxWidth: '800px',
+      margin: '0 auto',
+      padding: '20px',
+      background: 'white',
       fontFamily: "'DM Sans', 'Helvetica', 'Arial', sans-serif",
       fontSize: '10pt',
-      color: '#1a1a2e',
-      margin: '0 auto'
+      color: '#1a1a2e'
     }}>
-      {/* Style pour l'impression */}
-      <style>
-        {`
-          @media print {
-            body { margin: 0; padding: 0; }
-            .page-break { page-break-before: always; }
-          }
-        `}
-      </style>
-
       {/* HEADER - Logo + Titre */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', borderBottom: '2px solid #0D1B4E', paddingBottom: '15px' }}>
-        <div>
-          <h1 style={{ 
-            fontFamily: "'Bebas Neue', 'DM Sans', sans-serif", 
-            fontSize: '28pt', 
-            fontWeight: 'bold', 
-            color: '#0D1B4E', 
-            margin: 0,
-            letterSpacing: '2px'
-          }}>
-            BEN&FITNESS
-          </h1>
-          <p style={{ fontSize: '9pt', color: '#6B7A99', margin: '5px 0 0 0' }}>
-            Only Benefit · since 2021
-          </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '2px solid #0D1B4E', paddingBottom: '15px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <img src="/logo.png" alt="Ben&Fit" style={{ height: '60px', width: 'auto' }} />
+          <div>
+            <h1 style={{ 
+              fontFamily: "'Bebas Neue', 'DM Sans', sans-serif", 
+              fontSize: '24pt', 
+              fontWeight: 'bold', 
+              color: '#0D1B4E', 
+              margin: 0,
+              letterSpacing: '2px'
+            }}>
+              BEN&FITNESS
+            </h1>
+            <p style={{ fontSize: '9pt', color: '#6B7A99', margin: '5px 0 0 0' }}>
+              Only Benefit · since 2021
+            </p>
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <h2 style={{ 
             fontFamily: "'Bebas Neue', sans-serif", 
-            fontSize: '22pt', 
+            fontSize: '20pt', 
             fontWeight: 'bold', 
             color: '#0D1B4E', 
             margin: 0,
@@ -62,7 +55,6 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
 
       {/* INFOS ÉMETTEUR + DESTINATAIRE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '30px', marginBottom: '30px' }}>
-        {/* Émetteur (coach) */}
         <div style={{ flex: 1 }}>
           <p style={{ fontWeight: 'bold', marginBottom: '5px', color: '#0D1B4E' }}>Émetteur</p>
           <div style={{ fontSize: '9pt', lineHeight: '1.5', color: '#333' }}>
@@ -75,19 +67,16 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
           </div>
         </div>
         
-        {/* Destinataire (client) */}
         <div style={{ flex: 1 }}>
           <p style={{ fontWeight: 'bold', marginBottom: '5px', color: '#0D1B4E' }}>Destinataire</p>
           <div style={{ fontSize: '9pt', lineHeight: '1.5', color: '#333' }}>
-            <div><strong>{clientInfo?.company_name || clientInfo?.full_name || 'Client'}</strong></div>
-            {clientInfo?.company_name && <div>{clientInfo?.full_name}</div>}
-            <div>{clientInfo?.address || ''}</div>
-            <div>{clientInfo?.postal_code ? `${clientInfo.postal_code} ${clientInfo.city || ''}` : ''}</div>
-            <div>{clientInfo?.vat_number ? `TVA : ${clientInfo.vat_number}` : ''}</div>
+            <div><strong>{clientInfo?.profiles?.full_name || 'Client'}</strong></div>
+            {clientInfo?.company_name && <div>{clientInfo.company_name}</div>}
+            {clientInfo?.address && <div>{clientInfo.address}</div>}
+            {clientInfo?.postal_code && <div>{clientInfo.postal_code} {clientInfo.city || ''}</div>}
           </div>
         </div>
         
-        {/* Infos facture */}
         <div style={{ flex: 1, textAlign: 'right' }}>
           <p style={{ fontWeight: 'bold', marginBottom: '5px', color: '#0D1B4E' }}>Détails facture</p>
           <div style={{ fontSize: '9pt', lineHeight: '1.5', color: '#333' }}>
@@ -95,21 +84,6 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
             <div>Échéance : {dueDate}</div>
             <div>Mode : Virement</div>
           </div>
-        </div>
-      </div>
-
-      {/* DESCRIPTION - comme dans le PDF */}
-      <div style={{ marginBottom: '20px' }}>
-        <p style={{ fontWeight: 'bold', marginBottom: '10px', color: '#0D1B4E' }}>DESCRIPTION :</p>
-        <div style={{ 
-          background: '#F8FAFF', 
-          padding: '12px 15px', 
-          borderRadius: '8px', 
-          fontSize: '10pt', 
-          fontStyle: 'italic',
-          color: '#555'
-        }}>
-          {invoice.notes || 'Prestations pour l\'animation d\'heures de coaching'}
         </div>
       </div>
 
@@ -122,7 +96,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
             <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #ddd' }}>Quantité</th>
             <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #ddd' }}>Prix Unitaire HT</th>
             <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #ddd' }}>Total HT</th>
-          </tr>
+          </td>
         </thead>
         <tbody>
           {items.map((item, idx) => (
@@ -135,7 +109,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
             </tr>
           ))}
         </tbody>
-      </table>
+       </table>
 
       {/* TOTAUX */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
@@ -161,17 +135,11 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
       </div>
 
       {/* MOYENS DE PAIEMENT */}
-      <div style={{ 
-        background: '#F0F4FF', 
-        padding: '15px', 
-        borderRadius: '10px', 
-        marginTop: '20px',
-        fontSize: '9pt'
-      }}>
+      <div style={{ background: '#F0F4FF', padding: '15px', borderRadius: '10px', marginTop: '20px', fontSize: '9pt' }}>
         <p style={{ fontWeight: 'bold', marginBottom: '10px', color: '#0D1B4E' }}>MOYENS DE PAIEMENT :</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div>
-            <div>Montant total net de TVA : <strong>{formatPrice(invoice.total)}</strong></div>
+            <div>Montant total : <strong>{formatPrice(invoice.total)}</strong></div>
             <div>• Mode de paiement : virement</div>
             <div>• Règlement : 30j à réception</div>
           </div>
@@ -183,14 +151,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
       </div>
 
       {/* FOOTER */}
-      <div style={{ 
-        marginTop: '30px', 
-        paddingTop: '15px', 
-        borderTop: '1px solid #ddd', 
-        textAlign: 'center', 
-        fontSize: '8pt', 
-        color: '#9BA8C0' 
-      }}>
+      <div style={{ marginTop: '30px', paddingTop: '15px', borderTop: '1px solid #ddd', textAlign: 'center', fontSize: '8pt', color: '#9BA8C0' }}>
         BEN&FITNESS · Only Benefit · SIRET 91947704200015 · 27 Rue de Coulmiers 44000 Nantes
       </div>
     </div>
