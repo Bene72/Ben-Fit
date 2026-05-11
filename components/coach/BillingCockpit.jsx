@@ -62,6 +62,44 @@ export default function BillingCockpit({ coachId }) {
     setCoachInfo(data)
   }
 
+  // Imprimer / Sauvegarder PDF
+  const printInvoice = () => {
+    const printContent = document.getElementById('invoice-print')
+    if (!printContent) return
+    
+    const invoiceNumber = generatedInvoice?.invoice_number || viewingInvoice?.invoice_number
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Facture-${invoiceNumber}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'DM Sans', sans-serif; 
+              padding: 20px; 
+              background: white;
+            }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+    printWindow.onafterprint = () => {
+      printWindow.close()
+    }
+  }
+
   // Voir une facture existante
   const viewInvoice = async (invoice) => {
     setLoading(true)
@@ -119,26 +157,6 @@ export default function BillingCockpit({ coachId }) {
     if (!confirm('Supprimer cette session ?')) return
     await supabase.from('billable_sessions').delete().eq('id', sessionId)
     loadSessions(selectedClient.id)
-  }
-
-  // Télécharger le PDF
-  const downloadPDF = () => {
-    const element = document.getElementById('invoice-print')
-    if (!element) return
-    
-    import('html2pdf.js').then(html2pdf => {
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
-        filename: `facture-${generatedInvoice?.invoice_number || viewingInvoice?.invoice_number}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      }
-      html2pdf.default().set(opt).from(element).save()
-    }).catch(err => {
-      console.error('Erreur chargement html2pdf:', err)
-      alert('Utilise la fonction "Imprimer" du navigateur pour sauvegarder en PDF')
-    })
   }
 
   // Générer la facture
@@ -259,10 +277,10 @@ export default function BillingCockpit({ coachId }) {
           />
         </div>
         <button 
-          onClick={downloadPDF} 
+          onClick={printInvoice} 
           style={{ marginTop: 16, padding: '10px 20px', background: '#4A6FD4', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}
         >
-          ⬇️ Télécharger le PDF
+          🖨️ Imprimer / Sauvegarder PDF
         </button>
       </div>
     )
