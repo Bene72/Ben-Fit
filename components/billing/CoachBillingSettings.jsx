@@ -1,5 +1,22 @@
 import { useState } from 'react'
-import { btn, lbl, inp } from '../../lib/coachUtils'
+
+const lbl = {
+  display: 'block', fontSize: '11px', letterSpacing: '1.5px',
+  textTransform: 'uppercase', color: '#6B7A99', marginBottom: '5px', fontWeight: '500',
+}
+
+const inp = {
+  width: '100%', padding: '7px 10px', border: '1.5px solid #C5D0F0',
+  borderRadius: '7px', fontSize: '13px', fontFamily: "'DM Sans',sans-serif",
+  background: 'white', outline: 'none', color: '#0D1B4E',
+}
+
+const btn = (bg, color, border) => ({
+  padding: '7px 14px', background: bg, color,
+  border: border ? `1.5px solid ${border}` : 'none',
+  borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+  cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+})
 
 export default function CoachBillingSettings({ coachInfo, onSave }) {
   const [form, setForm] = useState({
