@@ -11,7 +11,7 @@ import MessagesTab   from '../components/coach/MessagesTab'
 import GestionTab    from '../components/coach/GestionTab'
 import ProgrammeTab  from '../components/programme/ProgrammeTab'
 import NutritionTab  from '../components/nutrition/NutritionTab'
-import BillingTab    from '../components/billing/BillingTab'
+import BillingCockpit from '../components/coach/BillingCockpit'
 import LoadingScreen from '../components/coach/LoadingScreen'
 
 // ─── Styles boutons inline réutilisables ─────────────────────
@@ -36,6 +36,7 @@ export default function CoachPanel() {
   const [createSuccess, setCreateSuccess] = useState(null)
   const [unreadCounts, setUnreadCounts] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [cockpitTab, setCockpitTab]   = useState('dashboard') // dashboard, clients, billing, settings
 
   // ── Boot ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -162,14 +163,65 @@ export default function CoachPanel() {
         {/* ── CONTENU PRINCIPAL ── */}
         <main style={{ marginLeft: sidebarOpen ? '260px' : '0px', flex: 1, transition: 'margin-left 0.25s ease', minWidth: 0 }}>
           {!selected ? (
-            <CoachHub
-              clients={clients} user={user}
-              sessionsThisWeek={sessionsThisWeek} lastWeight={lastWeight}
-              unreadCounts={unreadCounts}
-              onSelectClient={selectClient}
-              onNewClient={() => setShowNewClient(true)}
-            />
+            // ── COCKPIT PRINCIPAL (aucun client sélectionné) ──
+            <div style={{ padding: '28px 32px' }}>
+              {/* Navigation du cockpit */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid #C5D0F0', paddingBottom: 8, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'dashboard', label: '📊 Dashboard' },
+                  { id: 'clients', label: '👥 Clients' },
+                  { id: 'billing', label: '💰 Facturation' }
+                ].map(tabItem => (
+                  <button
+                    key={tabItem.id}
+                    onClick={() => setCockpitTab(tabItem.id)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: cockpitTab === tabItem.id ? '#0D1B4E' : 'transparent',
+                      color: cockpitTab === tabItem.id ? 'white' : '#6B7A99',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '13px'
+                    }}
+                  >
+                    {tabItem.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dashboard (vue par défaut) */}
+              {cockpitTab === 'dashboard' && (
+                <CoachHub
+                  clients={clients}
+                  user={user}
+                  sessionsThisWeek={sessionsThisWeek}
+                  lastWeight={lastWeight}
+                  unreadCounts={unreadCounts}
+                  onSelectClient={selectClient}
+                  onNewClient={() => setShowNewClient(true)}
+                />
+              )}
+
+              {/* Vue Clients (liste détaillée) */}
+              {cockpitTab === 'clients' && (
+                <ClientListView 
+                  clients={clients}
+                  onSelectClient={selectClient}
+                  sessionsThisWeek={sessionsThisWeek}
+                  lastWeight={lastWeight}
+                  unreadCounts={unreadCounts}
+                />
+              )}
+
+              {/* Vue Facturation */}
+              {cockpitTab === 'billing' && (
+                <BillingCockpit coachId={user?.id} />
+              )}
+            </div>
           ) : (
+            // ── VUE DÉTAIL D'UN CLIENT (sélectionné) ──
             <>
               {/* ── Breadcrumb + nav ── */}
               <div style={{ padding: '10px 24px', borderBottom: '1px solid #C5D0F0', background: '#EEF2FF', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -194,7 +246,7 @@ export default function CoachPanel() {
                     <>
                       <span style={{ color: '#C5D0F0', fontSize: '16px' }}>›</span>
                       <span style={{ fontSize: '12px', color: '#4A6FD4', fontWeight: '700' }}>
-                        {tab === 'programme' ? 'Programme' : tab === 'nutrition' ? 'Nutrition' : tab === 'bilan' ? 'Bilan' : tab === 'messages' ? 'Messages' : tab === 'gestion' ? 'Gestion' : 'Facturation'}
+                        {tab === 'programme' ? 'Programme' : tab === 'nutrition' ? 'Nutrition' : tab === 'bilan' ? 'Bilan' : tab === 'messages' ? 'Messages' : 'Gestion'}
                       </span>
                     </>
                   )}
@@ -209,7 +261,6 @@ export default function CoachPanel() {
                       ['bilan', 'Bilan'],
                       ['messages', 'Messages'],
                       ['gestion', 'Gestion'],
-                      ['billing', '💰 Facturation'],
                     ].map(([t, label]) => (
                       <button key={t} onClick={() => setTab(t)}
                         style={{ padding: '6px 12px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', border: 'none', background: tab === t ? (t === 'gestion' ? '#C45C3A' : '#0D1B4E') : 'transparent', color: tab === t ? 'white' : '#6B7A99', fontFamily: "'DM Sans',sans-serif", transition: 'all 0.15s' }}>
@@ -220,7 +271,7 @@ export default function CoachPanel() {
                 </div>
               </div>
 
-              {/* ── Onglets ── */}
+              {/* ── Onglets client ── */}
               <div style={{ padding: '28px 32px' }}>
                 {tab === 'overview'   && <OverviewTab client={selected} sessionsThisWeek={sessionsThisWeek} lastWeight={lastWeight} coachId={user?.id} onUpdate={c => { setSelected(c); setClients(prev => prev.map(x => x.id === c.id ? c : x)) }} />}
                 {tab === 'programme'  && <ProgrammeTab clientId={selected.id} clientName={selected.full_name} coachId={user?.id} />}
@@ -228,7 +279,6 @@ export default function CoachPanel() {
                 {tab === 'bilan'      && <BilanTab clientId={selected.id} clientName={selected.full_name} coachId={user?.id} />}
                 {tab === 'messages'   && <MessagesTab coachId={user?.id} clientId={selected.id} clientName={selected.full_name} onRead={() => setUnreadCounts(prev => ({ ...prev, [selected.id]: 0 }))} />}
                 {tab === 'gestion'    && <GestionTab client={selected} onDelete={() => { setSelected(null); loadClients(user.id) }} />}
-                {tab === 'billing'    && <BillingTab coachId={user?.id} />}
               </div>
             </>
           )}
@@ -283,5 +333,74 @@ export default function CoachPanel() {
         )}
       </div>
     </>
+  )
+}
+
+// ─── COMPOSANT CLIENT LIST VIEW (pour l'onglet Clients) ─────────────────
+function ClientListView({ clients, onSelectClient, sessionsThisWeek, lastWeight, unreadCounts }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0D1B4E' }}>👥 Tous les clients</h3>
+        <p style={{ color: '#6B7A99', fontSize: 13 }}>{clients.length} client(s) actif(s)</p>
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+        {clients.map(client => {
+          const sessions = sessionsThisWeek(client)
+          const target = client.session_target || 5
+          const pct = Math.min(100, Math.round((sessions / target) * 100))
+          const w = lastWeight(client)
+          const hue = (client.full_name?.charCodeAt(0) || 65) * 7 % 360
+          const statusColor = sessions >= target ? '#8FA07A' : sessions >= 2 ? '#4A6FD4' : '#C45C3A'
+          const hasUnread = (unreadCounts[client.id] || 0) > 0
+
+          return (
+            <div key={client.id} onClick={() => onSelectClient(client)}
+              style={{ background: 'white', borderRadius: 14, border: '1px solid #E8ECFA', padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s', position: 'relative', boxShadow: '0 2px 6px rgba(13,27,78,0.04)' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(13,27,78,0.12)'; e.currentTarget.style.borderColor = '#4A6FD4' }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 6px rgba(13,27,78,0.04)'; e.currentTarget.style.borderColor = '#E8ECFA' }}
+            >
+              {hasUnread && (
+                <div style={{ position: 'absolute', top: 12, right: 12, background: '#C45C3A', color: 'white', borderRadius: 20, fontSize: 9, fontWeight: 800, padding: '2px 7px' }}>
+                  💬 {unreadCounts[client.id]}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: `hsl(${hue},40%,45%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'white', fontWeight: 800, flexShrink: 0 }}>
+                  {client.full_name?.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', lineHeight: 1.2 }}>{client.full_name}</div>
+                  <div style={{ fontSize: 10, color: '#9BA8C0', marginTop: 2 }}>{client.current_program || 'Aucun programme'}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                <div style={{ background: '#F8FAFF', borderRadius: 9, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 9, color: '#9BA8C0', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700 }}>Séances</div>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: statusColor, lineHeight: 1.1 }}>{sessions}<span style={{ fontSize: 11, fontWeight: 400, color: '#9BA8C0' }}>/{target}</span></div>
+                </div>
+                <div style={{ background: '#F8FAFF', borderRadius: 9, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 9, color: '#9BA8C0', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700 }}>Poids</div>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: '#C45C3A', lineHeight: 1.1 }}>{w}<span style={{ fontSize: 11, fontWeight: 400, color: '#9BA8C0' }}> kg</span></div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: '#9BA8C0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Progression semaine</span>
+                  <span style={{ fontSize: 9, color: statusColor, fontWeight: 800 }}>{pct}%</span>
+                </div>
+                <div style={{ height: 5, background: '#F0F0F0', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: statusColor, width: `${pct}%`, borderRadius: 3, transition: 'width 0.4s ease' }} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
