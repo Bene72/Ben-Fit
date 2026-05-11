@@ -5,9 +5,11 @@ import InvoiceGenerator from '../billing/InvoiceGenerator'
 import InvoiceList from '../billing/InvoiceList'
 import ClientBillingForm from '../billing/ClientBillingForm'
 import SessionManager from '../billing/SessionManager'
-import CoachBillingSettings from '../billing/CoachBillingSettings'  
+import SimpleInvoice from './SimpleInvoice' 
 
 export default function BillingCockpit({ coachId }) {
+  return <SimpleInvoice coachId={coachId} />
+}
   const [view, setView] = useState('clients') // clients, sessions, invoices, settings
   const [selectedClient, setSelectedClient] = useState(null)
   const [clients, setClients] = useState([])
