@@ -3,31 +3,52 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import AppNav from './AppNav'
 
-export default function Layout({ title, user, children }) {
-  const router = useRouter()
-  const [navOpen, setNavOpen] = useState(true)
+xport default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, isMobile }) {
+  // ... reste du code
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 980) {
-      setNavOpen(false)
-    }
-  }, [])
-
-  const logout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+  // ── MOBILE ─────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        {/* PAS de header fixe qui bloque */}
+        <nav style={{
+          position: 'fixed', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          zIndex: 300,
+          background: '#0D1B4E', 
+          borderTop: '1px solid rgba(255,255,255,0.10)',
+          display: 'flex', 
+          alignItems: 'stretch', 
+          minHeight: '64px',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.22)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {NAV_ITEMS.map(item => {
+            const active = pathname === item.href
+            return (
+              <button key={item.href} onClick={() => go(item.href)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: '3px',
+                border: 'none', cursor: 'pointer',
+                background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: active ? 'white' : 'rgba(255,255,255,0.5)',
+                fontFamily: "'DM Sans',sans-serif",
+                borderTop: active ? '2px solid #2C64E5' : '2px solid transparent',
+                position: 'relative',
+              }}>
+                <span style={{ fontSize: '20px', lineHeight: 1 }}>{item.icon}</span>
+                <span style={{ fontSize: '9px', fontWeight: active ? '700' : '400', letterSpacing: '0.3px' }}>
+                  {item.label}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+      </>
+    )
   }
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        background: '#EEF0F5',
-        fontFamily: "'DM Sans',sans-serif",
-        overflowY: 'auto',      // ← PERMET LE SCROLL VERTICAL
-        overflowX: 'hidden',    // ← ÉVITE LE SCROLL HORIZONTAL
-      }}
     >
       <AppNav user={user} onLogout={logout} mobileOpen={navOpen} setMobileOpen={setNavOpen} />
 
