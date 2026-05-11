@@ -4,9 +4,7 @@ import { btn, lbl, inp } from '../../lib/coachUtils'
 import { generateInvoiceNumber, calculateTotals, formatPrice } from '../../lib/invoiceUtils'
 import InvoicePDF from './InvoicePDF'
 
-export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSuccess }) {
-  const [clients, setClients] = useState([])
-  const [selectedClient, setSelectedClient] = useState(null)
+export default function InvoiceGenerator({ coachId, coachInfo, selectedClient, onClose, onSuccess }) {
   const [clientDetails, setClientDetails] = useState(null)
   const [sessions, setSessions] = useState([])
   const [selectedSessions, setSelectedSessions] = useState([])
@@ -18,36 +16,35 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
   const [generating, setGenerating] = useState(false)
   const [generatedInvoice, setGeneratedInvoice] = useState(null)
   const [showPDF, setShowPDF] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadClients()
-  }, [coachId])
+    if (selectedClient) {
+      loadData()
+    }
+  }, [selectedClient])
 
-  const loadClients = async () => {
-    const { data } = await supabase
+  const loadData = async () => {
+    setLoading(true)
+    
+    // Charger les détails du client
+    const { data: client } = await supabase
       .from('billing_clients')
       .select('*, profiles(full_name, email)')
-      .eq('coach_id', coachId)
-    setClients(data || [])
-  }
-
-  const loadSessions = async (clientId) => {
-    const { data } = await supabase
+      .eq('client_id', selectedClient.client_id)
+      .single()
+    setClientDetails(client)
+    
+    // Charger les sessions non facturées de ce client
+    const { data: sessionsData } = await supabase
       .from('billable_sessions')
       .select('*')
-      .eq('client_id', clientId)
+      .eq('client_id', selectedClient.client_id)
       .is('invoice_id', null)
       .order('date', { ascending: false })
-    setSessions(data || [])
-  }
-
-  const loadClientDetails = async (clientId) => {
-    const { data } = await supabase
-      .from('billing_clients')
-      .select('*, profiles(full_name, email)')
-      .eq('client_id', clientId)
-      .single()
-    setClientDetails(data)
+    setSessions(sessionsData || [])
+    
+    setLoading(false)
   }
 
   const toggleSession = (session) => {
@@ -58,11 +55,23 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
     )
   }
 
+  const toggleAllSessions = () => {
+    if (selectedSessions.length === sessions.length) {
+      setSelectedSessions([])
+    } else {
+      setSelectedSessions([...sessions])
+    }
+  }
+
   const subtotal = selectedSessions.reduce((sum, s) => sum + (s.hours * s.hourly_rate), 0)
   const { taxAmount, total } = calculateTotals(subtotal, invoice.tax_rate)
 
   const generateInvoice = async () => {
-    if (selectedSessions.length === 0) return
+    if (selectedSessions.length === 0) {
+      alert('Veuillez sélectionner au moins une session')
+      return
+    }
+    
     setGenerating(true)
     
     const invoiceNumber = generateInvoiceNumber()
@@ -77,7 +86,7 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
       tax_rate: invoice.tax_rate,
       tax_amount: taxAmount,
       total,
-      notes: invoice.notes
+      notes: invoice.notes || `Prestations pour ${clientDetails?.profiles?.full_name || 'coaching'}`
     }
     
     const { data: newInvoice, error } = await supabase
@@ -96,7 +105,7 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
     for (const session of selectedSessions) {
       await supabase.from('invoice_items').insert({
         invoice_id: newInvoice.id,
-        description: `Coaching - ${session.hours}h`,
+        description: session.description || `Coaching - ${session.hours}h le ${new Date(session.date).toLocaleDateString('fr-FR')}`,
         quantity: session.hours,
         unit_price: session.hourly_rate,
         total: session.hours * session.hourly_rate,
@@ -116,15 +125,26 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
     onSuccess?.()
   }
 
-  const handleClientSelect = (clientId) => {
-    const client = clients.find(c => c.client_id === clientId)
-    setSelectedClient(client)
-    loadSessions(clientId)
-    loadClientDetails(clientId)
-    setSelectedSessions([])
+  const allSelected = selectedSessions.length === sessions.length && sessions.length > 0
+
+  if (loading) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ background: 'white', borderRadius: 16, padding: 40, textAlign: 'center' }}>
+          Chargement...
+        </div>
+      </div>
+    )
   }
 
   if (showPDF && generatedInvoice) {
+    const items = selectedSessions.map(s => ({
+      description: s.description || `Coaching - ${s.hours}h le ${new Date(s.date).toLocaleDateString('fr-FR')}`,
+      quantity: s.hours,
+      unit_price: s.hourly_rate,
+      total: s.hours * s.hourly_rate
+    }))
+
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div style={{ background: 'white', borderRadius: 16, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto' }}>
@@ -150,12 +170,7 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
               invoice={generatedInvoice}
               coachInfo={coachInfo}
               clientInfo={clientDetails}
-              items={selectedSessions.map(s => ({
-                description: `Coaching - ${s.hours}h`,
-                quantity: s.hours,
-                unit_price: s.hourly_rate,
-                total: s.hours * s.hourly_rate
-              }))}
+              items={items}
             />
           </div>
         </div>
@@ -166,22 +181,10 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: 'white', borderRadius: 16, width: 700, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 24 }}>
-        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>📄 Générer une facture</h3>
-        
-        {/* Sélection du client */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>Client</label>
-          <select 
-            value={selectedClient?.client_id || ''}
-            onChange={(e) => handleClientSelect(e.target.value)}
-            style={inp}
-          >
-            <option value="">-- Sélectionner un client --</option>
-            {clients.map(c => (
-              <option key={c.client_id} value={c.client_id}>{c.profiles?.full_name} {c.company_name ? `(${c.company_name})` : ''}</option>
-            ))}
-          </select>
-        </div>
+        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>📄 Générer une facture</h3>
+        <p style={{ color: '#6B7A99', marginBottom: 20, fontSize: 13 }}>
+          Pour {clientDetails?.profiles?.full_name} {clientDetails?.company_name ? `(${clientDetails.company_name})` : ''}
+        </p>
         
         {/* Date d'échéance */}
         <div style={{ marginBottom: 16 }}>
@@ -195,31 +198,40 @@ export default function InvoiceGenerator({ coachId, coachInfo, onClose, onSucces
         </div>
         
         {/* Sessions non facturées */}
-        {selectedClient && sessions.length > 0 && (
+        {sessions.length > 0 ? (
           <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Sessions à facturer</label>
-            <div style={{ border: '1px solid #C5D0F0', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={lbl}>Sessions à facturer</label>
+              <button 
+                onClick={toggleAllSessions}
+                style={{ fontSize: 11, background: 'none', border: 'none', color: '#4A6FD4', cursor: 'pointer' }}
+              >
+                {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </button>
+            </div>
+            <div style={{ border: '1px solid #C5D0F0', borderRadius: 8, maxHeight: 250, overflowY: 'auto' }}>
               {sessions.map(session => (
-                <label key={session.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderBottom: '1px solid #EEF2FF' }}>
+                <label key={session.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, borderBottom: '1px solid #EEF2FF', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
                     checked={selectedSessions.some(s => s.id === session.id)}
                     onChange={() => toggleSession(session)}
                   />
                   <div style={{ flex: 1 }}>
-                    <div>{new Date(session.date).toLocaleDateString('fr-FR')}</div>
+                    <div style={{ fontWeight: 500 }}>{new Date(session.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                     <div style={{ fontSize: 12, color: '#6B7A99' }}>{session.hours}h à {formatPrice(session.hourly_rate)}/h</div>
+                    {session.description && <div style={{ fontSize: 11, color: '#4A6FD4', marginTop: 2 }}>{session.description}</div>}
                   </div>
-                  <div>{formatPrice(session.hours * session.hourly_rate)}</div>
+                  <div style={{ fontWeight: 600 }}>{formatPrice(session.hours * session.hourly_rate)}</div>
                 </label>
               ))}
             </div>
           </div>
-        )}
-        
-        {selectedClient && sessions.length === 0 && (
-          <div style={{ background: '#FFF8E1', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+        ) : (
+          <div style={{ background: '#FFF8E1', padding: 16, borderRadius: 8, marginBottom: 16, textAlign: 'center' }}>
             ⚠️ Aucune session non facturée pour ce client.
+            <br />
+            <span style={{ fontSize: 12 }}>Ajoute des sessions dans l'onglet "Sessions"</span>
           </div>
         )}
         
