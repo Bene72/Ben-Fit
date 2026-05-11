@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp, ci, DAYS, DAYS_FR, SUPABASE_URL } from '../../lib/coachUtils'
-import ExerciseRow from './ExerciseRow'
+import { btn, lbl, inp, ci, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachUtils'
+import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
 
 export default function ProgrammeTab({ clientId, clientName, coachId }) {
@@ -605,28 +605,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
-      {/* Panneau Dupliquer */}
-      {showDuplicate && (
-        <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '16px 20px', marginBottom: '14px' }}>
-          <div style={{ fontWeight: '800', fontSize: '14px', color: '#0D1B4E', marginBottom: '12px' }}>
-            📋 Dupliquer le programme de {clientName?.split(' ')[0]} vers :
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <select value={duplicateTarget} onChange={e => setDuplicateTarget(e.target.value)}
-              style={{ flex: 1, minWidth: '200px', padding: '8px 12px', border: '1.5px solid #C5D0F0', borderRadius: '8px', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", outline: 'none' }}>
-              <option value=''>— Choisir un client —</option>
-              {allClients.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
-            </select>
-            <button onClick={() => duplicateProgram(duplicateTarget)} disabled={!duplicateTarget || duplicating}
-              style={btn(!duplicateTarget || duplicating ? '#CCC' : '#4A6FD4', 'white')}>
-              {duplicating ? '⏳ Duplication…' : '✓ Dupliquer'}
-            </button>
-            <button onClick={() => { setShowDuplicate(false); setDuplicateTarget('') }} style={btn('transparent', '#9BA8C0', '#C5D0F0')}>Annuler</button>
-          </div>
-          {allClients.length === 0 && <div style={{ fontSize: '12px', color: '#9BA8C0', marginTop: '8px' }}>Chargement des clients…</div>}
-        </div>
-      )}
-
       {/* Historique */}
       {showHistory && (
         <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '16px 20px', marginBottom: '14px' }}>
@@ -666,6 +644,28 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
+      {/* Panneau Dupliquer */}
+      {showDuplicate && (
+        <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '16px 20px', marginBottom: '14px' }}>
+          <div style={{ fontWeight: '800', fontSize: '14px', color: '#0D1B4E', marginBottom: '12px' }}>
+            📋 Dupliquer le programme de {clientName?.split(' ')[0]} vers :
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={duplicateTarget} onChange={e => setDuplicateTarget(e.target.value)}
+              style={{ flex: 1, minWidth: '200px', padding: '8px 12px', border: '1.5px solid #C5D0F0', borderRadius: '8px', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", outline: 'none' }}>
+              <option value=''>— Choisir un client —</option>
+              {allClients.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+            </select>
+            <button onClick={() => duplicateProgram(duplicateTarget)} disabled={!duplicateTarget || duplicating}
+              style={btn(!duplicateTarget || duplicating ? '#CCC' : '#4A6FD4', 'white')}>
+              {duplicating ? '⏳ Duplication…' : '✓ Dupliquer'}
+            </button>
+            <button onClick={() => { setShowDuplicate(false); setDuplicateTarget('') }} style={btn('transparent', '#9BA8C0', '#C5D0F0')}>Annuler</button>
+          </div>
+          {allClients.length === 0 && <div style={{ fontSize: '12px', color: '#9BA8C0', marginTop: '8px' }}>Chargement des clients…</div>}
+        </div>
+      )}
+
       {showAdd && (
         <div style={{ background: '#F0F4FF', border: '2px solid #4A6FD4', borderRadius: '12px', padding: '20px', marginBottom: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '12px' }}>
@@ -695,13 +695,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
-      {/* WORKOUTS LIST - Je simplifie car ton fichier est très long */}
       {workouts.map(workout => {
         const isOpen = openWorkout === workout.id
         const isEdit = editMode === workout.id
         return (
           <div key={workout.id} style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-            {/* En-tête du workout - raccourci pour la lisibilité */}
             <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: isOpen ? '1px solid #C5D0F0' : 'none' }}>
               <div onClick={() => setOpenWorkout(isOpen ? null : workout.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
                 <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '20px', background: '#D4E0CC', color: '#0D1B4E' }}>{workout.type}</span>
@@ -746,9 +744,84 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   </div>
                 )}
 
-                {(workout.exercises || []).map(ex => (
-                  <ExerciseRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} />
-                ))}
+                {(() => {
+                  const exs = workout.exercises || []
+                  const rendered = new Set()
+                  return exs.map(ex => {
+                    if (rendered.has(ex.id)) return null
+                    if (ex.group_id && ex.group_type === 'Workout Block') {
+                      const group = exs.filter(e => e.group_id === ex.group_id)
+                      group.forEach(e => rendered.add(e.id))
+                      let meta = {}
+                      try { meta = JSON.parse(group[0]?.note || '{}') } catch {}
+                      const typeColors = {
+                        'For Time': '#C45C3A', 'AMRAP': '#4A6FD4', 'EMOM': '#8FA07A',
+                        'Hyrox': '#0D1B4E', 'Interval': '#6B4FD4', 'Zone 2': '#3A7A5A', 'Cap Time': '#B8860B'
+                      }
+                      const tc = typeColors[meta.type] || '#1A1A2E'
+                      return (
+                        <div key={ex.group_id} style={{ borderRadius: '12px', marginBottom: '14px', overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                          <div style={{ background: tc, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '16px' }}>🔥</span>
+                              <div>
+                                <div style={{ color: 'white', fontWeight: '800', fontSize: '13px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                                  {meta.type || 'Workout Block'}
+                                  {meta.cap ? ` — CAP ${meta.cap} min` : ''}
+                                  {meta.rounds && meta.rounds > 1 ? ` · ${meta.rounds} rounds` : ''}
+                                </div>
+                                {meta.objective && <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '11px', marginTop: '2px' }}>🎯 {meta.objective}</div>}
+                              </div>
+                            </div>
+                            {isEdit && (
+                              <button onClick={() => {
+                                if (confirm('Supprimer ce Workout Block ?')) {
+                                  group.forEach(e => deleteExercise(workout.id, e.id))
+                                }
+                              }} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                                🗑
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ background: '#1A1A2E', padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {group.map((e, i) => (
+                                <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: i < group.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                                  <span style={{ color: tc, fontSize: '12px', fontWeight: '800', minWidth: '16px' }}>•</span>
+                                  <span style={{ color: 'white', fontSize: '13px', fontWeight: '500', flex: 1 }}>{e.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {meta.coachNote && (
+                              <div style={{ marginTop: '10px', padding: '8px 10px', background: 'rgba(255,255,255,0.06)', borderRadius: '7px', borderLeft: `3px solid ${tc}` }}>
+                                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>🧠 Note coach </span>
+                                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}>{meta.coachNote}</span>
+                              </div>
+                            )}
+                            {meta.rest && meta.rest !== '0s' && (
+                              <div style={{ marginTop: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>⏱ Repos entre rounds : {meta.rest}</div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                    if (ex.group_id && ex.group_type !== 'Normal') {
+                      const group = exs.filter(e => e.group_id === ex.group_id)
+                      group.forEach(e => rendered.add(e.id))
+                      return (
+                        <div key={ex.group_id} style={{ border: `2px solid ${groupColors[ex.group_type]||'#C5D0F0'}`, borderRadius: '10px', marginBottom: '10px', overflow: 'hidden' }}>
+                          <div style={{ background: groupColors[ex.group_type]||'#C5D0F0', color: 'white', padding: '4px 12px', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>⚡ {ex.group_type}</span>
+                            {isEdit && <button onClick={() => addExercise(workout.id, ex.group_type, ex.group_id)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>+ Exercice</button>}
+                          </div>
+                          {group.map((e, ei) => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={ei===0} isLast={ei===group.length-1} />)}
+                        </div>
+                      )
+                    }
+                    rendered.add(ex.id)
+                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={exs.indexOf(ex)===0} isLast={exs.indexOf(ex)===exs.length-1} />
+                  })
+                })()}
 
                 {workout.exercises?.length === 0 && !isEdit && (
                   <div style={{ textAlign: 'center', color: '#6B7A99', fontSize: '13px', padding: '16px' }}>Passe en mode édition pour ajouter des exercices</div>
