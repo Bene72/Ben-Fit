@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 
-function MessagesTab({ coachId, clientId, clientName, onRead }) {
+export default function MessagesTab({ coachId, clientId, clientName, onRead }) {
   const [messages, setMessages] = useState([])
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
@@ -47,7 +47,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
 
     load()
     return () => { if (channelRef.current) supabase.removeChannel(channelRef.current) }
-  }, [clientId])
+  }, [clientId, coachId, onRead])
 
   const send = async () => {
     if (!newMsg.trim() || sending) return
@@ -128,4 +128,3 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
     </div>
   )
 }
-
