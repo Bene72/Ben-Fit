@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp, getMondayOfWeek, getWeekLabel } from '../../lib/coachUtils'
+import { btn, lbl, inp } from '../../lib/coachUtils'
 
-// ========== CONSTANTES MANQUANTES ==========
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-// ========== COMPOSANT PRINCIPAL ==========
 export default function NutritionTab({ clientId, clientName }) {
   const [plan, setPlan] = useState(null)
+  const [planHistory, setPlanHistory] = useState([])
+  const [showHistory, setShowHistory] = useState(false)
   const [logs, setLogs] = useState([])
   const [editPlan, setEditPlan] = useState(false)
   const [planForm, setPlanForm] = useState({ target_calories: '', target_protein: '', target_carbs: '', target_fat: '', coach_note: '' })
@@ -19,9 +19,20 @@ export default function NutritionTab({ clientId, clientName }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
+      
       const { data: np } = await supabase.from('nutrition_plans').select('*').eq('client_id', clientId).eq('active', true).maybeSingle()
       setPlan(np)
       if (np) setPlanForm({ target_calories: np.target_calories||'', target_protein: np.target_protein||'', target_carbs: np.target_carbs||'', target_fat: np.target_fat||'', coach_note: np.coach_note||'' })
+      
+      const { data: history } = await supabase
+        .from('nutrition_plans')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('active', false)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      setPlanHistory(history || [])
+      
       const { data: lg } = await supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', clientId).order('date', { ascending: false }).limit(84)
       setLogs(lg || [])
       setLoading(false)
@@ -32,10 +43,58 @@ export default function NutritionTab({ clientId, clientName }) {
 
   const savePlan = async () => {
     setSaving(true)
-    const planData = { client_id: clientId, active: true, target_calories: +planForm.target_calories||0, target_protein: +planForm.target_protein||0, target_carbs: +planForm.target_carbs||0, target_fat: +planForm.target_fat||0, coach_note: planForm.coach_note }
-    if (plan) { const { data } = await supabase.from('nutrition_plans').update(planData).eq('id', plan.id).select().single(); setPlan(data) }
-    else { const { data } = await supabase.from('nutrition_plans').insert(planData).select().single(); setPlan(data) }
-    setSaving(false); setEditPlan(false)
+    
+    if (plan) {
+      await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
+    }
+    
+    const planData = { 
+      client_id: clientId, 
+      active: true, 
+      target_calories: +planForm.target_calories||0, 
+      target_protein: +planForm.target_protein||0, 
+      target_carbs: +planForm.target_carbs||0, 
+      target_fat: +planForm.target_fat||0, 
+      coach_note: planForm.coach_note,
+      created_at: new Date().toISOString()
+    }
+    
+    const { data } = await supabase.from('nutrition_plans').insert(planData).select().single()
+    if (data) {
+      setPlan(data)
+      if (plan) {
+        setPlanHistory(prev => [plan, ...prev])
+      }
+    }
+    setSaving(false)
+    setEditPlan(false)
+  }
+
+  const restoreOldPlan = async (oldPlan) => {
+    if (!confirm(`Restaurer le plan du ${new Date(oldPlan.created_at).toLocaleDateString('fr-FR')} ?`)) return
+    setSaving(true)
+    
+    if (plan) {
+      await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
+      setPlanHistory(prev => [plan, ...prev.filter(p => p.id !== plan.id)])
+    }
+    
+    await supabase.from('nutrition_plans').update({ active: true }).eq('id', oldPlan.id)
+    
+    const { data } = await supabase.from('nutrition_plans').select('*').eq('id', oldPlan.id).single()
+    if (data) {
+      setPlan(data)
+      setPlanForm({ 
+        target_calories: data.target_calories||'', 
+        target_protein: data.target_protein||'', 
+        target_carbs: data.target_carbs||'', 
+        target_fat: data.target_fat||'', 
+        coach_note: data.coach_note||'' 
+      })
+      setPlanHistory(prev => prev.filter(p => p.id !== oldPlan.id))
+    }
+    setSaving(false)
+    setShowHistory(false)
   }
 
   const upsertLog = async (date, fields) => {
@@ -56,14 +115,55 @@ export default function NutritionTab({ clientId, clientName }) {
   return (
     <div>
       <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '14px', padding: '20px 24px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: '#0D1B4E', letterSpacing: '2px' }}>
             {plan ? 'PLAN NUTRITIONNEL ACTUEL' : 'CRÉER UN PLAN NUTRITIONNEL'}
           </div>
-          <button onClick={() => setEditPlan(!editPlan)} style={btn(editPlan ? '#0D1B4E' : '#0D1B4E', 'white')}>
-            {editPlan ? '✕ Annuler' : plan ? '✏️ Modifier' : '+ Créer le plan'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {planHistory.length > 0 && (
+              <button onClick={() => setShowHistory(!showHistory)} style={btn('#EEF2FF', '#4A6FD4', '#C5D0F0')}>
+                📜 Historique ({planHistory.length})
+              </button>
+            )}
+            <button onClick={() => setEditPlan(!editPlan)} style={btn(editPlan ? '#0D1B4E' : '#0D1B4E', 'white')}>
+              {editPlan ? '✕ Annuler' : plan ? '✏️ Modifier' : '+ Créer le plan'}
+            </button>
+          </div>
         </div>
+        
+        {showHistory && planHistory.length > 0 && (
+          <div style={{ marginBottom: '16px', background: 'white', borderRadius: '10px', border: '1px solid #C5D0F0', overflow: 'hidden' }}>
+            <div style={{ background: '#EEF2FF', padding: '10px 14px', fontWeight: '700', fontSize: '12px', color: '#0D1B4E' }}>
+              📜 Anciens plans nutritionnels
+            </div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {planHistory.map(oldPlan => (
+                <div key={oldPlan.id} style={{ padding: '12px 14px', borderBottom: '1px solid #E8ECFA', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontWeight: '600', fontSize: '13px', color: '#0D1B4E' }}>
+                      📅 {new Date(oldPlan.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px', fontSize: '11px', flexWrap: 'wrap' }}>
+                      <span>🔥 {oldPlan.target_calories || 0} kcal</span>
+                      <span>🥩 {oldPlan.target_protein || 0}g</span>
+                      <span>🌾 {oldPlan.target_carbs || 0}g</span>
+                      <span>🥑 {oldPlan.target_fat || 0}g</span>
+                    </div>
+                    {oldPlan.coach_note && (
+                      <div style={{ fontSize: '11px', color: '#6B7A99', marginTop: '4px' }}>
+                        📝 {oldPlan.coach_note}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => restoreOldPlan(oldPlan)} style={btn('#0D1B4E', 'white')}>
+                    Restaurer
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {editPlan ? (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '12px' }}>
@@ -75,14 +175,26 @@ export default function NutritionTab({ clientId, clientName }) {
             <button onClick={savePlan} disabled={saving} style={btn('#0D1B4E', 'white')}>{saving ? 'Sauvegarde…' : '✓ Enregistrer le plan'}</button>
           </div>
         ) : plan ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px' }}>
-            {[['🔥',plan.target_calories,'kcal / jour'],['🥩',plan.target_protein,'g protéines'],['🌾',plan.target_carbs,'g glucides'],['🥑',plan.target_fat,'g lipides']].map(([icon,val,label]) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>{icon}</div>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E' }}>{val||'—'}</div>
-                <div style={{ fontSize: '12px', color: '#6B7A99' }}>{label}</div>
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '16px' }}>
+              {[['🔥',plan.target_calories,'kcal / jour'],['🥩',plan.target_protein,'g protéines'],['🌾',plan.target_carbs,'g glucides'],['🥑',plan.target_fat,'g lipides']].map(([icon,val,label]) => (
+                <div key={label} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>{icon}</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E' }}>{val||'—'}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7A99' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            {plan.coach_note && (
+              <div style={{ background: '#EEF4FF', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#4A6FD4' }}>
+                📌 {plan.coach_note}
               </div>
-            ))}
+            )}
+            {plan.created_at && (
+              <div style={{ fontSize: '11px', color: '#9BA8C0', marginTop: '12px', textAlign: 'right' }}>
+                Créé le {new Date(plan.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ color: '#6B7A99', fontSize: '14px', textAlign: 'center', padding: '10px' }}>Aucun plan nutritionnel. Clique sur "+ Créer le plan" pour commencer.</div>
@@ -105,8 +217,9 @@ export default function NutritionTab({ clientId, clientName }) {
   )
 }
 
-// ========== COMPOSANTS INTERNES ==========
-
+// ============================================
+// NUTRITION RING
+// ============================================
 function NutritionRing({ value, target, label, unit, color }) {
   const percent = target ? Math.min(100, (value / target) * 100) : 0
   const over = percent >= 100
@@ -135,6 +248,9 @@ function NutritionRing({ value, target, label, unit, color }) {
   )
 }
 
+// ============================================
+// NUTRITION MACRO BLOCK
+// ============================================
 function NutritionMacroBlock({ log, plan, date, onSave }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ calories: log?.calories||'', protein: log?.protein||'', carbs: log?.carbs||'', fat: log?.fat||'' })
@@ -177,6 +293,9 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
   )
 }
 
+// ============================================
+// NUTRITION SCORE BLOCK
+// ============================================
 function NutritionScoreBlock({ log, plan }) {
   if (!log || !plan) return null
   const keys = ['calories','protein','carbs','fat']
@@ -207,6 +326,9 @@ function NutritionScoreBlock({ log, plan }) {
   )
 }
 
+// ============================================
+// NUTRITION WEEK GRAPH
+// ============================================
 function NutritionWeekGraph({ logs, plan, today }) {
   const days = Array.from({length:7}, (_,i) => {
     const d = new Date(today); d.setDate(d.getDate() - 6 + i)
@@ -235,6 +357,9 @@ function NutritionWeekGraph({ logs, plan, today }) {
   )
 }
 
+// ============================================
+// NUTRITION FOOD BLOCK
+// ============================================
 function NutritionFoodBlock({ log, clientId }) {
   const [items, setItems] = useState([])
   const [showSearch, setShowSearch] = useState(false)
@@ -370,6 +495,9 @@ function NutritionFoodBlock({ log, clientId }) {
   )
 }
 
+// ============================================
+// NUTRITION TODAY VIEW
+// ============================================
 function NutritionTodayView({ today, logs, plan, onSave }) {
   const log = logs.find(l => l.date === today)
   return (
@@ -385,6 +513,9 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
   )
 }
 
+// ============================================
+// NUTRITION WEEK VIEW
+// ============================================
 function NutritionWeekView({ logs, plan, onSave, today }) {
   const [openDay, setOpenDay] = useState(today)
   const getWeekStart = (dateStr) => { const d = new Date(dateStr), day = d.getDay()===0?7:d.getDay(); const mon = new Date(d); mon.setDate(d.getDate()-day+1); return mon.toISOString().split('T')[0] }
