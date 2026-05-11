@@ -16,15 +16,15 @@ export default function AppShell({ title, subtitle, actions, children }) {
       minHeight: '100vh', 
       background: '#EEF2F7', 
       fontFamily: "'DM Sans',sans-serif",
-      overflowX: 'hidden' // Empêche le débordement horizontal
+      overflowY: 'auto',      // ← PERMET LE SCROLL VERTICAL
+      overflowX: 'hidden',    // ← ÉVITE LE SCROLL HORIZONTAL
     }}>
       <AppNav />
       <div style={{ marginLeft: isMobile ? 0 : 260, transition: 'margin-left 0.25s ease' }}>
         <div style={{ 
           maxWidth: 1540, 
           margin: '0 auto', 
-          // Padding mobile : 70px haut (header), 90px bas (navbar), 10px côtés
-          padding: isMobile ? '70px 10px 90px' : '30px 28px 34px', 
+          padding: isMobile ? '70px 10px 90px' : '30px 28px 34px',
         }}>
           {(title || subtitle || actions) ? (
             <div style={{ 
