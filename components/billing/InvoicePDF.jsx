@@ -6,7 +6,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
   const dueDate = formatDate(invoice.due_date)
   
   return (
-    <div style={{ 
+    <div id="invoice-content" style={{ 
       width: '100%',
       maxWidth: '800px',
       margin: '0 auto',
@@ -16,19 +16,12 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
       fontSize: '10pt',
       color: '#1a1a2e'
     }}>
-      {/* HEADER - Logo + Titre */}
+      {/* HEADER avec logo */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '2px solid #0D1B4E', paddingBottom: '15px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src="/logo.png" alt="Ben&Fit" style={{ height: '60px', width: 'auto' }} />
+          <img src="/logo-small.png" alt="Ben&Fit" style={{ height: '50px', width: 'auto' }} />
           <div>
-            <h1 style={{ 
-              fontFamily: "'Bebas Neue', 'DM Sans', sans-serif", 
-              fontSize: '24pt', 
-              fontWeight: 'bold', 
-              color: '#0D1B4E', 
-              margin: 0,
-              letterSpacing: '2px'
-            }}>
+            <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24pt', fontWeight: 'bold', color: '#0D1B4E', margin: 0, letterSpacing: '2px' }}>
               BEN&FITNESS
             </h1>
             <p style={{ fontSize: '9pt', color: '#6B7A99', margin: '5px 0 0 0' }}>
@@ -37,14 +30,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <h2 style={{ 
-            fontFamily: "'Bebas Neue', sans-serif", 
-            fontSize: '20pt', 
-            fontWeight: 'bold', 
-            color: '#0D1B4E', 
-            margin: 0,
-            letterSpacing: '3px'
-          }}>
+          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20pt', fontWeight: 'bold', color: '#0D1B4E', margin: 0, letterSpacing: '3px' }}>
             FACTURE
           </h2>
           <p style={{ fontSize: '11pt', fontWeight: 'bold', margin: '5px 0 0 0' }}>
@@ -71,9 +57,6 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
           <p style={{ fontWeight: 'bold', marginBottom: '5px', color: '#0D1B4E' }}>Destinataire</p>
           <div style={{ fontSize: '9pt', lineHeight: '1.5', color: '#333' }}>
             <div><strong>{clientInfo?.profiles?.full_name || 'Client'}</strong></div>
-            {clientInfo?.company_name && <div>{clientInfo.company_name}</div>}
-            {clientInfo?.address && <div>{clientInfo.address}</div>}
-            {clientInfo?.postal_code && <div>{clientInfo.postal_code} {clientInfo.city || ''}</div>}
           </div>
         </div>
         
@@ -91,32 +74,30 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
         <thead>
           <tr style={{ background: '#0D1B4E', color: 'white' }}>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Désignation</th>
-            <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #ddd' }}>Unité</th>
-            <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #ddd' }}>Quantité</th>
-            <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #ddd' }}>Prix Unitaire HT</th>
-            <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #ddd' }}>Total HT</th>
-          </td>
+            <th style={{ padding: '10px', textAlign: 'left' }}>Désignation</th>
+            <th style={{ padding: '10px', textAlign: 'center' }}>Quantité</th>
+            <th style={{ padding: '10px', textAlign: 'right' }}>Prix Unitaire HT</th>
+            <th style={{ padding: '10px', textAlign: 'right' }}>Total HT</th>
+           </tr>
         </thead>
         <tbody>
           {items.map((item, idx) => (
             <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
               <td style={{ padding: '10px' }}>{item.description}</td>
-              <td style={{ padding: '10px', textAlign: 'center' }}>Heure</td>
-              <td style={{ padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
+              <td style={{ padding: '10px', textAlign: 'center' }}>{item.quantity} h</td>
               <td style={{ padding: '10px', textAlign: 'right' }}>{formatPrice(item.unit_price)}</td>
               <td style={{ padding: '10px', textAlign: 'right' }}>{formatPrice(item.total)}</td>
             </tr>
           ))}
         </tbody>
-       </table>
+      </table>
 
       {/* TOTAUX */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
         <div style={{ width: '250px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
             <span>Total HT</span>
-            <span><strong>{formatPrice(invoice.subtotal)}</strong></span>
+            <strong>{formatPrice(invoice.subtotal)}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #ddd' }}>
             <span>TVA ({invoice.tax_rate}%)</span>
@@ -137,7 +118,7 @@ export default function InvoicePDF({ invoice, coachInfo, clientInfo, items }) {
       {/* MOYENS DE PAIEMENT */}
       <div style={{ background: '#F0F4FF', padding: '15px', borderRadius: '10px', marginTop: '20px', fontSize: '9pt' }}>
         <p style={{ fontWeight: 'bold', marginBottom: '10px', color: '#0D1B4E' }}>MOYENS DE PAIEMENT :</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <div>
             <div>Montant total : <strong>{formatPrice(invoice.total)}</strong></div>
             <div>• Mode de paiement : virement</div>
