@@ -116,7 +116,8 @@ export default function AppNav({ profile }) {
           <>
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, zIndex: 320,
-              height: '56px', background: '#0D1B4E',
+              minHeight: '56px', // ✅ MODIFIÉ : height → minHeight
+              background: '#0D1B4E',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0 12px', boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
@@ -134,14 +135,14 @@ export default function AppNav({ profile }) {
                 color: 'white', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
               }}>Déconnexion</button>
             </div>
-            <div style={{ height: '56px' }} />
+            {/* ❌ SUPPRIMÉ : <div style={{ height: '56px' }} /> */}
           </>
         )}
 
         <nav style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300,
           background: '#0D1B4E', borderTop: '1px solid rgba(255,255,255,0.10)',
-          display: 'flex', alignItems: 'stretch', height: '64px',
+          display: 'flex', alignItems: 'stretch', minHeight: '64px', // ✅ MODIFIÉ : height → minHeight
           boxShadow: '0 -4px 20px rgba(0,0,0,0.22)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
@@ -173,7 +174,7 @@ export default function AppNav({ profile }) {
             )
           })}
         </nav>
-        <div style={{ height: '64px' }} />
+        {/* ❌ SUPPRIMÉ : <div style={{ height: '64px' }} /> */}
       </>
     )
   }
@@ -228,7 +229,6 @@ export default function AppNav({ profile }) {
               </button>
             )
           })}
-
         </div>
 
         <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
