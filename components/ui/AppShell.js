@@ -37,11 +37,10 @@ export default function AppShell({ title, subtitle, actions, children }) {
           style={{
             maxWidth: 1540,
             margin: '0 auto',
-            overflowX: 'hidden',
 
-            // MOBILE : top = espace sous la navbar (56px) + marge, bottom = nav du bas (64px) + safe area
+            // MOBILE SAFE AREA + NAVBAR
             padding: isMobile
-              ? `calc(56px + 14px) 12px calc(72px + env(safe-area-inset-bottom))`
+              ? `12px 10px calc(88px + env(safe-area-inset-bottom))`
               : '30px 28px 34px',
           }}
         >
@@ -55,7 +54,8 @@ export default function AppShell({ title, subtitle, actions, children }) {
                 gap: isMobile ? 8 : 16,
                 marginBottom: isMobile ? 8 : 18,
 
-                marginTop: 0,
+                // évite que le header colle à la navbar top
+                marginTop: isMobile ? 60 : 0,
               }}
             >
               <div>
