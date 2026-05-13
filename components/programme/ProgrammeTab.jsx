@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp, ci, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachUtils'
+import { btn, lbl, inp, SUPABASE_URL, DAYS_FR } from '../../lib/coachUtils'
 import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
 
@@ -30,12 +30,17 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [imageFilesLoading, setImageFilesLoading] = useState(true)
 
   async function reloadWorkouts() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('workouts')
       .select('*, exercises(*)')
       .eq('client_id', clientId)
       .eq('is_archived', false)
       .order('day_of_week')
+    if (error) {
+      console.error(error)
+      setWorkouts([])
+      return
+    }
     
     setWorkouts((data || []).map(w => ({ 
       ...w, 
@@ -187,8 +192,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // ✅ FONCTION MOVE EXERCICE CORRIGÉE
   const moveExercise = async (workoutId, exId, direction) => {
-    console.log('moveExercise appelé', { workoutId, exId, direction })
-    
     const w = workouts.find(w => w.id === workoutId)
     if (!w) return
     
@@ -202,8 +205,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const ex2 = exs[newIdx]
     
     // Sauvegarder leurs order_index actuels
-    const order1 = ex1.order_index
-    const order2 = ex2.order_index
+    const order1 = ex1.order_index ?? idx
+    const order2 = ex2.order_index ?? newIdx
     
     // Échanger les order_index dans la BDD
     await supabase
@@ -218,14 +221,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     
     // Mettre à jour le state local
     const newExercises = [...exs]
-    newExercises[idx] = { ...ex2, order_index: order2 }
-    newExercises[newIdx] = { ...ex1, order_index: order1 }
+    newExercises[idx] = { ...ex2, order_index: order1 }
+    newExercises[newIdx] = { ...ex1, order_index: order2 }
     
     setWorkouts(prev => prev.map(ww => 
       ww.id === workoutId ? { ...ww, exercises: newExercises } : ww
     ))
-    
-    console.log('✅ Ordre mis à jour')
   }
 
   const loadAllClients = async () => {
@@ -240,7 +241,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       const { data: freshWorkouts, error: wErr } = await supabase
         .from('workouts').select('*, exercises(*)').eq('client_id', clientId).eq('is_archived', false).order('day_of_week')
       if (wErr) throw new Error('Erreur chargement workouts : ' + wErr.message)
-      if (!freshWorkouts?.length) { alert('Aucune séance à dupliquer.'); setDuplicating(false); return }
+      if (!freshWorkouts?.length) { alert('Aucune séance à dupliquer.'); return }
 
       let totalExInserted = 0
       for (const workout of freshWorkouts) {
@@ -286,7 +287,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       setDuplicateTarget('')
       alert(`Programme dupliqué ! (${freshWorkouts.length} séances · ${totalExInserted} exercices)`)
     } catch(e) { alert('Erreur : ' + e.message) }
-    setDuplicating(false)
+    finally { setDuplicating(false) }
   }
 
   const addWorkout = async () => {
@@ -496,7 +497,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
               <div>
                 <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;">${dayLabel}</div>
                 <div style="font-size:18px;font-weight:900;color:white;">${workout.name}</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:3px;">${(workout.exercises || []).length} exercices${workout.duration ? ' · ' + workout.duration + ' min' : ''}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:3px;">${(workout.exercises || []).length} exercices${workout.duration_min ? ' · ' + workout.duration_min + ' min' : ''}</div>
               </div>
               ${tag}
             </div>
