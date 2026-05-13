@@ -1,8 +1,26 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, lbl, inp } from '../../lib/coachUtils'
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+function formatLocalDate(date = new Date()) {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function parseLocalDate(dateStr) {
+  const [year, month, day] = String(dateStr).split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function getWeekStart(dateStr) {
+  const d = parseLocalDate(dateStr)
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  const mon = new Date(d)
+  mon.setDate(d.getDate() - day + 1)
+  return formatLocalDate(mon)
+}
 
 export default function NutritionTab({ clientId, clientName }) {
   const [plan, setPlan] = useState(null)
@@ -14,97 +32,124 @@ export default function NutritionTab({ clientId, clientName }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState('week')
-  const today = new Date().toISOString().split('T')[0]
+  const today = formatLocalDate(new Date())
 
   useEffect(() => {
+    let active = true
     const load = async () => {
-      setLoading(true)
-      
-      const { data: np } = await supabase.from('nutrition_plans').select('*').eq('client_id', clientId).eq('active', true).maybeSingle()
-      setPlan(np)
-      if (np) setPlanForm({ target_calories: np.target_calories||'', target_protein: np.target_protein||'', target_carbs: np.target_carbs||'', target_fat: np.target_fat||'', coach_note: np.coach_note||'' })
-      
-      const { data: history } = await supabase
-        .from('nutrition_plans')
-        .select('*')
-        .eq('client_id', clientId)
-        .eq('active', false)
-        .order('created_at', { ascending: false })
-        .limit(20)
-      setPlanHistory(history || [])
-      
-      const { data: lg } = await supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', clientId).order('date', { ascending: false }).limit(84)
-      setLogs(lg || [])
-      setLoading(false)
+      try {
+        setLoading(true)
+
+        const [{ data: np, error: planError }, { data: history, error: historyError }, { data: lg, error: logsError }] = await Promise.all([
+          supabase.from('nutrition_plans').select('*').eq('client_id', clientId).eq('active', true).maybeSingle(),
+          supabase.from('nutrition_plans').select('*').eq('client_id', clientId).eq('active', false).order('created_at', { ascending: false }).limit(20),
+          supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', clientId).order('date', { ascending: false }).limit(84),
+        ])
+
+        if (planError) throw planError
+        if (historyError) throw historyError
+        if (logsError) throw logsError
+        if (!active) return
+
+        setPlan(np)
+        setPlanForm({
+          target_calories: np?.target_calories || '',
+          target_protein: np?.target_protein || '',
+          target_carbs: np?.target_carbs || '',
+          target_fat: np?.target_fat || '',
+          coach_note: np?.coach_note || ''
+        })
+        setPlanHistory(history || [])
+        setLogs(lg || [])
+      } catch (e) {
+        console.error(e)
+      } finally {
+        if (active) setLoading(false)
+      }
     }
     load()
     setEditPlan(false)
+    return () => { active = false }
   }, [clientId])
 
   const savePlan = async () => {
-    setSaving(true)
-    
-    if (plan) {
-      await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
-    }
-    
-    const planData = { 
-      client_id: clientId, 
-      active: true, 
-      target_calories: +planForm.target_calories||0, 
-      target_protein: +planForm.target_protein||0, 
-      target_carbs: +planForm.target_carbs||0, 
-      target_fat: +planForm.target_fat||0, 
-      coach_note: planForm.coach_note,
-      created_at: new Date().toISOString()
-    }
-    
-    const { data } = await supabase.from('nutrition_plans').insert(planData).select().single()
-    if (data) {
-      setPlan(data)
+    try {
+      setSaving(true)
+
       if (plan) {
-        setPlanHistory(prev => [plan, ...prev])
+        const { error: archiveError } = await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
+        if (archiveError) throw archiveError
       }
+
+      const planData = {
+        client_id: clientId,
+        active: true,
+        target_calories: +planForm.target_calories || 0,
+        target_protein: +planForm.target_protein || 0,
+        target_carbs: +planForm.target_carbs || 0,
+        target_fat: +planForm.target_fat || 0,
+        coach_note: planForm.coach_note || null,
+      }
+
+      const { data, error } = await supabase.from('nutrition_plans').insert(planData).select().single()
+      if (error) throw error
+      if (data) {
+        setPlan(data)
+        if (plan) setPlanHistory(prev => [plan, ...prev])
+      }
+      setEditPlan(false)
+    } catch (e) {
+      alert('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setEditPlan(false)
   }
 
   const restoreOldPlan = async (oldPlan) => {
     if (!confirm(`Restaurer le plan du ${new Date(oldPlan.created_at).toLocaleDateString('fr-FR')} ?`)) return
-    setSaving(true)
-    
-    if (plan) {
-      await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
-      setPlanHistory(prev => [plan, ...prev.filter(p => p.id !== plan.id)])
+    try {
+      setSaving(true)
+
+      if (plan) {
+        const { error: archiveError } = await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
+        if (archiveError) throw archiveError
+        setPlanHistory(prev => [plan, ...prev.filter(p => p.id !== plan.id)])
+      }
+
+      const { error: restoreError } = await supabase.from('nutrition_plans').update({ active: true }).eq('id', oldPlan.id)
+      if (restoreError) throw restoreError
+
+      const { data, error } = await supabase.from('nutrition_plans').select('*').eq('id', oldPlan.id).single()
+      if (error) throw error
+      if (data) {
+        setPlan(data)
+        setPlanForm({
+          target_calories: data.target_calories || '',
+          target_protein: data.target_protein || '',
+          target_carbs: data.target_carbs || '',
+          target_fat: data.target_fat || '',
+          coach_note: data.coach_note || ''
+        })
+        setPlanHistory(prev => prev.filter(p => p.id !== oldPlan.id))
+      }
+      setShowHistory(false)
+    } catch (e) {
+      alert('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
     }
-    
-    await supabase.from('nutrition_plans').update({ active: true }).eq('id', oldPlan.id)
-    
-    const { data } = await supabase.from('nutrition_plans').select('*').eq('id', oldPlan.id).single()
-    if (data) {
-      setPlan(data)
-      setPlanForm({ 
-        target_calories: data.target_calories||'', 
-        target_protein: data.target_protein||'', 
-        target_carbs: data.target_carbs||'', 
-        target_fat: data.target_fat||'', 
-        coach_note: data.coach_note||'' 
-      })
-      setPlanHistory(prev => prev.filter(p => p.id !== oldPlan.id))
-    }
-    setSaving(false)
-    setShowHistory(false)
   }
 
   const upsertLog = async (date, fields) => {
     const existing = logs.find(l => l.date === date)
     if (existing) {
-      const { data } = await supabase.from('nutrition_logs').update(fields).eq('id', existing.id).select('*, nutrition_log_meals(*)').single()
+      const { data, error } = await supabase.from('nutrition_logs').update(fields).eq('id', existing.id).select('*, nutrition_log_meals(*)').single()
+      if (error) throw error
       if (data) setLogs(prev => prev.map(l => l.id === existing.id ? data : l))
       return data
     } else {
-      const { data } = await supabase.from('nutrition_logs').insert({ client_id: clientId, date, ...fields }).select('*, nutrition_log_meals(*)').single()
+      const { data, error } = await supabase.from('nutrition_logs').insert({ client_id: clientId, date, ...fields }).select('*, nutrition_log_meals(*)').single()
+      if (error) throw error
       if (data) setLogs(prev => [data, ...prev].sort((a,b) => b.date.localeCompare(a.date)))
       return data
     }
@@ -255,8 +300,25 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ calories: log?.calories||'', protein: log?.protein||'', carbs: log?.carbs||'', fat: log?.fat||'' })
   const [saving, setSaving] = useState(false)
-  useEffect(() => { if (log) setForm({ calories: log.calories||'', protein: log.protein||'', carbs: log.carbs||'', fat: log.fat||'' }) }, [log?.id, log?.calories])
-  const save = async () => { setSaving(true); await onSave(date, { calories:+form.calories||0, protein:+form.protein||0, carbs:+form.carbs||0, fat:+form.fat||0 }); setSaving(false); setEditing(false) }
+  useEffect(() => {
+    setForm({
+      calories: log?.calories || '',
+      protein: log?.protein || '',
+      carbs: log?.carbs || '',
+      fat: log?.fat || ''
+    })
+  }, [date, log?.id, log?.calories, log?.protein, log?.carbs, log?.fat])
+  const save = async () => {
+    try {
+      setSaving(true)
+      await onSave(date, { calories:+form.calories||0, protein:+form.protein||0, carbs:+form.carbs||0, fat:+form.fat||0 })
+      setEditing(false)
+    } catch (e) {
+      alert('Erreur : ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
   const macros = [
     { key:'calories', label:'Calories', unit:'kcal', target:plan?.target_calories, color:'#0D1B4E' },
     { key:'protein',  label:'Protéines', unit:'g',   target:plan?.target_protein,  color:'#C45C3A' },
@@ -331,8 +393,8 @@ function NutritionScoreBlock({ log, plan }) {
 // ============================================
 function NutritionWeekGraph({ logs, plan, today }) {
   const days = Array.from({length:7}, (_,i) => {
-    const d = new Date(today); d.setDate(d.getDate() - 6 + i)
-    const ds = d.toISOString().split('T')[0]
+    const d = parseLocalDate(today); d.setDate(d.getDate() - 6 + i)
+    const ds = formatLocalDate(d)
     const log = logs.find(l => l.date === ds)
     return { date:ds, calories: log?.calories||0, label: d.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,2) }
   })
@@ -373,8 +435,16 @@ function NutritionFoodBlock({ log, clientId }) {
   const timerRef = useRef(null)
 
   useEffect(() => {
-    if (log?.id) supabase.from('nutrition_log_meals').select('*').eq('log_id', log.id).order('created_at').then(({ data }) => setItems(data || []))
-    else setItems([])
+    let active = true
+    if (log?.id) {
+      supabase.from('nutrition_log_meals').select('*').eq('log_id', log.id).order('created_at').then(({ data, error }) => {
+        if (!active) return
+        setItems(error ? [] : data || [])
+      })
+    } else {
+      setItems([])
+    }
+    return () => { active = false }
   }, [log?.id])
 
   useEffect(() => {
@@ -383,7 +453,12 @@ function NutritionFoodBlock({ log, clientId }) {
     timerRef.current = setTimeout(async () => {
       setSearching(true)
       const q = query.trim().toLowerCase()
-      const { data } = await supabase.from('foods').select('*').ilike('name', `%${q}%`).order('name').limit(100)
+      const { data, error } = await supabase.from('foods').select('*').ilike('name', `%${q}%`).order('name').limit(100)
+      if (error) {
+        setResults([])
+        setSearching(false)
+        return
+      }
       const sorted = (data || []).sort((a, b) => {
         const an = a.name.toLowerCase(), bn = b.name.toLowerCase()
         const aStarts = an.startsWith(q), bStarts = bn.startsWith(q)
@@ -410,7 +485,11 @@ function NutritionFoodBlock({ log, clientId }) {
     if (data) { setItems(prev => [...prev, data]); setManual({ name:'', quantity:'100', calories:'', protein:'', carbs:'', fat:'' }) }
   }
 
-  const deleteItem = async (id) => { await supabase.from('nutrition_log_meals').delete().eq('id', id); setItems(prev => prev.filter(i => i.id !== id)) }
+  const deleteItem = async (id) => {
+    const { error } = await supabase.from('nutrition_log_meals').delete().eq('id', id)
+    if (error) { alert('Erreur : ' + error.message); return }
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
   const totals = items.reduce((a,i) => ({ cal:a.cal+(i.calories||0), prot:a.prot+(i.protein||0), carbs:a.carbs+(i.carbs||0), fat:a.fat+(i.fat||0) }), {cal:0,prot:0,carbs:0,fat:0})
 
   return (
@@ -518,13 +597,12 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
 // ============================================
 function NutritionWeekView({ logs, plan, onSave, today }) {
   const [openDay, setOpenDay] = useState(today)
-  const getWeekStart = (dateStr) => { const d = new Date(dateStr), day = d.getDay()===0?7:d.getDay(); const mon = new Date(d); mon.setDate(d.getDate()-day+1); return mon.toISOString().split('T')[0] }
   const weeks = {}
   const thisWeek = getWeekStart(today)
   weeks[thisWeek] = []
   logs.forEach(log => { const wk = getWeekStart(log.date); if(!weeks[wk]) weeks[wk]=[]; weeks[wk].push(log) })
   const sortedWeeks = Object.keys(weeks).sort((a,b)=>b.localeCompare(a))
-  const getWeekLabel = (wk) => { const s=new Date(wk), e=new Date(wk); e.setDate(e.getDate()+6); return `${s.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} – ${e.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}` }
+  const getWeekLabel = (wk) => { const s=parseLocalDate(wk), e=parseLocalDate(wk); e.setDate(e.getDate()+6); return `${s.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} – ${e.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}` }
   const macros = [
     { key:'calories', label:'Calories', unit:'kcal', target:'target_calories', color:'#0D1B4E' },
     { key:'protein',  label:'Protéines', unit:'g', target:'target_protein', color:'#C45C3A' },
@@ -536,7 +614,7 @@ function NutritionWeekView({ logs, plan, onSave, today }) {
       {sortedWeeks.map(weekStart => {
         const weekLogs = weeks[weekStart]
         const isCurrent = weekStart === getWeekStart(today)
-        const days = Array.from({length:7},(_,i)=>{ const d=new Date(weekStart); d.setDate(d.getDate()+i); const ds=d.toISOString().split('T')[0]; return { date:ds, log:weekLogs.find(l=>l.date===ds)||null, isToday:ds===today, isFuture:ds>today } })
+        const days = Array.from({length:7},(_,i)=>{ const d=parseLocalDate(weekStart); d.setDate(d.getDate()+i); const ds=formatLocalDate(d); return { date:ds, log:weekLogs.find(l=>l.date===ds)||null, isToday:ds===today, isFuture:ds>today } })
         return (
           <div key={weekStart} style={{ background:'white', borderRadius:'12px', border:`1px solid ${isCurrent?'#C0CAEF':'#EAEAEA'}`, overflow:'hidden', boxShadow:'0 2px 6px rgba(0,0,0,0.05)' }}>
             <div style={{ padding:'10px 16px', background:isCurrent?'#EEF2FF':'#F5F7FF', borderBottom:'1px solid #EAEAEA', display:'flex', justifyContent:'space-between' }}>
