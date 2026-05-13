@@ -1,10 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { useToast } from '../lib/useToast'
 
+function formatLocalDate(date = new Date()) {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getMondayOfWeek(date = new Date()) {
+  const d = new Date(date)
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  d.setDate(d.getDate() - day + 1)
+  return formatLocalDate(d)
+}
 export default function Dashboard() {
   const { show, ToastComponent } = useToast()
   const [user, setUser] = useState(null)
@@ -53,8 +64,8 @@ export default function Dashboard() {
         const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(10)
         setMeasures(m || [])
 
-        const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
-        const { data: s } = await supabase.from('workout_sessions').select('*').eq('client_id', user.id).gte('date', weekStart.toISOString().split('T')[0])
+        const weekStart = getMondayOfWeek()
+        const { data: s } = await supabase.from('workout_sessions').select('*').eq('client_id', user.id).gte('date', weekStart)
         setSessions(s || [])
       } catch (e) {
         show('Erreur de chargement : ' + e.message, 'error')
@@ -97,7 +108,7 @@ export default function Dashboard() {
     if (!weightForm.weight) return
     setSaving(true)
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = formatLocalDate(new Date())
       const { data, error } = await supabase.from('measures').insert({
         client_id: user.id, date: today,
         weight: +weightForm.weight,
