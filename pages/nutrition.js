@@ -16,8 +16,17 @@ const NUTRITION_TABS = [
 
 const DAYS_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
+function formatLocalDate(date = new Date()) {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function parseLocalDate(dateStr) {
+  const [year, month, day] = String(dateStr).split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
 function todayString() {
-  return new Date().toISOString().split('T')[0]
+  return formatLocalDate(new Date())
 }
 
 function formatDate(dateStr) {
@@ -35,11 +44,11 @@ function clampPercent(value, target) {
 }
 
 function getWeekStart(dateStr) {
-  const d = new Date(dateStr)
+  const d = parseLocalDate(dateStr)
   const day = d.getDay() === 0 ? 7 : d.getDay()
   const mon = new Date(d)
   mon.setDate(d.getDate() - day + 1)
-  return mon.toISOString().split('T')[0]
+  return formatLocalDate(mon)
 }
 
 // ============================================
@@ -80,7 +89,7 @@ function NutritionWeekTable({ logs, plan, isMobile, onOpenDay }) {
   const getDays = (weekStart, weekLogs) => Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart + 'T12:00:00')
     d.setDate(d.getDate() + i)
-    const ds = d.toISOString().split('T')[0]
+    const ds = formatLocalDate(d)
     return { date: ds, log: weekLogs.find(l => l.date === ds) || null, isToday: ds === today, isFuture: ds > today }
   })
 
@@ -522,7 +531,12 @@ function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange, isMobil
   const [manual, setManual] = useState({ name: '', quantity: '100', calories: '', protein: '', carbs: '', fat: '' })
   const timerRef = useRef(null)
 
-  useEffect(() => { setLog(initialLog) }, [initialLog?.id])
+  useEffect(() => {
+    setLog(initialLog)
+    setSelected(null)
+    setQuery('')
+    setResults([])
+  }, [initialLog?.id, date])
 
   const ensureLog = async () => {
     if (log?.id) return log
@@ -539,7 +553,17 @@ function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange, isMobil
 
   useEffect(() => {
     if (log?.id) {
-      supabase.from('nutrition_log_meals').select('*').eq('log_id', log.id).order('created_at').then(({ data }) => setItems(data || []))
+      let active = true
+      supabase
+        .from('nutrition_log_meals')
+        .select('*')
+        .eq('log_id', log.id)
+        .order('created_at')
+        .then(({ data, error }) => {
+          if (!active) return
+          setItems(error ? [] : data || [])
+        })
+      return () => { active = false }
     } else {
       setItems([])
     }
@@ -650,7 +674,7 @@ function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange, isMobil
       carbs: totals.carbs,
       fat: totals.fat,
     })
-  }, [items])
+  }, [totals.calories, totals.protein, totals.carbs, totals.fat, onItemsChange])
 
   return (
     <SurfaceCard padded>
