@@ -11,30 +11,55 @@ const NAV_ITEMS = [
   { href: '/community',  label: 'Communauté', icon: '🤝' },
 ]
 
-// ── Popup rappel bilan ───────────────────────────────────────
-function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+// ── Helper pour obtenir le lundi de la semaine ───────────────
+function getMondayOfWeek(date = new Date()) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString().split('T')[0]
 }
 
+// ── Popup rappel bilan (vérifie dans la BDD si bilan déjà fait) ──
 function useBilanReminder() {
   const [show, setShow] = useState(false)
+  
   useEffect(() => {
-    const today = new Date()
-    const day = today.getDay() // 5=Vendredi, 6=Samedi
-    if (day !== 5 && day !== 6) return
-    const weekKey = `bilan_popup_${today.getFullYear()}_W${getWeekNumber(today)}`
-    if (!localStorage.getItem(weekKey)) {
-      const timer = setTimeout(() => {
-        setShow(true)
-        localStorage.setItem(weekKey, '1')
-      }, 1200)
-      return () => clearTimeout(timer)
+    const checkBilan = async () => {
+      const today = new Date()
+      const day = today.getDay() // 5=Vendredi, 6=Samedi
+      
+      // Uniquement vendredi ou samedi
+      if (day !== 5 && day !== 6) return
+      
+      // Récupérer l'utilisateur connecté
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      // Vérifier si un bilan existe pour la semaine en cours
+      const weekStart = getMondayOfWeek()
+      
+      const { data: bilan, error } = await supabase
+        .from('bilans')
+        .select('id, week_start')
+        .eq('client_id', user.id)
+        .eq('week_start', weekStart)
+        .maybeSingle()
+      
+      // Afficher le popup seulement si aucun bilan pour cette semaine
+      if (!bilan) {
+        // Petit délai avant d'afficher (pour pas être agressif)
+        const timer = setTimeout(() => {
+          setShow(true)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }
     }
+    
+    checkBilan()
   }, [])
+  
   return [show, () => setShow(false)]
 }
 
@@ -134,7 +159,7 @@ export default function AppNav({ user: userProp, onLogout }) {
           <>
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, zIndex: 320,
-              minHeight: '56px', // ✅ MODIFIÉ : height → minHeight
+              minHeight: '56px',
               background: '#0D1B4E',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -153,14 +178,13 @@ export default function AppNav({ user: userProp, onLogout }) {
                 color: 'white', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
               }}>Déconnexion</button>
             </div>
-            {/* ❌ SUPPRIMÉ : <div style={{ height: '56px' }} /> */}
           </>
         )}
 
         <nav style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300,
           background: '#0D1B4E', borderTop: '1px solid rgba(255,255,255,0.10)',
-          display: 'flex', alignItems: 'stretch', minHeight: '64px', // ✅ MODIFIÉ : height → minHeight
+          display: 'flex', alignItems: 'stretch', minHeight: '64px',
           boxShadow: '0 -4px 20px rgba(0,0,0,0.22)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
@@ -192,7 +216,6 @@ export default function AppNav({ user: userProp, onLogout }) {
             )
           })}
         </nav>
-        {/* ❌ SUPPRIMÉ : <div style={{ height: '64px' }} /> */}
       </>
     )
   }
@@ -207,7 +230,7 @@ export default function AppNav({ user: userProp, onLogout }) {
         zIndex: 220, width: '32px', height: '32px', background: '#0D1B4E',
         border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
         color: 'white', fontSize: '16px', cursor: 'pointer',
-        display: 'none', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'left 0.25s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
       }}>
         {sidebarOpen ? '←' : '☰'}
@@ -263,4 +286,4 @@ export default function AppNav({ user: userProp, onLogout }) {
       </aside>
     </>
   )
-}
+      }
