@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 
@@ -19,16 +19,25 @@ const BILAN_ITEMS = [
   { key: 'autre', label: 'Autre point', noteOnly: true },
 ]
 
+function formatLocalDate(date = new Date()) {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function parseLocalDate(dateStr) {
+  const [year, month, day] = String(dateStr).split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
 function getMondayOfWeek(date = new Date()) {
   const d = new Date(date)
   const day = d.getDay() === 0 ? 7 : d.getDay()
   d.setDate(d.getDate() - day + 1)
-  return d.toISOString().split('T')[0]
+  return formatLocalDate(d)
 }
 
 function getWeekLabel(dateStr) {
   if (!dateStr) return 'Semaine'
-  const d = new Date(dateStr)
+  const d = parseLocalDate(dateStr)
   const end = new Date(d)
   end.setDate(end.getDate() + 6)
   return `Semaine du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
@@ -55,7 +64,12 @@ export default function BilanPage() {
 
   const [bilans, setBilans] = useState([])
   const [selectedBilanId, setSelectedBilanId] = useState(null)
+  const selectedBilanIdRef = useRef(null)
   const [editForm, setEditForm] = useState({})
+
+  useEffect(() => {
+    selectedBilanIdRef.current = selectedBilanId
+  }, [selectedBilanId])
 
   useEffect(() => {
     let active = true
@@ -120,8 +134,9 @@ export default function BilanPage() {
               const refreshed = refreshData || []
               setBilans(refreshed)
 
-              if (selectedBilanId) {
-                const updated = refreshed.find((b) => b.id === selectedBilanId)
+              const activeBilanId = selectedBilanIdRef.current
+              if (activeBilanId) {
+                const updated = refreshed.find((b) => b.id === activeBilanId)
                 if (updated) setEditForm(updated)
               }
             }
@@ -141,7 +156,7 @@ export default function BilanPage() {
       active = false
       if (channel) supabase.removeChannel(channel)
     }
-  }, [router, selectedBilanId])
+  }, [router])
 
   const selectedBilan = useMemo(
     () => bilans.find((b) => b.id === selectedBilanId) || null,
@@ -202,7 +217,8 @@ export default function BilanPage() {
       setError('')
       setSuccess('')
 
-      const payload = { ...editForm, filled_by_client: true }
+      const { id, created_at, updated_at, ...editableFields } = editForm
+      const payload = { ...editableFields, filled_by_client: true }
 
       const { error: updateError } = await supabase
         .from('bilans')
@@ -225,7 +241,8 @@ export default function BilanPage() {
   async function deleteBilan(bilanId) {
     if (!confirm('Supprimer ce bilan ? Cette action est irréversible.')) return
     try {
-      await supabase.from('bilans').delete().eq('id', bilanId)
+      const { error: deleteError } = await supabase.from('bilans').delete().eq('id', bilanId)
+      if (deleteError) throw deleteError
       setBilans(prev => prev.filter(b => b.id !== bilanId))
       setSelectedBilanId(null)
       setEditForm({})
@@ -236,7 +253,8 @@ export default function BilanPage() {
 
   async function updateWeekStart(bilanId, newDate) {
     try {
-      await supabase.from('bilans').update({ week_start: newDate }).eq('id', bilanId)
+      const { error: updateError } = await supabase.from('bilans').update({ week_start: newDate }).eq('id', bilanId)
+      if (updateError) throw updateError
       setBilans(prev => prev.map(b => b.id === bilanId ? { ...b, week_start: newDate } : b))
       setEditForm(prev => ({ ...prev, week_start: newDate }))
     } catch(e) {
