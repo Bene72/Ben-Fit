@@ -203,24 +203,26 @@ export default function TrainingPage() {
   const [weekOffset, setWeekOffset] = useState(0)
 
   // ========== NOUVEAU : Sauvegarde locale des inputs ==========
-  const saveInputToLocalStorage = useCallback((exerciseId, input) => {
+  const saveInputToLocalStorage = useCallback((exerciseId, input, userId) => {
+    if (!userId) return
     try {
-      const key = `training_input_${user?.id}_${exerciseId}`
+      const key = `training_input_${userId}_${exerciseId}`
       localStorage.setItem(key, JSON.stringify(input))
     } catch (e) {}
-  }, [user?.id])
+  }, [])
 
-  const loadInputFromLocalStorage = useCallback((exerciseId) => {
+  const loadInputFromLocalStorage = useCallback((exerciseId, userId) => {
+    if (!userId) return null
     try {
-      const key = `training_input_${user?.id}_${exerciseId}`
+      const key = `training_input_${userId}_${exerciseId}`
       const saved = localStorage.getItem(key)
       if (saved) return JSON.parse(saved)
     } catch (e) {}
     return null
-  }, [user?.id])
+  }, [])
 
   // ========== Initialise les inputs avec priorité au dernier log ==========
-  const initializeInputs = useCallback((workoutsData, logsData) => {
+  const initializeInputs = useCallback((workoutsData, logsData, userId) => {
     const inputs = {}
     workoutsData.forEach(workout => {
       (workout.exercises || []).forEach(exercise => {
@@ -228,7 +230,7 @@ export default function TrainingPage() {
         const lastLog = getLastLoggedWeight(exerciseLogs)
         
         // Priorité : 1. localStorage, 2. dernier log, 3. valeurs coach
-        const savedInput = loadInputFromLocalStorage(exercise.id)
+        const savedInput = loadInputFromLocalStorage(exercise.id, userId)
         
         if (savedInput && (savedInput.weight || savedInput.reps)) {
           inputs[exercise.id] = savedInput
@@ -308,7 +310,7 @@ export default function TrainingPage() {
         setLogsByExerciseName(groupedLogs)
 
         // Initialisation intelligente des inputs
-        const inputs = initializeInputs(mapped, groupedLogs)
+        const inputs = initializeInputs(mapped, groupedLogs, currentUser.id)
         setLogInputs(inputs)
 
         if (mapped.length && !isMobile) {
@@ -324,7 +326,7 @@ export default function TrainingPage() {
     }
     boot()
     return () => { active = false }
-  }, [router, isMobile, initializeInputs])
+  }, [router, initializeInputs])
 
   const currentWorkout = useMemo(() => workouts.find((workout) => workout.id === openWorkout) || null, [workouts, openWorkout])
   const selectedExercise = useMemo(() => {
@@ -350,7 +352,7 @@ export default function TrainingPage() {
   const [selectedCalDay, setSelectedCalDay] = useState(null)
 
   useEffect(() => {
-    if (workouts.length && selectedCalDay === null) {
+    if (workouts.length && selectedCalDay === null && !openWorkout) {
       const todayJsDay = new Date().getDay()
       const todayWorkouts = workoutByJsDay[todayJsDay] || []
       if (todayWorkouts.length) {
@@ -358,7 +360,7 @@ export default function TrainingPage() {
         openSession(todayWorkouts[0].id)
       }
     }
-  }, [workouts, workoutByJsDay])
+  }, [workouts, workoutByJsDay, selectedCalDay, openWorkout])
 
   const calDayWorkouts = useMemo(() => {
     if (!selectedCalDay) return []
@@ -395,7 +397,7 @@ export default function TrainingPage() {
     setLogInputs((prev) => {
       const newInput = { ...(prev[exerciseId] || {}), [field]: value }
       // Sauvegarder dans localStorage
-      saveInputToLocalStorage(exerciseId, newInput)
+      saveInputToLocalStorage(exerciseId, newInput, user?.id)
       return { ...prev, [exerciseId]: newInput }
     })
   }
@@ -427,7 +429,7 @@ export default function TrainingPage() {
         }
       }))
       
-      saveInputToLocalStorage(exercise.id, { weight: input.weight, reps: input.reps, rpe: '', note: '' })
+      saveInputToLocalStorage(exercise.id, { weight: input.weight, reps: input.reps, rpe: '', note: '' }, user?.id)
       setSuccess('Performance enregistrée.')
     } catch (e) {
       setError(e.message || "Impossible d'enregistrer la performance")
