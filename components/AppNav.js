@@ -84,11 +84,11 @@ function BilanReminderPopup({ onClose }) {
 }
 
 // ── Composant principal ──────────────────────────────────────
-export default function AppNav({ profile }) {
+export default function AppNav({ user: userProp, onLogout }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [user, setUser] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [user, setUser] = useState(userProp || null)
   const [showBilanPopup, closeBilanPopup] = useBilanReminder()
 
   useEffect(() => {
@@ -99,12 +99,30 @@ export default function AppNav({ profile }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data?.user || null))
-  }, [])
+    if (userProp) {
+      setUser(userProp)
+      return
+    }
+    let active = true
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setUser(data?.user || null)
+    })
+    return () => { active = false }
+  }, [userProp])
 
   const pathname = useMemo(() => router.pathname || '', [router.pathname])
-  const go = (href) => { router.push(href); setSidebarOpen(false) }
-  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/') }
+  const go = (href) => {
+    router.push(href)
+    if (isMobile) setSidebarOpen(false)
+  }
+  const handleLogout = async () => {
+    if (onLogout) {
+      await onLogout()
+      return
+    }
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   // ── MOBILE ─────────────────────────────────────────────────
   if (isMobile) {
@@ -189,7 +207,7 @@ export default function AppNav({ profile }) {
         zIndex: 220, width: '32px', height: '32px', background: '#0D1B4E',
         border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
         color: 'white', fontSize: '16px', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'none', alignItems: 'center', justifyContent: 'center',
         transition: 'left 0.25s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
       }}>
         {sidebarOpen ? '←' : '☰'}
