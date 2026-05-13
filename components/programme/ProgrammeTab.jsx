@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, lbl, inp, SUPABASE_URL, DAYS_FR } from '../../lib/coachUtils'
+import { btn, lbl, inp, SUPABASE_URL, DAYS_FR, DAYS } from '../../lib/coachUtils'  // ← AJOUT DAYS
 import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
 
@@ -29,6 +29,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [exerciseImageFiles, setExerciseImageFiles] = useState([])
   const [imageFilesLoading, setImageFilesLoading] = useState(true)
 
+  // État pour les notes récentes des athlètes (optionnel)
+  const [recentLogs, setRecentLogs] = useState({})
+
   async function reloadWorkouts() {
     const { data, error } = await supabase
       .from('workouts')
@@ -47,6 +50,26 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       exercises: (w.exercises || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0)) 
     })))
   }
+
+  // Charger les notes récentes des athlètes (optionnel)
+  useEffect(() => {
+    const loadRecentLogs = async () => {
+      const { data } = await supabase
+        .from('workout_logs')
+        .select('exercise_name, notes, created_at')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+      
+      const latest = {}
+      data?.forEach(log => {
+        if (!latest[log.exercise_name] && log.notes) {
+          latest[log.exercise_name] = log.notes
+        }
+      })
+      setRecentLogs(latest)
+    }
+    loadRecentLogs()
+  }, [clientId])
 
   useEffect(() => {
     const load = async () => {
@@ -200,15 +223,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const newIdx = idx + direction
     if (newIdx < 0 || newIdx >= exs.length) return
     
-    // Récupérer les deux exercices concernés
     const ex1 = exs[idx]
     const ex2 = exs[newIdx]
     
-    // Sauvegarder leurs order_index actuels
     const order1 = ex1.order_index ?? idx
     const order2 = ex2.order_index ?? newIdx
     
-    // Échanger les order_index dans la BDD
     await supabase
       .from('exercises')
       .update({ order_index: order2 })
@@ -219,7 +239,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .update({ order_index: order1 })
       .eq('id', ex2.id)
     
-    // Mettre à jour le state local
     const newExercises = [...exs]
     newExercises[idx] = { ...ex2, order_index: order1 }
     newExercises[newIdx] = { ...ex1, order_index: order2 }
@@ -771,6 +790,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   const rendered = new Set()
                   return exs.map(ex => {
                     if (rendered.has(ex.id)) return null
+                    
+                    // Ajout de la note récente pour affichage (optionnel)
+                    const recentNote = recentLogs[ex.name]
+                    
                     if (ex.group_id && ex.group_type === 'Workout Block') {
                       const group = exs.filter(e => e.group_id === ex.group_id)
                       group.forEach(e => rendered.add(e.id))
@@ -836,12 +859,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                             <span>⚡ {ex.group_type}</span>
                             {isEdit && <button onClick={() => addExercise(workout.id, ex.group_type, ex.group_id)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>+ Exercice</button>}
                           </div>
-                          {group.map((e, ei) => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={ei===0} isLast={ei===group.length-1} />)}
+                          {group.map((e, ei) => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={ei===0} isLast={ei===group.length-1} recentNote={recentNote} />)}
                         </div>
                       )
                     }
                     rendered.add(ex.id)
-                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={exs.indexOf(ex)===0} isLast={exs.indexOf(ex)===exs.length-1} />
+                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={exs.indexOf(ex)===0} isLast={exs.indexOf(ex)===exs.length-1} recentNote={recentNote} />
                   })
                 })()}
 
