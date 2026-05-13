@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ci } from '../../lib/coachUtils'
 
-export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
+export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast, recentNote }) {
   const [showImg, setShowImg] = useState(false)
 
   if (edit) {
@@ -99,7 +99,12 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
           }
           <div>
             <div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>
-            {ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}
+            {ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>📋 {ex.note}</div>}
+            {recentNote && !edit && (
+              <div style={{ fontSize: '10px', color: '#4A6FD4', marginTop: 2 }}>
+                📝 Athlète: {recentNote.length > 50 ? recentNote.substring(0, 50) + '…' : recentNote}
+              </div>
+            )}
           </div>
         </div>
         <div style={{ fontSize: '13px', textAlign: 'center' }}>{ex.sets}</div>
