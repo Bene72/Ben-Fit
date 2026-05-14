@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ci } from '../../lib/coachUtils'
 
-// ── Chrono repos ─────────────────────────────────────────────
+// ── Chrono repos ──────────────────────────────────────────────
 function RestTimer({ seconds }) {
   const [remaining, setRemaining] = useState(null)
   const ref = useRef(null)
@@ -19,19 +19,20 @@ function RestTimer({ seconds }) {
 
   useEffect(() => () => clearInterval(ref.current), [])
 
+  const pct = remaining !== null ? Math.round(((seconds - remaining) / seconds) * 100) : 0
   const isRunning = remaining !== null && remaining > 0
-  const isDone    = remaining === 0
-  const pct       = remaining !== null ? Math.round(((seconds - remaining) / seconds) * 100) : 0
+  const isDone = remaining === 0
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
       <button onClick={start} style={{
         padding: '5px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
-        background: isDone ? '#D4E8CC' : isRunning ? '#EEF4FF' : '#F0F4FF',
-        color:  isDone ? '#3A7A5A' : isRunning ? '#2C64E5' : '#4A6FD4',
+        background: isRunning ? '#EEF4FF' : isDone ? '#D4E8CC' : '#F0F4FF',
+        color: isRunning ? '#2C64E5' : isDone ? '#3A7A5A' : '#4A6FD4',
         fontSize: 12, fontWeight: 700, fontFamily: "'DM Sans',sans-serif",
+        display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        {isDone ? '✅ Repos terminé' : isRunning ? `⏱ ${remaining}s` : `⏱ Lancer chrono (${seconds}s)`}
+        {isDone ? '✅ Repos terminé' : isRunning ? `⏱ ${remaining}s` : `⏱ Chrono ${seconds}s`}
       </button>
       {isRunning && (
         <div style={{ flex: 1, height: 4, background: '#EEF4FF', borderRadius: 2, overflow: 'hidden' }}>
@@ -42,118 +43,39 @@ function RestTimer({ seconds }) {
   )
 }
 
-// ── Workspace avec NOTE MODIFIABLE (partagée coach ↔ athlète) ──
-function CoachExerciseWorkspace({ ex, recentLog, onUpdateNote }) {
+// ── ExRow ─────────────────────────────────────────────────────
+// Props :
+//   onUpdate(wId, exId, field, value)  → champs généraux (name, sets, reps, rest, target_weight)
+//   onUpdateNote(exId, note)           → note coach uniquement (sauvegarde dédiée)
+//   recentLog { note, weight, reps, date } → derniers logs athlète (lecture seule)
+export default function ExRow({ ex, wId, edit, onUpdate, onUpdateNote, onDelete, onMove, isFirst, isLast, recentLog }) {
+  const [showImg, setShowImg] = useState(false)
+
+  // Valeur locale de la note coach pour éviter un re-render à chaque frappe
+  const [localNote, setLocalNote] = useState(ex.coach_note ?? ex.note ?? '')
+
+  // Sync si l'exercice change (changement de client, rechargement)
+  useEffect(() => {
+    setLocalNote(ex.coach_note ?? ex.note ?? '')
+  }, [ex.id, ex.coach_note, ex.note])
+
   const restSeconds = (() => {
     const r = ex.rest || ''
-    const m = r.match(/(\d+)\s*min/); if (m) return parseInt(m[1]) * 60
-    const s = r.match(/^(\d+)s$/);   if (s) return parseInt(s[1])
+    const mMatch = r.match(/(\d+)\s*min/)
+    const sMatch = r.match(/^(\d+)s$/)
+    if (mMatch) return parseInt(mMatch[1]) * 60
+    if (sMatch) return parseInt(sMatch[1])
     return null
   })()
 
-  const [editingNote, setEditingNote] = useState(false)
-  const [tempNote, setTempNote] = useState(ex.note || '')
-  const [updatingNote, setUpdatingNote] = useState(false)
+  const labelStyle = { fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }
 
-  const saveNote = async () => {
-    setUpdatingNote(true)
-    await onUpdateNote(ex.id, tempNote)
-    setUpdatingNote(false)
-    setEditingNote(false)
-  }
-
-  return (
-    <div style={{ borderRadius: 10, border: '1.5px solid #2C64E5', background: '#F8FBFF', padding: 14, marginBottom: 4 }}>
-      {/* Note coach - MODIFIABLE (partagée avec l'athlète) */}
-      <div style={{ marginBottom: 10, padding: '7px 12px', background: '#EEF4FF', borderRadius: 8, borderLeft: '3px solid #2C64E5' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: 12, color: '#0D1B4E' }}>📋 Note coach :</span>
-          {!editingNote ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, color: '#333', flex: 1 }}>{ex.note || 'Aucune note'}</span>
-              <button 
-                onClick={() => { setTempNote(ex.note || ''); setEditingNote(true) }}
-                style={{ background: 'none', border: 'none', color: '#4A6FD4', cursor: 'pointer', fontSize: 12 }}
-              >
-                ✏️ Modifier
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-              <textarea 
-                value={tempNote} 
-                onChange={(e) => setTempNote(e.target.value)}
-                placeholder="Note pour l'athlète (visible par le coach aussi)..."
-                rows={3}
-                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #C5D0F0', fontSize: 13 }}
-              />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={saveNote} disabled={updatingNote} style={{ padding: '4px 12px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                  {updatingNote ? 'Sauvegarde...' : '✓ Enregistrer'}
-                </button>
-                <button onClick={() => setEditingNote(false)} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid #C5D0F0', borderRadius: 6, cursor: 'pointer' }}>Annuler</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Prescription */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>
-            {ex.sets} × {ex.reps}
-          </span>
-          <span style={{ fontSize: 12, padding: '4px 10px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20 }}>
-            ⏱ {ex.rest}
-          </span>
-          {ex.target_weight && (
-            <span style={{ fontSize: 12, padding: '4px 10px', background: '#FFF0E8', color: '#C45C3A', borderRadius: 20 }}>
-              🏋️ {ex.target_weight}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Chrono repos */}
-      {restSeconds && <RestTimer seconds={restSeconds} />}
-
-      {/* Dernier log athlète */}
-      {recentLog && (recentLog.weight || recentLog.reps || recentLog.note) && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: 'white', borderRadius: 8, border: '1px solid #DCE5F3' }}>
-          <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
-            📝 Dernier log athlète
-            {recentLog.date && (
-              <span style={{ fontWeight: 400, marginLeft: 6 }}>
-                · {new Date(recentLog.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 13 }}>
-            {recentLog.weight && <span style={{ fontWeight: 800, color: '#C45C3A' }}>{recentLog.weight} kg</span>}
-            {recentLog.reps   && <span style={{ color: '#4A6FD4' }}>{recentLog.reps} reps</span>}
-            {recentLog.note   && (
-              <span style={{ color: '#6B7A99', fontStyle: 'italic' }}>
-                "{recentLog.note.length > 70 ? recentLog.note.slice(0, 70) + '…' : recentLog.note}"
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Composant principal ───────────────────────────────────────
-export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast, recentLog, onUpdateNote }) {
-  const [showImg,      setShowImg]      = useState(false)
-  const [showWorkspace, setShowWorkspace] = useState(false)
-
-  // ── MODE ÉDITION ─────────────────────────────────────────────
+  // ── Mode édition ──────────────────────────────────────────
   if (edit) {
     return (
       <div style={{ background: '#FAFBFF', border: '1.5px solid #C5D0F0', borderRadius: '12px', padding: '14px 14px 12px', marginBottom: '10px' }}>
-        {/* Nom + flèches + supprimer */}
+
+        {/* Nom + boutons ordre + supprimer */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '10px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0, paddingTop: '6px' }}>
             <button onClick={() => onMove && onMove(wId, ex.id, -1)} disabled={isFirst}
@@ -162,7 +84,7 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
               style={{ width: '26px', height: '24px', border: '1px solid #C5D0F0', borderRadius: '5px', background: isLast ? '#F5F5F5' : 'white', color: isLast ? '#CCC' : '#0D1B4E', cursor: isLast ? 'default' : 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>▼</button>
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Exercice</label>
+            <label style={labelStyle}>Exercice</label>
             <input value={ex.name} onChange={e => onUpdate(wId, ex.id, 'name', e.target.value)}
               style={{ ...ci, fontWeight: '700', fontSize: '15px', padding: '10px 12px' }} />
           </div>
@@ -172,126 +94,118 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
 
         {/* Séries / Reps / Repos / Charge */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+          {[
+            { label: 'Séries', field: 'sets', type: 'number', val: ex.sets },
+            { label: 'Reps',   field: 'reps', type: 'text',   val: ex.reps },
+          ].map(f => (
+            <div key={f.field} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <label style={labelStyle}>{f.label}</label>
+              <input type={f.type} value={f.val || ''} onChange={e => onUpdate(wId, ex.id, f.field, e.target.value)}
+                style={{ ...ci, textAlign: 'center', fontSize: '14px', fontWeight: '700', padding: '8px 4px' }} />
+            </div>
+          ))}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Séries</label>
-            <input type="number" value={ex.sets || ''} onChange={e => onUpdate(wId, ex.id, 'sets', e.target.value)}
-              style={{ ...ci, textAlign: 'center', fontSize: '14px', fontWeight: '700', padding: '8px 4px' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Reps</label>
-            <input value={ex.reps || ''} onChange={e => onUpdate(wId, ex.id, 'reps', e.target.value)}
-              style={{ ...ci, textAlign: 'center', fontSize: '14px', fontWeight: '700', padding: '8px 4px' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Repos</label>
+            <label style={labelStyle}>Repos</label>
             <select value={ex.rest || '90s'} onChange={e => onUpdate(wId, ex.id, 'rest', e.target.value)}
               style={{ ...ci, fontSize: '13px', padding: '8px 4px' }}>
-              {['30s','45s','60s','90s','2 min','3 min','4 min','5 min'].map(r => <option key={r}>{r}</option>)}
+              {['30s', '45s', '60s', '90s', '2 min', '3 min', '4 min', '5 min'].map(r => <option key={r}>{r}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Charge</label>
+            <label style={labelStyle}>Charge</label>
             <input value={ex.target_weight || ''} onChange={e => onUpdate(wId, ex.id, 'target_weight', e.target.value)}
               placeholder="80kg" style={{ ...ci, textAlign: 'center', fontSize: '13px', padding: '8px 4px' }} />
           </div>
         </div>
 
-        {/* Notes coach - modifiable aussi en mode édition */}
+        {/* Note coach → sauvegardée dans exercises.coach_note, visible par l'athlète */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Notes / consigne coach</label>
-          <textarea value={ex.note || ''} onChange={e => onUpdate(wId, ex.id, 'note', e.target.value)}
-            placeholder="Tempo, consigne, point d'attention…" rows={3}
-            style={{ ...ci, resize: 'vertical', minHeight: '80px', lineHeight: '1.6', fontSize: '14px', padding: '10px 12px' }} />
+          <label style={labelStyle}>
+            📋 Note coach <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: '#4A6FD4' }}>(visible par l'athlète)</span>
+          </label>
+          <textarea
+            value={localNote}
+            onChange={e => setLocalNote(e.target.value)}
+            onBlur={() => onUpdateNote && onUpdateNote(ex.id, localNote)}
+            placeholder="Tempo, consigne, point d'attention…"
+            rows={3}
+            style={{ ...ci, resize: 'vertical', minHeight: '80px', lineHeight: '1.6', fontSize: '14px', padding: '10px 12px' }}
+          />
         </div>
 
-        {/* Dernier log athlète (contexte coach en édition) */}
-        {recentLog?.note && (
+        {/* Derniers logs athlète – lecture seule pour le coach */}
+        {recentLog && (recentLog.note || recentLog.weight) && (
           <div style={{ marginTop: 10, padding: '8px 12px', background: '#F0F7FF', borderRadius: 8, borderLeft: '3px solid #4A6FD4', fontSize: 12 }}>
-            <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>📝 Dernière note athlète</div>
-            <div style={{ color: '#0D1B4E' }}>{recentLog.note}</div>
+            <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
+              🏃 Dernier log athlète
+              {recentLog.date && <span style={{ fontWeight: 400, marginLeft: 6 }}>· {new Date(recentLog.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', color: '#0D1B4E' }}>
+              {recentLog.weight && <span style={{ fontWeight: 700, color: '#C45C3A' }}>{recentLog.weight} kg</span>}
+              {recentLog.reps   && <span style={{ color: '#4A6FD4' }}>{recentLog.reps} reps</span>}
+              {recentLog.note   && <span style={{ color: '#6B7A99', fontStyle: 'italic' }}>"{recentLog.note.length > 80 ? recentLog.note.slice(0, 80) + '…' : recentLog.note}"</span>}
+            </div>
           </div>
         )}
       </div>
     )
   }
 
-  // ── MODE LECTURE — identique à l'interface athlète ────────────
+  // ── Mode lecture ──────────────────────────────────────────
+  // Affiche la note coach (champ coach_note ou note en fallback)
+  const displayNote = ex.coach_note || ex.note || ''
+
   return (
     <>
-      {/* Lightbox image */}
       {showImg && ex.image_url && (
-        <div onClick={() => setShowImg(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div onClick={() => setShowImg(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'relative', maxWidth: '500px', width: '90%' }}>
             <img src={ex.image_url} alt={ex.name} style={{ width: '100%', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
             <div style={{ textAlign: 'center', color: 'white', marginTop: '12px', fontWeight: '600', fontSize: '16px' }}>{ex.name}</div>
-            <button onClick={() => setShowImg(false)} style={{ position: 'absolute', top: '-12px', right: '-12px', width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: 'none', fontSize: '18px', cursor: 'pointer' }}>×</button>
+            <button onClick={() => setShowImg(false)} style={{ position: 'absolute', top: '-12px', right: '-12px', width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: 'none', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
         </div>
       )}
 
-      {/* Carte compacte cliquable — style athlète */}
-      <button
-        type="button"
-        onClick={() => setShowWorkspace(s => !s)}
-        style={{
-          width: '100%', textAlign: 'left',
-          background: showWorkspace ? '#EEF4FF' : '#FFFFFF',
-          border: showWorkspace ? '1.5px solid #2C64E5' : '1px solid #DCE5F3',
-          borderRadius: 12, padding: '10px 12px',
-          cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-          marginBottom: 6,
-          boxShadow: showWorkspace ? '0 0 0 2px rgba(44,100,229,0.1)' : 'none',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}
-      >
-        {/* Image */}
-        <div style={{ width: 54, height: 54, borderRadius: 8, overflow: 'hidden', background: '#F0F5FF', border: '1px solid #E0E8F5', flexShrink: 0 }}>
-          {ex.image_url ? (
-            <img src={ex.image_url} alt={ex.name}
-              onClick={e => { e.stopPropagation(); setShowImg(true) }}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />
-          ) : (
-            <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 18 }}>💪</div>
-          )}
-        </div>
-
-        {/* Nom + badges */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {ex.name}
+      <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 80px 90px', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {ex.image_url
+              ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '7px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
+              : <div style={{ width: '60px', height: '60px', borderRadius: '7px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>💪</div>
+            }
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: '600', fontSize: '13px', color: '#0D1B4E' }}>{ex.name}</div>
+              {/* Note coach visible en lecture */}
+              {displayNote && (
+                <div style={{ fontSize: '11px', color: '#4A6FD4', marginTop: 2 }}>📋 {displayNote}</div>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', background: '#2C64E5', color: 'white', borderRadius: 6 }}>
-              {ex.sets} × {ex.reps}
-            </span>
-            <span style={{ fontSize: 11, padding: '3px 8px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 6, border: '1px solid #DCE5F3' }}>
-              {ex.rest || '—'}
-            </span>
-            {ex.target_weight && (
-              <span style={{ fontSize: 11, padding: '3px 8px', background: '#FFF0E8', color: '#C45C3A', borderRadius: 6 }}>
-                🏋️ {ex.target_weight}
-              </span>
-            )}
-            {recentLog?.weight && (
-              <span style={{ fontSize: 11, padding: '3px 8px', background: '#F0F7FF', color: '#4A6FD4', borderRadius: 6 }}>
-                📊 Dernier : {recentLog.weight}kg
-              </span>
-            )}
+          <div style={{ fontSize: '13px', textAlign: 'center', fontWeight: 700 }}>{ex.sets}</div>
+          <div style={{ fontSize: '13px', textAlign: 'center', fontWeight: 700 }}>{ex.reps}</div>
+          <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>⏱ {ex.rest}</div>
+          <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>{ex.target_weight ? `${ex.target_weight} kg` : '—'}</div>
+        </div>
+
+        {/* Chrono repos */}
+        {restSeconds && <RestTimer seconds={restSeconds} />}
+
+        {/* Dernier log athlète (affiché uniquement côté coach, pas en vue athlète) */}
+        {recentLog && (recentLog.note || recentLog.weight) && (
+          <div style={{ marginTop: 8, padding: '8px 12px', background: '#F5F8FF', borderRadius: 8, borderLeft: '3px solid #4A6FD4' }}>
+            <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>
+              🏃 Dernier log athlète
+              {recentLog.date && <span style={{ fontWeight: 400, marginLeft: 6 }}>· {new Date(recentLog.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+            </div>
+            <div style={{ fontSize: 12, color: '#0D1B4E', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {recentLog.weight && <span style={{ fontWeight: 700, color: '#C45C3A' }}>{recentLog.weight} kg</span>}
+              {recentLog.reps   && <span style={{ color: '#4A6FD4' }}>{recentLog.reps} reps</span>}
+              {recentLog.note   && <span style={{ color: '#6B7A99', fontStyle: 'italic' }}>"{recentLog.note.length > 60 ? recentLog.note.slice(0, 60) + '…' : recentLog.note}"</span>}
+            </div>
           </div>
-        </div>
-
-        {/* Indicateur ouvert/fermé */}
-        <div style={{ color: showWorkspace ? '#2C64E5' : '#E0E0E0', fontSize: 20, flexShrink: 0 }}>
-          {showWorkspace ? '●' : '○'}
-        </div>
-      </button>
-
-      {/* Workspace détail (s'ouvre au tap, avec note modifiable) */}
-      {showWorkspace && (
-        <div style={{ marginBottom: 8 }}>
-          <CoachExerciseWorkspace ex={ex} recentLog={recentLog} onUpdateNote={onUpdateNote} />
-        </div>
-      )}
+        )}
+      </div>
     </>
   )
-                    }
+}
