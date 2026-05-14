@@ -141,34 +141,83 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setExPickerFree('')
   }
 
+  // ── Colonnes optionnelles détectées dynamiquement ──────────
+  // On tente un premier insert minimal, puis on enrichit si les colonnes existent.
+  // Cela évite le 400 quand des colonnes ne sont pas encore migrées.
   const confirmAddExercise = async (name, imageUrl) => {
     if (!exPicker || !name.trim()) return
     const { workoutId, groupType, groupId } = exPicker
     const w = workouts.find(w => w.id === workoutId)
     const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-    const payload = {
+    // ── Payload de base : colonnes qui existent toujours ──
+    const basePayload = {
       workout_id: workoutId,
       name: name.trim(),
       sets: 3,
       reps: '10',
       rest: '90s',
+      order_index: w?.exercises?.length || 0,
+    }
+
+    // ── Champs optionnels (ajoutés seulement si la table les a) ──
+    const optionalFields = {
       note: '',
       coach_note: '',
       target_weight: '',
-      order_index: w?.exercises?.length || 0,
       group_type: groupType || 'Normal',
       group_id: gid,
     }
 
-    const { data, error } = await supabase.from('exercises').insert(payload).select().single()
-    if (error) { console.error('Erreur insertion:', error); alert('Erreur: ' + error.message); return }
+    // Tentative 1 : payload complet
+    let payload = { ...basePayload, ...optionalFields }
+    let { data, error } = await supabase.from('exercises').insert(payload).select().single()
+
+    // Tentative 2 : si erreur de colonne, on retire les champs optionnels un par un
+    if (error) {
+      console.warn('Insert complet échoué, tentative payload réduit:', error.message)
+
+      // Identifie la/les colonne(s) inconnue(s) mentionnée(s) dans le message d'erreur
+      const unknownCols = Object.keys(optionalFields).filter(col =>
+        error.message?.toLowerCase().includes(col.toLowerCase())
+      )
+
+      if (unknownCols.length > 0) {
+        // Retire uniquement les colonnes problématiques
+        const safeOptional = { ...optionalFields }
+        unknownCols.forEach(col => delete safeOptional[col])
+        payload = { ...basePayload, ...safeOptional }
+        ;({ data, error } = await supabase.from('exercises').insert(payload).select().single())
+      }
+
+      // Tentative 3 : payload minimal garanti
+      if (error) {
+        console.warn('Insert réduit échoué, tentative payload minimal:', error.message)
+        ;({ data, error } = await supabase.from('exercises').insert(basePayload).select().single())
+      }
+
+      if (error) {
+        console.error('Erreur insertion (toutes tentatives échouées):', error)
+        alert(
+          '❌ Impossible d\'insérer l\'exercice.\n\n' +
+          'Erreur Supabase : ' + error.message + '\n\n' +
+          'Vérifie :\n' +
+          '• Les colonnes de la table exercises (voir SQL fourni)\n' +
+          '• Les policies RLS (INSERT autorisé pour authenticated)\n' +
+          '• Que workout_id existe bien dans la table workouts'
+        )
+        return
+      }
+    }
 
     if (data) {
+      // Sauvegarde image_url en séparé (colonne souvent ajoutée plus tard)
       if (imageUrl) {
         supabase.from('exercises').update({ image_url: imageUrl }).eq('id', data.id)
-          .then(({ error: imgErr }) => { if (imgErr) console.warn('image_url non sauvegardée') })
+          .then(({ error: imgErr }) => { if (imgErr) console.warn('image_url non sauvegardée:', imgErr.message) })
       }
+
+      // Mise à jour locale optimiste
       const exWithImg = { ...data, image_url: imageUrl || null }
       setWorkouts(prev => prev.map(w => {
         if (w.id !== workoutId) return w
