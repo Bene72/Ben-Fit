@@ -30,7 +30,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [imageFilesLoading, setImageFilesLoading] = useState(true)
 
   // ── Notes athlète : charger les derniers logs pour affichage côté coach ──
-  const [athleteLogs, setAthleteLogs] = useState({}) // { exercise_name: { note, weight, reps, date } }
+  const [athleteLogs, setAthleteLogs] = useState({})
 
   useEffect(() => {
     if (!clientId) return
@@ -226,7 +226,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }
   }
 
-  // 🔥 NOUVEAU : Mettre à jour la note partagée (coach ↔ athlète)
+  // Mettre à jour la note partagée (coach ↔ athlète)
   const updateExerciseNote = async (exerciseId, note) => {
     const { error } = await supabase
       .from('exercises')
@@ -258,7 +258,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }))
   }
 
-  // ✅ FONCTION MOVE EXERCICE CORRIGÉE
+  // FONCTION MOVE EXERCICE CORRIGÉE
   const moveExercise = async (workoutId, exId, direction) => {
     const w = workouts.find(w => w.id === workoutId)
     if (!w) return
@@ -538,4 +538,4 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           const details = [
             ex.sets && ex.reps ? `<span class="badge">${ex.sets} × ${ex.reps}</span>` : '',
             ex.rest ? `<span class="badge-outline">⏱ ${ex.rest}</span>` : '',
-            ex.target_weigh
+            ex.target_weight ? `<span class="badge-outline">🏋️ ${ex.target_weight}</span>` :
