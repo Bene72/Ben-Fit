@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../../lib/supabase'
 import { ci } from '../../lib/coachUtils'
 
 // ── Chrono repos ─────────────────────────────────────────────
@@ -42,8 +43,8 @@ function RestTimer({ seconds }) {
   )
 }
 
-// ── Workspace (identique à l'athlète) ─────────────────────────
-function CoachExerciseWorkspace({ ex, recentLog }) {
+// ── Workspace avec NOTE MODIFIABLE (partagée coach ↔ athlète) ──
+function CoachExerciseWorkspace({ ex, recentLog, onUpdateNote }) {
   const restSeconds = (() => {
     const r = ex.rest || ''
     const m = r.match(/(\d+)\s*min/); if (m) return parseInt(m[1]) * 60
@@ -51,15 +52,54 @@ function CoachExerciseWorkspace({ ex, recentLog }) {
     return null
   })()
 
+  const [editingNote, setEditingNote] = useState(false)
+  const [tempNote, setTempNote] = useState(ex.note || '')
+  const [updatingNote, setUpdatingNote] = useState(false)
+
+  const saveNote = async () => {
+    setUpdatingNote(true)
+    await onUpdateNote(ex.id, tempNote)
+    setUpdatingNote(false)
+    setEditingNote(false)
+  }
+
   return (
     <div style={{ borderRadius: 10, border: '1.5px solid #2C64E5', background: '#F8FBFF', padding: 14, marginBottom: 4 }}>
-      {/* Note coach */}
-      {ex.note && (
-        <div style={{ marginBottom: 10, padding: '7px 12px', background: 'white', borderRadius: 8, borderLeft: '3px solid #2C64E5', fontSize: 13, color: '#0D1B4E', lineHeight: 1.6 }}>
-          📋 <span style={{ fontWeight: 700 }}>Consigne :</span> {ex.note}
+      {/* Note coach - MODIFIABLE (partagée avec l'athlète) */}
+      <div style={{ marginBottom: 10, padding: '7px 12px', background: '#EEF4FF', borderRadius: 8, borderLeft: '3px solid #2C64E5' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ fontWeight: 600, fontSize: 12, color: '#0D1B4E' }}>📋 Note coach :</span>
+          {!editingNote ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, color: '#333', flex: 1 }}>{ex.note || 'Aucune note'}</span>
+              <button 
+                onClick={() => { setTempNote(ex.note || ''); setEditingNote(true) }}
+                style={{ background: 'none', border: 'none', color: '#4A6FD4', cursor: 'pointer', fontSize: 12 }}
+              >
+                ✏️ Modifier
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <textarea 
+                value={tempNote} 
+                onChange={(e) => setTempNote(e.target.value)}
+                placeholder="Note pour l'athlète (visible par le coach aussi)..."
+                rows={3}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #C5D0F0', fontSize: 13 }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={saveNote} disabled={updatingNote} style={{ padding: '4px 12px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+                  {updatingNote ? 'Sauvegarde...' : '✓ Enregistrer'}
+                </button>
+                <button onClick={() => setEditingNote(false)} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid #C5D0F0', borderRadius: 6, cursor: 'pointer' }}>Annuler</button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
+      {/* Prescription */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>
@@ -80,7 +120,7 @@ function CoachExerciseWorkspace({ ex, recentLog }) {
       {restSeconds && <RestTimer seconds={restSeconds} />}
 
       {/* Dernier log athlète */}
-      {recentLog && (
+      {recentLog && (recentLog.weight || recentLog.reps || recentLog.note) && (
         <div style={{ marginTop: 10, padding: '8px 12px', background: 'white', borderRadius: 8, border: '1px solid #DCE5F3' }}>
           <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
             📝 Dernier log athlète
@@ -106,7 +146,7 @@ function CoachExerciseWorkspace({ ex, recentLog }) {
 }
 
 // ── Composant principal ───────────────────────────────────────
-export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast, recentLog }) {
+export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast, recentLog, onUpdateNote }) {
   const [showImg,      setShowImg]      = useState(false)
   const [showWorkspace, setShowWorkspace] = useState(false)
 
@@ -157,7 +197,7 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
           </div>
         </div>
 
-        {/* Notes coach */}
+        {/* Notes coach - modifiable aussi en mode édition */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <label style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', color: '#6B7A99', fontWeight: '600' }}>Notes / consigne coach</label>
           <textarea value={ex.note || ''} onChange={e => onUpdate(wId, ex.id, 'note', e.target.value)}
@@ -247,12 +287,12 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
         </div>
       </button>
 
-      {/* Workspace détail (s'ouvre au tap, identique athlète) */}
+      {/* Workspace détail (s'ouvre au tap, avec note modifiable) */}
       {showWorkspace && (
         <div style={{ marginBottom: 8 }}>
-          <CoachExerciseWorkspace ex={ex} recentLog={recentLog} />
+          <CoachExerciseWorkspace ex={ex} recentLog={recentLog} onUpdateNote={onUpdateNote} />
         </div>
       )}
     </>
   )
-}
+              }
