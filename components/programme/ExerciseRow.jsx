@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
 import { ci } from '../../lib/coachUtils'
 
 // ── Chrono repos ─────────────────────────────────────────────
@@ -295,4 +294,4 @@ export default function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFir
       )}
     </>
   )
-              }
+                    }
