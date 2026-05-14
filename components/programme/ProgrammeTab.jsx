@@ -33,25 +33,26 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     if (!clientId) return
     let data = null
 
-    // Priorité 1 : workout_logs (table principale)
-    const r1 = await supabase
-      .from('workout_logs')
-      .select('exercise_name, notes, note, comment, weight_used, reps_done, logged_at, created_at')
-      .eq('client_id', clientId)
-      .order('logged_at', { ascending: false })
-      .limit(500)
-
-    if (!r1.error && r1.data?.length) {
-      data = r1.data
-    } else {
-      // Fallback : workout_sessions
-      const r2 = await supabase
-        .from('workout_sessions')
-        .select('exercise_name, comment, weight_used, reps_done, created_at')
+    try {
+      const r1 = await supabase
+        .from('workout_logs')
+        .select('exercise_name, notes, weight_used, reps_done, logged_at, created_at')
         .eq('client_id', clientId)
-        .order('created_at', { ascending: false })
+        .order('logged_at', { ascending: false })
         .limit(500)
-      if (!r2.error) data = r2.data
+      if (!r1.error && r1.data?.length) data = r1.data
+    } catch {}
+
+    if (!data) {
+      try {
+        const r2 = await supabase
+          .from('workout_sessions')
+          .select('exercise_name, comment, weight_used, reps_done, created_at')
+          .eq('client_id', clientId)
+          .order('created_at', { ascending: false })
+          .limit(500)
+        if (!r2.error && r2.data?.length) data = r2.data
+      } catch {}
     }
 
     if (!data) return
@@ -835,7 +836,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           setMode={setExPickerMode}
           freeText={exPickerFree}
           setFreeText={setExPickerFree}
-          imageFiles={exerciseImageFiles}
+          imageFiles={exerciseImageFiles || []}
           onConfirm={confirmAddExercise}
           onClose={() => setExPicker(null)}
         />
