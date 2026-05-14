@@ -112,7 +112,7 @@ export default function ExRow({ ex, wId, edit, onUpdate, onUpdateNote, onDelete,
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={labelStyle}>Charge</label>
+            <label style={labelStyle}>Charge cible</label>
             <input value={ex.target_weight || ''} onChange={e => onUpdate(wId, ex.id, 'target_weight', e.target.value)}
               placeholder="80kg" style={{ ...ci, textAlign: 'center', fontSize: '13px', padding: '8px 4px' }} />
           </div>
@@ -134,7 +134,7 @@ export default function ExRow({ ex, wId, edit, onUpdate, onUpdateNote, onDelete,
         </div>
 
         {/* Derniers logs athlète – lecture seule pour le coach */}
-        {recentLog && (recentLog.note || recentLog.weight) && (
+        {recentLog && (recentLog.note || recentLog.weight || recentLog.reps) && (
           <div style={{ marginTop: 10, padding: '8px 12px', background: '#F0F7FF', borderRadius: 8, borderLeft: '3px solid #4A6FD4', fontSize: 12 }}>
             <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
               🏃 Dernier log athlète
@@ -180,19 +180,33 @@ export default function ExRow({ ex, wId, edit, onUpdate, onUpdateNote, onDelete,
               {displayNote && (
                 <div style={{ fontSize: '11px', color: '#4A6FD4', marginTop: 2 }}>📋 {displayNote}</div>
               )}
+              {/* Dernier log athlète en compact (à côté du nom) */}
+              {recentLog && (recentLog.weight || recentLog.reps) && (
+                <div style={{ fontSize: '10px', color: '#C45C3A', marginTop: 3, fontWeight: 500 }}>
+                  🏆 Dernier: {recentLog.weight && `${recentLog.weight}kg`} {recentLog.reps && `× ${recentLog.reps}`}
+                </div>
+              )}
             </div>
           </div>
           <div style={{ fontSize: '13px', textAlign: 'center', fontWeight: 700 }}>{ex.sets}</div>
           <div style={{ fontSize: '13px', textAlign: 'center', fontWeight: 700 }}>{ex.reps}</div>
           <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>⏱ {ex.rest}</div>
-          <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>{ex.target_weight ? `${ex.target_weight} kg` : '—'}</div>
+          <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>
+            {ex.target_weight ? `${ex.target_weight} kg` : '—'}
+            {/* Afficher aussi la dernière charge réalisée si différente */}
+            {recentLog?.weight && recentLog.weight !== ex.target_weight && (
+              <div style={{ fontSize: '9px', color: '#C45C3A', marginTop: 2 }}>
+                (fait: {recentLog.weight}kg)
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Chrono repos */}
         {restSeconds && <RestTimer seconds={restSeconds} />}
 
-        {/* Dernier log athlète (affiché uniquement côté coach, pas en vue athlète) */}
-        {recentLog && (recentLog.note || recentLog.weight) && (
+        {/* Dernier log athlète avec note (plus détaillé, affiché sous les valeurs) */}
+        {recentLog && (recentLog.note || (recentLog.weight && recentLog.reps)) && (
           <div style={{ marginTop: 8, padding: '8px 12px', background: '#F5F8FF', borderRadius: 8, borderLeft: '3px solid #4A6FD4' }}>
             <div style={{ fontSize: 10, color: '#6B7A99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>
               🏃 Dernier log athlète
