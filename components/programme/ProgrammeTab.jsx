@@ -81,11 +81,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setAthleteLogs(byName)
   }
 
-  useEffect(() => {
-    fetchAthleteLogs()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId])
-
   // ── Workouts ───────────────────────────────────────────────
   async function reloadWorkouts() {
     const { data } = await supabase
@@ -106,7 +101,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      await reloadWorkouts()
+      await Promise.all([reloadWorkouts(), fetchAthleteLogs()])
       setLoading(false)
       setOpenWorkout(null)
       setEditMode(null)
@@ -142,15 +137,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   // ── Colonnes optionnelles détectées dynamiquement ──────────
-  // On tente un premier insert minimal, puis on enrichit si les colonnes existent.
-  // Cela évite le 400 quand des colonnes ne sont pas encore migrées.
   const confirmAddExercise = async (name, imageUrl) => {
     if (!exPicker || !name.trim()) return
     const { workoutId, groupType, groupId } = exPicker
     const w = workouts.find(w => w.id === workoutId)
     const gid = groupId || (groupType !== 'Normal' ? Date.now().toString() : null)
 
-    // ── Payload de base : colonnes qui existent toujours ──
     const basePayload = {
       workout_id: workoutId,
       name: name.trim(),
@@ -160,7 +152,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       order_index: w?.exercises?.length || 0,
     }
 
-    // ── Champs optionnels (ajoutés seulement si la table les a) ──
     const optionalFields = {
       note: '',
       coach_note: '',
@@ -169,28 +160,23 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       group_id: gid,
     }
 
-    // Tentative 1 : payload complet
     let payload = { ...basePayload, ...optionalFields }
     let { data, error } = await supabase.from('exercises').insert(payload).select().single()
 
-    // Tentative 2 : si erreur de colonne, on retire les champs optionnels un par un
     if (error) {
       console.warn('Insert complet échoué, tentative payload réduit:', error.message)
 
-      // Identifie la/les colonne(s) inconnue(s) mentionnée(s) dans le message d'erreur
       const unknownCols = Object.keys(optionalFields).filter(col =>
         error.message?.toLowerCase().includes(col.toLowerCase())
       )
 
       if (unknownCols.length > 0) {
-        // Retire uniquement les colonnes problématiques
         const safeOptional = { ...optionalFields }
         unknownCols.forEach(col => delete safeOptional[col])
         payload = { ...basePayload, ...safeOptional }
         ;({ data, error } = await supabase.from('exercises').insert(payload).select().single())
       }
 
-      // Tentative 3 : payload minimal garanti
       if (error) {
         console.warn('Insert réduit échoué, tentative payload minimal:', error.message)
         ;({ data, error } = await supabase.from('exercises').insert(basePayload).select().single())
@@ -211,13 +197,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }
 
     if (data) {
-      // Sauvegarde image_url en séparé (colonne souvent ajoutée plus tard)
       if (imageUrl) {
         supabase.from('exercises').update({ image_url: imageUrl }).eq('id', data.id)
           .then(({ error: imgErr }) => { if (imgErr) console.warn('image_url non sauvegardée:', imgErr.message) })
       }
 
-      // Mise à jour locale optimiste
       const exWithImg = { ...data, image_url: imageUrl || null }
       setWorkouts(prev => prev.map(w => {
         if (w.id !== workoutId) return w
@@ -238,10 +222,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     objective: '', coachNote: '', movements: '',
   })
 
-  // ── updateExercise : champs généraux (name, sets, reps, rest, target_weight) ──
-  // ⚠️ NE PAS utiliser pour 'note' ou 'coach_note' → utiliser updateCoachNote
   const updateExercise = async (workoutId, exId, field, value) => {
-    // Mise à jour optimiste
     setWorkouts(prev => prev.map(w => {
       if (w.id !== workoutId) return w
       return { ...w, exercises: w.exercises.map(e => e.id === exId ? { ...e, [field]: value } : e) }
@@ -249,7 +230,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
     let payload = { [field]: value }
 
-    // Auto-match image quand le nom change
     if (field === 'name') {
       try {
         const exNorm = value.toLowerCase()
@@ -283,11 +263,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }
   }
 
-  // ── updateCoachNote : note du coach, visible par l'athlète ─
-  // Stockée dans exercises.coach_note (ou exercises.note selon ton schéma)
-  // → fait la diff entre la note COACH (instructions) et les logs ATHLÈTE
   const updateCoachNote = async (exerciseId, note) => {
-    // Mise à jour optimiste
     setWorkouts(prev => prev.map(workout => ({
       ...workout,
       exercises: workout.exercises.map(ex =>
@@ -301,7 +277,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .eq('id', exerciseId)
 
     if (error) {
-      // Fallback : si la colonne s'appelle encore 'note' en BDD
       if (error.message?.includes('coach_note')) {
         const { error: fallbackErr } = await supabase
           .from('exercises')
@@ -311,7 +286,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           console.error('Erreur mise à jour note coach:', fallbackErr)
           alert('Erreur: ' + fallbackErr.message)
         } else {
-          // Sync local avec champ 'note' si 'coach_note' n'existe pas encore
           setWorkouts(prev => prev.map(workout => ({
             ...workout,
             exercises: workout.exercises.map(ex =>
@@ -472,7 +446,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             sets: ex.sets != null ? parseInt(ex.sets) || null : null,
             reps: ex.reps != null ? String(ex.reps) : null,
             rest: ex.rest || null,
-            // Copie les deux champs de note
             note: ex.note || null,
             coach_note: ex.coach_note || null,
             target_weight: ex.target_weight || null,
@@ -603,7 +576,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             ex.rest ? `<span style="border:1px solid #C5D0F0;color:#6B7A99;padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${ex.rest}</span>` : '',
             ex.target_weight ? `<span style="border:1px solid #C5D0F0;color:#6B7A99;padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${ex.target_weight}</span>` : '',
           ].filter(Boolean).join(' ')
-          // Note coach affichée dans le PDF
           const coachNoteHtml = (ex.coach_note || ex.note)
             ? `<div style="font-size:11px;color:#6B7A99;margin-top:4px;font-style:italic;">📋 ${ex.coach_note || ex.note}</div>`
             : ''
@@ -668,7 +640,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </button>
         <button onClick={() => { loadAllClients(); setShowDuplicate(true) }} style={btn('outline')}>📋 Dupliquer</button>
         <button onClick={loadHistory} style={btn('ghost')}>🗂 Historique</button>
-        <button onClick={() => fetchAthleteLogs()} style={btn('ghost')} title="Rafraîchir les logs athlète">🔄</button>
+        <button onClick={() => fetchAthleteLogs()} style={btn('ghost')} title="Rafraîchir les logs athlète">🔄 Logs</button>
       </div>
 
       {/* ── Cycle ── */}
