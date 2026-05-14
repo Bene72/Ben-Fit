@@ -524,7 +524,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           ].filter(Boolean).join(' ')
 
           return `
-            <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid #F0F4FF;">
-              ${img}
-              <div style="flex:1;min-width:0;">
-                <div style="fon
+            <div style="flex:1;min-width:0;">
+  <div style="font-weight: 600; font-size: 16px; margin-bottom: 6px;">
+    {ex.name}
+  </div>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    {details}
+  </div>
+</div>
