@@ -218,10 +218,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       } catch {}
     }
 
-    const { error: upErr } = await supabase.from('exercises').update(payload).eq('id', exId)
-    if (upErr?.message?.includes('image_url')) {
-      const { image_url: _x, ...payloadSafe } = payload
-      await supabase.from('exercises').update(payloadSafe).eq('id', exId)
+    // Toujours sauvegarder d'abord sans image_url pour éviter les erreurs de colonne manquante
+    const { image_url: imgUrl, ...payloadCore } = payload
+    const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
+    if (upErr) console.error('Erreur update exercice:', upErr.message)
+    // Sauvegarder image_url séparément (colonne optionnelle)
+    if (imgUrl) {
+      await supabase.from('exercises').update({ image_url: imgUrl }).eq('id', exId)
     }
 
     if (field === 'name' && payload.image_url) {
@@ -351,7 +354,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
       let totalExInserted = 0
       for (const workout of freshWorkouts) {
-        const exs = (workout.exercises || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        // Fetch séparé des exercices pour garantir qu'on les a tous (évite bug RLS/join)
+        const { data: exData } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('workout_id', workout.id)
+          .order('order_index')
+        const exs = (exData || workout.exercises || []).sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
         const { data: newWorkout, error: wInsErr } = await supabase.from('workouts').insert({
           client_id: targetClientId,
           name: workout.name,
@@ -380,7 +389,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             rest: ex.rest || null,
             // Copie les deux champs de note
             note: ex.note || null,
-                  target_weight: ex.target_weight || null,
+            target_weight: ex.target_weight || null,
             order_index: parseInt(ex.order_index) || 0,
             group_type: ex.group_type || 'Normal',
             group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
