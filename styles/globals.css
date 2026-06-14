@@ -1,82 +1,45 @@
+/* ── globals.css — Ben&Fit ──────────────────────────────────────────────────
+   Point d'entrée unique. Importer les modules dans l'ordre.
+   ────────────────────────────────────────────────────────────────────────── */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design tokens Ben&Fit ──────────────────────────────────────────────────
-   Source of truth : toutes les couleurs de l'app ici, jamais hardcodées.
-   Usage : var(--navy), var(--gold), etc.
-   ──────────────────────────────────────────────────────────────────────── */
+/* 1. Tokens CSS (couleurs, radius, ombres) */
+@import './tokens.css';
 
-:root {
-  /* Identité Ben&Fit */
-  --navy:       #0D1B4E;
-  --navy-mid:   #1A2B6B;
-  --navy-light: #2C64E5;
-  --gold:       #C8A85A;
-  --gold-light: #D4A017;
+/* 2. Design system (classes .btn, .card, .badge, .input…) */
+@import './ui-foundation.css';
 
-  /* UI neutres (pages app interne) */
-  --bg:           #EEF0F5;
-  --surface:      #FFFFFF;
-  --surface-soft: #F5F7FF;
-  --border:       #C5D0F0;
-  --border-soft:  #DCE5F3;
-  --text:         #0D1B4E;
-  --text-soft:    #6B7A99;
-  --text-faint:   #9BA8C0;
+/* 3. Typographie unifiée */
+@import './typography.css';
 
-  /* Accent */
-  --accent:      #2C64E5;
-  --accent-soft: #EEF2FF;
+/* 4. Animations & micro-interactions */
+@import './animations.css';
 
-  /* Sémantiques */
-  --success:      #3A7A5A;
-  --success-soft: #E8F5EE;
-  --warning:      #A07820;
-  --warning-soft: #FEF3C7;
-  --danger:       #C45C3A;
-  --danger-soft:  #FEE8E0;
+/* 5. Corrections mobile & touch targets */
+@import './mobile.css';
 
-  /* Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 4px rgba(13,27,78,0.07);
-  --shadow-md: 0 8px 24px rgba(13,27,78,0.10);
-}
-
-/* ── Reset ────────────────────────────────────────────────────────────────── */
-* { box-sizing: border-box; }
+/* ── Reset complémentaire ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  margin: 0;
   font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--navy);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Typographie ──────────────────────────────────────────────────────────── */
-.font-display { font-family: 'Bebas Neue', sans-serif; }
-.font-mono-dm { font-family: 'DM Mono', monospace; }
-
-/* ── Scrollbar fine ───────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* ── Scrollbar fine ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-/* ── Animations ───────────────────────────────────────────────────────────── */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-in { animation: fadeIn 0.3s ease; }
-
-/* ── Page login (dark navy) ────────────────────────────────────────────────
-   La page de login a son propre skin. Les autres pages utilisent --bg clair.
-   ──────────────────────────────────────────────────────────────────────── */
+/* ── Page login (dark) ──────────────────────────────────────────────────── */
 .login-page {
   min-height: 100vh;
   background: var(--navy);
@@ -85,3 +48,8 @@ body {
   justify-content: center;
   font-family: 'DM Sans', sans-serif;
 }
+
+/* ── Utilitaires divers ─────────────────────────────────────────────────── */
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

@@ -1,0 +1,135 @@
+/* ── Corrections mobile Ben&Fit ─────────────────────────────────────────────
+   Importer dans globals.css : @import './mobile.css';
+   Cible : iPhone SE (375px) → iPhone Pro Max (430px) → tablettes
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── Safe areas (iPhone notch + home indicator) ─────────────────────────── */
+:root {
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+}
+
+/* ── Touch targets — tous les boutons sont au moins 44px ───────────────── */
+@media (max-width: 979px) {
+  button,
+  [role="button"],
+  a.btn,
+  .btn {
+    min-height: 44px;
+  }
+
+  /* Exceptions : badges, pills, icon-btn internes */
+  .badge,
+  .icon-btn,
+  .btn-pill-sm {
+    min-height: unset;
+  }
+
+  /* ── Cartes séances ───────────────────────────────────────────────────── */
+  .workout-card {
+    padding: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  /* ── Boutons d'action (+ Séance, Dupliquer, PDF, Archiver) ─────────────
+     Dans coach.js : les boutons de la toolbar */
+  .action-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .action-toolbar button,
+  .action-toolbar .btn {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 120px;
+    font-size: 12px !important;
+    padding: 10px 10px !important;
+    justify-content: center;
+  }
+
+  /* ── Tableaux exercices ───────────────────────────────────────────────── */
+  .exercise-table-header {
+    display: none; /* Les colonnes SÉRIES/REPS/REPOS se lisent directement */
+  }
+
+  /* ── ExerciseWorkspace : 1 colonne sur mobile ────────────────────────── */
+  .exercise-workspace-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Champs log performance ───────────────────────────────────────────── */
+  .log-input {
+    font-size: 16px !important; /* Évite le zoom auto iOS sur les inputs */
+  }
+
+  /* ── Header coach (breadcrumb + tabs) ───────────────────────────────────
+     Sur mobile les tabs débordent — on les rend scrollables */
+  .coach-tabs-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+  }
+  .coach-tabs-bar::-webkit-scrollbar { display: none; }
+  .coach-tabs-bar button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 12px !important;
+    padding: 7px 12px !important;
+    min-height: 36px !important;
+  }
+
+  /* ── Bottom nav spacing ──────────────────────────────────────────────── */
+  .page-content-mobile {
+    padding-bottom: calc(64px + var(--safe-bottom) + 12px);
+  }
+
+  /* ── Sidebar liste clients (coach) ───────────────────────────────────── */
+  .client-sidebar {
+    width: 100% !important;
+  }
+
+  /* ── Modals plein écran sur mobile ───────────────────────────────────── */
+  .modal {
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: var(--r-xl) var(--r-xl) 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: 24px 20px calc(20px + var(--safe-bottom)) !important;
+  }
+  .modal-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+}
+
+/* ── iPhone SE spécifique (375px) ──────────────────────────────────────── */
+@media (max-width: 390px) {
+  .h2 { font-size: 16px !important; }
+
+  .action-toolbar button,
+  .action-toolbar .btn {
+    flex: 1 1 100%; /* 1 bouton par ligne sur SE */
+  }
+
+  /* Réduire les paddings des cartes */
+  .card,
+  .card-sm {
+    padding: 10px !important;
+  }
+}
+
+/* ── Tablette (768–979px) ────────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 979px) {
+  .action-toolbar button,
+  .action-toolbar .btn {
+    flex: 0 0 auto;
+    min-width: unset;
+  }
+}
