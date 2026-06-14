@@ -1,0 +1,58 @@
+/**
+ * Design tokens Ben&Fit — source unique de vérité
+ * Importer dans globals.css avec @import './tokens.css'
+ * Toutes les valeurs hardcodées dans les pages DOIVENT migrer ici
+ *
+ * Usage JS (inline styles) :
+ *   style={{ color: 'var(--navy)' }}
+ *
+ * Migration : grep "#0D1B4E" pages/ → remplacer par var(--navy)
+ */
+
+:root {
+  /* ── Identité Ben&Fit ────────── */
+  --navy:        #0D1B4E;
+  --navy-mid:    #1A2B6B;
+  --accent:      #2C64E5;
+  --accent-2:    #4A6FD4;
+  --gold:        #C8A85A;
+  --gold-dark:   #A07820;
+
+  /* ── Fond & surfaces ─────────── */
+  --bg:          #EEF0F5;
+  --surface:     #FFFFFF;
+  --surface-soft:#F5F7FF;
+  --surface-dim: #F8FAFF;
+
+  /* ── Bordures ────────────────── */
+  --border:      #C5D0F0;
+  --border-soft: #DCE5F3;
+  --border-faint:#E8ECFA;
+
+  /* ── Texte ───────────────────── */
+  --text:        #0D1B4E;
+  --text-soft:   #6B7A99;
+  --text-faint:  #9BA8C0;
+
+  /* ── Sémantiques ─────────────── */
+  --success:      #3A7A5A;
+  --success-bg:   #E8F5EE;
+  --warning:      #A07820;
+  --warning-bg:   #FEF3C7;
+  --danger:       #C45C3A;
+  --danger-bg:    #FEE8E0;
+
+  /* ── Radius ──────────────────── */
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  22px;
+
+  /* ── Ombres ──────────────────── */
+  --shadow-sm: 0 1px 4px rgba(13,27,78,0.07);
+  --shadow-md: 0 8px 24px rgba(13,27,78,0.10);
+  --shadow-lg: 0 16px 48px rgba(13,27,78,0.14);
+
+  /* ── Transitions ─────────────── */
+  --transition: 0.2s ease;
+}

@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens Ben&Fit ──────────────────────────────────────────────────
+   Source of truth : toutes les couleurs de l'app ici, jamais hardcodées.
+   Usage : var(--navy), var(--gold), etc.
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Identité Ben&Fit */
+  --navy:       #0D1B4E;
+  --navy-mid:   #1A2B6B;
+  --navy-light: #2C64E5;
+  --gold:       #C8A85A;
+  --gold-light: #D4A017;
+
+  /* UI neutres (pages app interne) */
+  --bg:           #EEF0F5;
+  --surface:      #FFFFFF;
+  --surface-soft: #F5F7FF;
+  --border:       #C5D0F0;
+  --border-soft:  #DCE5F3;
+  --text:         #0D1B4E;
+  --text-soft:    #6B7A99;
+  --text-faint:   #9BA8C0;
+
+  /* Accent */
+  --accent:      #2C64E5;
+  --accent-soft: #EEF2FF;
+
+  /* Sémantiques */
+  --success:      #3A7A5A;
+  --success-soft: #E8F5EE;
+  --warning:      #A07820;
+  --warning-soft: #FEF3C7;
+  --danger:       #C45C3A;
+  --danger-soft:  #FEE8E0;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(13,27,78,0.07);
+  --shadow-md: 0 8px 24px rgba(13,27,78,0.10);
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Typographie ──────────────────────────────────────────────────────────── */
+.font-display { font-family: 'Bebas Neue', sans-serif; }
+.font-mono-dm { font-family: 'DM Mono', monospace; }
+
+/* ── Scrollbar fine ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.3s ease; }
+
+/* ── Page login (dark navy) ────────────────────────────────────────────────
+   La page de login a son propre skin. Les autres pages utilisent --bg clair.
+   ──────────────────────────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+}
