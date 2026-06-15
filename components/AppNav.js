@@ -2,51 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 
-// ── SVG Icons — cohérents, colorables, pas d'emoji OS-dépendant ────────────
-const Icons = {
-  dashboard: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-    </svg>
-  ),
-  training: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 9h12M6 15h12"/>
-    </svg>
-  ),
-  nutrition: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2a9 9 0 0 1 9 9c0 3.5-2 7-5 8.5V21H8v-1.5C5 18 3 14.5 3 11a9 9 0 0 1 9-9z"/>
-      <path d="M12 7v5l3 3"/>
-    </svg>
-  ),
-  bilan: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-      <rect x="9" y="3" width="6" height="4" rx="1"/>
-      <path d="M9 12h6M9 16h4"/>
-    </svg>
-  ),
-  community: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="3"/>
-      <circle cx="17" cy="9" r="2.5"/>
-      <path d="M2 21v-2a5 5 0 0 1 10 0v2"/>
-      <path d="M17 21v-1.5a4.5 4.5 0 0 0-2.5-4"/>
-    </svg>
-  ),
-}
-
 // ── Navigation items ─────────────────────────────────────────
 const NAV_ITEMS = [
-  { href: '/dashboard',  label: 'Dashboard',  iconKey: 'dashboard' },
-  { href: '/training',   label: 'Training',   iconKey: 'training' },
-  { href: '/nutrition',  label: 'Nutrition',  iconKey: 'nutrition' },
-  { href: '/bilan',      label: 'Bilan',      iconKey: 'bilan' },
-  { href: '/community',  label: 'Communauté', iconKey: 'community' },
+  { href: '/dashboard',  label: 'Dashboard',  icon: '👁' },
+  { href: '/training',   label: 'Training',   icon: '🏋️' },
+  { href: '/nutrition',  label: 'Nutrition',  icon: '🥗' },
+  { href: '/bilan',      label: 'Bilan',      icon: '📋' },
+  { href: '/community',  label: 'Communauté', icon: '💬' },
 ]
 
 // ── Popup rappel bilan ───────────────────────────────────────
@@ -62,7 +24,7 @@ function useBilanReminder() {
   const [show, setShow] = useState(false)
   useEffect(() => {
     const today = new Date()
-    const day = today.getDay()
+    const day = today.getDay() // 5=Vendredi, 6=Samedi
     if (day !== 5 && day !== 6) return
     const weekKey = `bilan_popup_${today.getFullYear()}_W${getWeekNumber(today)}`
     if (!localStorage.getItem(weekKey)) {
@@ -137,26 +99,45 @@ export default function AppNav({ profile }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    supabase.auth.getUser().then(({ data }) => setUser(data?.user || null))
   }, [])
 
-  const pathname = useMemo(() => router.pathname, [router.pathname])
+  const pathname = useMemo(() => router.pathname || '', [router.pathname])
+  const go = (href) => { router.push(href); setSidebarOpen(false) }
+  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/') }
 
-  const go = (href) => {
-    if (isMobile) setSidebarOpen(false)
-    router.push(href)
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
-  // ── MOBILE bottom nav ────────────────────────────────────────
+  // ── MOBILE ─────────────────────────────────────────────────
   if (isMobile) {
     return (
       <>
         {showBilanPopup && <BilanReminderPopup onClose={closeBilanPopup} />}
+
+        {pathname !== '/messages' && (
+          <>
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, zIndex: 320,
+              height: '56px', background: '#0D1B4E',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 12px', boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <img src="/logo-small.png" alt="Ben&Fit" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                <div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: 'white', letterSpacing: '1.5px', lineHeight: 1 }}>BEN&FIT</div>
+                  <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>Only Benefit · since 2021</div>
+                </div>
+              </div>
+              <button onClick={handleLogout} style={{
+                padding: '7px 10px', borderRadius: '999px',
+                border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)',
+                color: 'white', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+              }}>Déconnexion</button>
+            </div>
+            <div style={{ height: '56px' }} />
+          </>
+        )}
+
         <nav style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300,
           background: '#0D1B4E', borderTop: '1px solid rgba(255,255,255,0.10)',
@@ -172,13 +153,12 @@ export default function AppNav({ profile }) {
                 alignItems: 'center', justifyContent: 'center', gap: '3px',
                 border: 'none', cursor: 'pointer',
                 background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
-                color: active ? 'white' : 'rgba(255,255,255,0.45)',
+                color: active ? 'white' : 'rgba(255,255,255,0.5)',
                 fontFamily: "'DM Sans',sans-serif",
                 borderTop: active ? '2px solid #2C64E5' : '2px solid transparent',
                 position: 'relative',
-                transition: 'color 0.15s, background 0.15s',
               }}>
-                {Icons[item.iconKey]}
+                <span style={{ fontSize: '20px', lineHeight: 1 }}>{item.icon}</span>
                 <span style={{ fontSize: '9px', fontWeight: active ? '700' : '400', letterSpacing: '0.3px' }}>
                   {item.label}
                 </span>
@@ -238,20 +218,17 @@ export default function AppNav({ profile }) {
                 padding: '11px 12px', borderRadius: '10px', cursor: 'pointer',
                 background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
                 border: 'none', width: '100%', textAlign: 'left',
-                fontFamily: "'DM Sans',sans-serif", marginBottom: '4px',
-                color: active ? 'white' : 'rgba(255,255,255,0.6)',
-                transition: 'all 0.2s',
+                fontFamily: "'DM Sans',sans-serif", marginBottom: '4px', transition: 'all 0.2s',
               }}>
-                <div style={{ width: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {Icons[item.iconKey]}
-                </div>
-                <div style={{ fontSize: '13px', fontWeight: active ? '700' : '500' }}>{item.label}</div>
+                <div style={{ width: '22px', textAlign: 'center', fontSize: '14px' }}>{item.icon}</div>
+                <div style={{ fontSize: '13px', color: 'white', fontWeight: active ? '700' : '500' }}>{item.label}</div>
                 {item.href === '/community' && (
                   <span style={{ marginLeft: 'auto', background: '#2C64E5', color: 'white', fontSize: '9px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>NEW</span>
                 )}
               </button>
             )
           })}
+
         </div>
 
         <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -261,12 +238,9 @@ export default function AppNav({ profile }) {
           </div>
           <button onClick={handleLogout} style={{
             width: '100%', padding: '9px', background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
-            color: 'rgba(255,255,255,0.55)', fontSize: '12px', cursor: 'pointer',
-            fontFamily: "'DM Sans',sans-serif", transition: 'all 0.2s',
-          }}>
-            Déconnexion
-          </button>
+            border: '1px solid rgba(255,255,255,0.14)', borderRadius: '8px',
+            color: '#D7E2FF', fontSize: '12px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+          }}>Déconnexion</button>
         </div>
       </aside>
     </>
