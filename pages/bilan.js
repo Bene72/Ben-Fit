@@ -56,6 +56,8 @@ export default function BilanPage() {
   const [bilans, setBilans] = useState([])
   const [selectedBilanId, setSelectedBilanId] = useState(null)
   const [editForm, setEditForm] = useState({})
+  const [userName, setUserName] = useState('')
+  const [cycleName, setCycleName] = useState('')
 
   useEffect(() => {
     let active = true
@@ -77,6 +79,14 @@ export default function BilanPage() {
 
         if (!active) return
         setUser(currentUser)
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, current_cycle_name')
+          .eq('id', currentUser.id)
+          .single()
+        setUserName(profileData?.full_name?.split(' ')[0] || '')
+        setCycleName(profileData?.current_cycle_name || '')
 
         const { data, error: bilansError } = await supabase
           .from('bilans')
@@ -258,6 +268,10 @@ export default function BilanPage() {
     <AppShell
       title="Bilan"
       subtitle="Un espace plus clair pour remplir ton check-in hebdomadaire et garder un historique propre."
+      userName={userName}
+      cycleName={cycleName}
+      coachName="Ben"
+      coachAvailable={true}
       actions={
         <button
           type="button"
