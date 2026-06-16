@@ -53,7 +53,7 @@ function BilanReminderPopup({ onClose }) {
       }}>
         <style>{`@keyframes popIn { from { transform:scale(0.82); opacity:0 } to { transform:scale(1); opacity:1 } }`}</style>
         <div style={{ fontSize: '54px', marginBottom: '14px' }}>📋</div>
-        <div style={{ fontWeight: '900', fontSize: '20px', color: '#0D1B4E', marginBottom: '10px', lineHeight: 1.2 }}>
+        <div style={{ fontWeight: '900', fontSize: '20px', color: '#0D1B2A', marginBottom: '10px', lineHeight: 1.2 }}>
           C'est le moment de ton bilan !
         </div>
         <div style={{ fontSize: '14px', color: '#6B7A99', lineHeight: 1.7, marginBottom: '26px' }}>
@@ -62,7 +62,7 @@ function BilanReminderPopup({ onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button onClick={() => { onClose(); window.location.href = '/bilan' }} style={{
             width: '100%', padding: '14px', borderRadius: '11px', border: 'none',
-            background: 'linear-gradient(135deg, #0D1B4E, #2C64E5)',
+            background: 'linear-gradient(135deg, #0D1B2A, #B8860B)',
             color: 'white', fontWeight: '800', fontSize: '14px',
             cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
             boxShadow: '0 4px 16px rgba(44,100,229,0.35)',
@@ -116,7 +116,7 @@ export default function AppNav({ profile }) {
           <>
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, zIndex: 320,
-              height: '56px', background: '#0D1B4E',
+              height: '56px', background: '#0D1B2A',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0 12px', boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
@@ -140,7 +140,7 @@ export default function AppNav({ profile }) {
 
         <nav style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300,
-          background: '#0D1B4E', borderTop: '1px solid rgba(255,255,255,0.10)',
+          background: '#0D1B2A', borderTop: '1px solid rgba(255,255,255,0.10)',
           display: 'flex', alignItems: 'stretch', height: '64px',
           boxShadow: '0 -4px 20px rgba(0,0,0,0.22)',
           paddingBottom: 'env(safe-area-inset-bottom)',
@@ -152,10 +152,10 @@ export default function AppNav({ profile }) {
                 flex: 1, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: '3px',
                 border: 'none', cursor: 'pointer',
-                background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+                background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
                 color: active ? 'white' : 'rgba(255,255,255,0.5)',
                 fontFamily: "'DM Sans',sans-serif",
-                borderTop: active ? '2px solid #2C64E5' : '2px solid transparent',
+                borderTop: active ? '2px solid #B8860B' : '2px solid transparent',
                 position: 'relative',
               }}>
                 <span style={{ fontSize: '20px', lineHeight: 1 }}>{item.icon}</span>
@@ -166,7 +166,7 @@ export default function AppNav({ profile }) {
                   <span style={{
                     position: 'absolute', top: '6px', right: '10%',
                     width: '7px', height: '7px', borderRadius: '50%',
-                    background: '#2C64E5', border: '1.5px solid #0D1B4E',
+                    background: '#B8860B', border: '1.5px solid #0D1B2A',
                   }} />
                 )}
               </button>
@@ -185,7 +185,7 @@ export default function AppNav({ profile }) {
 
       <button onClick={() => setSidebarOpen(o => !o)} style={{
         position: 'fixed', top: '16px', left: sidebarOpen ? '218px' : '12px',
-        zIndex: 220, width: '32px', height: '32px', background: '#0D1B4E',
+        zIndex: 220, width: '32px', height: '32px', background: '#0D1B2A',
         border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px',
         color: 'white', fontSize: '16px', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -195,7 +195,7 @@ export default function AppNav({ profile }) {
       </button>
 
       <aside style={{
-        width: sidebarOpen ? '260px' : '0px', background: '#0D1B4E',
+        width: sidebarOpen ? '260px' : '0px', background: '#0D1B2A',
         position: 'fixed', top: 0, bottom: 0, left: 0,
         display: 'flex', flexDirection: 'column',
         zIndex: 210, overflow: 'hidden', transition: 'width 0.25s ease',
@@ -223,7 +223,7 @@ export default function AppNav({ profile }) {
                 <div style={{ width: '22px', textAlign: 'center', fontSize: '14px' }}>{item.icon}</div>
                 <div style={{ fontSize: '13px', color: 'white', fontWeight: active ? '700' : '500' }}>{item.label}</div>
                 {item.href === '/community' && (
-                  <span style={{ marginLeft: 'auto', background: '#2C64E5', color: 'white', fontSize: '9px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>NEW</span>
+                  <span style={{ marginLeft: 'auto', background: '#B8860B', color: 'white', fontSize: '9px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>NEW</span>
                 )}
               </button>
             )
