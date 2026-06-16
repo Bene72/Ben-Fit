@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 // ── Navigation items ─────────────────────────────────────────
 const NAV_ITEMS = [
@@ -42,37 +43,48 @@ function BilanReminderPopup({ onClose }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(13,27,78,0.6)', backdropFilter: 'blur(5px)',
+      background: 'rgba(13,27,42,0.6)', backdropFilter: 'blur(5px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
     }}>
       <div style={{
-        background: 'white', borderRadius: '22px', padding: '36px 28px 28px',
-        maxWidth: '340px', width: '100%', textAlign: 'center',
-        boxShadow: '0 28px 70px rgba(13,27,78,0.28)',
+        background: '#FFFFFF', borderRadius: 'var(--r-lg, 28px)', padding: '38px 30px 28px',
+        maxWidth: '360px', width: '100%', textAlign: 'center',
+        boxShadow: 'var(--shadow-hero, 0 28px 70px rgba(13,27,42,0.28))',
         animation: 'popIn 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+        border: '1px solid var(--gold-light, #D4AF37)',
       }}>
         <style>{`@keyframes popIn { from { transform:scale(0.82); opacity:0 } to { transform:scale(1); opacity:1 } }`}</style>
-        <div style={{ fontSize: '54px', marginBottom: '14px' }}>📋</div>
-        <div style={{ fontWeight: '900', fontSize: '20px', color: '#0D1B2A', marginBottom: '10px', lineHeight: 1.2 }}>
-          C'est le moment de ton bilan !
+
+        {/* Petit badge "Semaine X terminée" plutôt qu'une grosse icône système */}
+        <div style={{
+          display: 'inline-block', padding: '5px 14px', borderRadius: 999,
+          background: 'var(--gold-soft, #FDF6E3)', color: 'var(--gold, #B8860B)',
+          fontSize: 11, fontWeight: 800, letterSpacing: '0.8px', textTransform: 'uppercase',
+          marginBottom: 18,
+        }}>
+          Semaine terminée
         </div>
-        <div style={{ fontSize: '14px', color: '#6B7A99', lineHeight: 1.7, marginBottom: '26px' }}>
-          Prends 2 minutes pour noter ta semaine — sommeil, moral, nutrition, assiduité. Ton coach compte sur toi ! 💪
+
+        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '24px', color: '#0D1B2A', marginBottom: '10px', letterSpacing: '1px', lineHeight: 1.2 }}>
+          Ton coach attend ton bilan
+        </div>
+        <div style={{ fontSize: '14px', color: '#A09880', lineHeight: 1.7, marginBottom: '28px' }}>
+          2 minutes suffisent pour qu'il ajuste ta semaine prochaine — sommeil, moral, nutrition, assiduité.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button onClick={() => { onClose(); window.location.href = '/bilan' }} style={{
-            width: '100%', padding: '14px', borderRadius: '11px', border: 'none',
-            background: 'linear-gradient(135deg, #0D1B2A, #B8860B)',
-            color: 'white', fontWeight: '800', fontSize: '14px',
+            width: '100%', padding: '14px', borderRadius: 'var(--r-sm, 12px)', border: 'none',
+            background: '#0D1B2A',
+            color: 'white', fontWeight: '700', fontSize: '14px',
             cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-            boxShadow: '0 4px 16px rgba(44,100,229,0.35)',
+            boxShadow: '0 6px 18px rgba(13,27,42,0.25)',
           }}>
-            ✏️ Faire mon bilan maintenant
+            Faire mon bilan
           </button>
           <button onClick={onClose} style={{
-            width: '100%', padding: '12px', borderRadius: '11px',
-            border: '1.5px solid #C5D0F0', background: 'transparent',
-            color: '#6B7A99', fontWeight: '600', fontSize: '13px',
+            width: '100%', padding: '12px', borderRadius: 'var(--r-sm, 12px)',
+            border: '1.5px solid #EDE9E0', background: 'transparent',
+            color: '#A09880', fontWeight: '600', fontSize: '13px',
             cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
           }}>
             Plus tard
@@ -86,17 +98,10 @@ function BilanReminderPopup({ onClose }) {
 // ── Composant principal ──────────────────────────────────────
 export default function AppNav({ profile }) {
   const router = useRouter()
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useBreakpoint(980)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [showBilanPopup, closeBilanPopup] = useBilanReminder()
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 980)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null))
