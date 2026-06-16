@@ -206,6 +206,7 @@ export default function TrainingPage() {
 
   // ── NOUVEAU : Cycle actuel et historique archivé ──
   const [currentCycleName, setCurrentCycleName] = useState('')
+  const [userName, setUserName] = useState('')
   const [archivedWorkouts, setArchivedWorkouts] = useState([])
 
   // ── Calendrier ─────────────────────────────────────────────
@@ -239,13 +240,14 @@ export default function TrainingPage() {
 
         if (workoutError) throw workoutError
 
-        // Charger le profil pour récupérer le nom du cycle actuel
+        // Charger le profil pour récupérer le nom du cycle actuel + le prénom
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('current_cycle_name')
+          .select('current_cycle_name, full_name')
           .eq('id', currentUser.id)
           .single()
         setCurrentCycleName(profileData?.current_cycle_name || '')
+        setUserName(profileData?.full_name?.split(' ')[0] || '')
 
         // Charger les workouts archivés
         const { data: archivedData } = await supabase
@@ -381,7 +383,7 @@ export default function TrainingPage() {
   if (loading) return (<AppShell title="Training" subtitle="Chargement..." actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab} />}><SurfaceCard padded><div style={{ color: '#6B7A99' }}>Chargement…</div></SurfaceCard></AppShell>)
 
   return (
-    <AppShell title="Training" subtitle="Un espace clair et lisible" actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab} />}>
+    <AppShell title="Training" subtitle="Un espace clair et lisible" actions={<SegmentTabs items={TRAINING_TABS} value={activeTab} onChange={setActiveTab} />} userName={userName} cycleName={currentCycleName} coachName="Ben" coachAvailable={true}>
       {error ? (<div style={{ marginBottom: isMobile ? 6 : 12 }}><SurfaceCard padded style={{ borderColor: '#F3C4C4', background: '#FEF2F2' }}><strong style={{ display: 'block', color: '#B42318', fontSize: 11 }}>Erreur</strong><div style={{ color: '#B42318', fontSize: 11 }}>{error}</div></SurfaceCard></div>) : null}
       {success ? (<div style={{ marginBottom: isMobile ? 6 : 12 }}><SurfaceCard padded style={{ borderColor: '#C9E9D5', background: '#F0FBF4' }}><strong style={{ display: 'block', color: '#16804A', fontSize: 11 }}>OK</strong><div style={{ color: '#16804A', fontSize: 11 }}>{success}</div></SurfaceCard></div>) : null}
 
@@ -766,12 +768,12 @@ function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, todayStr, logsBy
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SurfaceCard padded>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: '#EEF4FF', border: '1px solid #EDE9E0', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, color: '#2C64E5', fontSize: 16 }}>‹</button>
+          <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: '#EEF4FF', border: '1px solid #C5D8F5', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, color: '#2C64E5', fontSize: 16 }}>‹</button>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1B4E', textAlign: 'center' }}>
             {weekDays[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — {weekDays[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
             {weekOffset === 0 && <div style={{ fontSize: 10, color: '#6B8ED6', marginTop: 2 }}>Semaine en cours</div>}
           </div>
-          <button onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0} style={{ background: weekOffset >= 0 ? '#F5F5F5' : '#EEF4FF', border: '1px solid #EDE9E0', borderRadius: 8, padding: '6px 12px', cursor: weekOffset >= 0 ? 'not-allowed' : 'pointer', fontWeight: 700, color: weekOffset >= 0 ? '#CCC' : '#2C64E5', fontSize: 16 }}>›</button>
+          <button onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0} style={{ background: weekOffset >= 0 ? '#F5F5F5' : '#EEF4FF', border: '1px solid #C5D8F5', borderRadius: 8, padding: '6px 12px', cursor: weekOffset >= 0 ? 'not-allowed' : 'pointer', fontWeight: 700, color: weekOffset >= 0 ? '#CCC' : '#2C64E5', fontSize: 16 }}>›</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
@@ -942,137 +944,76 @@ function ArchivedCyclesView({ archivedWorkouts }) {
 
 // COMPOSANT EXERCICE COMPACT (inchangé)
 function CompactExerciseRow({ exercise, selected, latestLog, onSelect, isMobile }) {
-  const latestText = latestLog ? `${latestLog.weight ? latestLog.weight + ' kg' : ''}${latestLog.weight && latestLog.reps ? ' · ' : ''}${latestLog.reps ? latestLog.reps + ' reps' : ''}`.trim() : null
-
   return (
     <button
       type="button"
       onClick={onSelect}
       style={{
-        width: '100%', textAlign: 'left',
-        background: selected ? '#FAF9F7' : '#FFFFFF',
-        border: selected ? '1.5px solid #0D1B2A' : '1px solid #EDE9E0',
-        borderRadius: 12,
-        padding: isMobile ? '10px' : '12px 14px',
-        cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-        marginBottom: 6,
-        boxShadow: selected ? '0 4px 16px rgba(13,27,42,0.10)' : '0 1px 3px rgba(13,27,42,0.04)',
-        transition: 'all 0.18s ease',
-        display: 'flex', alignItems: 'center',
-        gap: isMobile ? 10 : 12,
+        width: '100%',
+        textAlign: 'left',
+        background: selected ? '#EEF4FF' : '#FFFFFF',
+        border: selected ? '1.5px solid #2C64E5' : '1px solid #DCE5F3',
+        borderRadius: isMobile ? 10 : 12,
+        padding: isMobile ? '8px' : '12px',
+        cursor: 'pointer',
+        fontFamily: "'DM Sans',sans-serif",
+        marginBottom: isMobile ? 6 : 8,
+        boxShadow: selected ? '0 0 0 2px rgba(44,100,229,0.1)' : 'none',
+        transition: 'all 0.15s',
+        display: 'flex',
+        alignItems: 'center',
+        gap: isMobile ? 10 : 12
       }}
     >
-      {/* Vignette image */}
-      <div style={{
-        width: isMobile ? 48 : 56, height: isMobile ? 48 : 56,
-        borderRadius: 8, overflow: 'hidden',
-        background: '#F5F2EC', border: '1px solid #EDE9E0', flexShrink: 0,
-      }}>
-        {exercise.image_url
-          ? <img src={exercise.image_url} alt={exercise.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 20 }}>💪</div>
-        }
+      <div style={{ width: isMobile ? 50 : 60, height: isMobile ? 50 : 60, borderRadius: 8, overflow: 'hidden', background: '#F0F5FF', border: '1px solid #E0E8F5', flexShrink: 0 }}>
+        {exercise.image_url ? (
+          <img src={exercise.image_url} alt={exercise.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 18 }}>💪</div>
+        )}
       </div>
-
-      {/* Infos */}
+      
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: isMobile ? 13 : 14, color: '#0D1B2A', marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {exercise.name}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', background: '#0D1B2A', color: 'white', borderRadius: 20 }}>
-            {exercise.sets} × {exercise.reps}
-          </span>
-          {exercise.rest && (
-            <span style={{ fontSize: 11, padding: '3px 8px', background: '#F5F2EC', color: '#8A8070', borderRadius: 20, border: '1px solid #EDE9E0' }}>
-              ⏱ {exercise.rest}
-            </span>
-          )}
-          {latestText && (
-            <span style={{ fontSize: 10, color: '#B8860B', fontWeight: 700 }}>
-              ↑ {latestText}
-            </span>
-          )}
+        <div style={{ fontWeight: 800, fontSize: isMobile ? 14 : 15, color: '#0D1B4E', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{exercise.name}</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', background: '#2C64E5', color: 'white', borderRadius: 6 }}>{exercise.sets} × {exercise.reps}</span>
+          <span style={{ fontSize: 11, padding: '3px 8px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 6, border: '1px solid #DCE5F3' }}> {exercise.rest || '—'}</span>
         </div>
       </div>
 
-      {/* Chevron */}
-      <div style={{
-        color: selected ? '#0D1B2A' : '#C8C0B0', fontSize: 13,
-        transform: selected ? 'rotate(180deg)' : 'rotate(0)',
-        transition: 'transform 0.2s ease', flexShrink: 0,
-      }}>▾</div>
+      <div style={{ color: selected ? '#2C64E5' : '#E0E0E0', fontSize: 20 }}>{selected ? '●' : '○'}</div>
     </button>
   )
 }
 
 function ExerciseWorkspace({ exercise, input, onInput, onLog, logging, onImageOpen, latestLog, isMobile, recentLogs }) {
   return (
-    <div style={{
-      borderRadius: '0 0 12px 12px',
-      border: '1.5px solid #0D1B2A', borderTop: 'none',
-      background: '#FAF9F7',
-      padding: isMobile ? 12 : 16,
-      marginBottom: 8, marginTop: -6,
-      animation: 'accordionOpen 0.2s ease',
-    }}>
-      <style>{`@keyframes accordionOpen { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }`}</style>
-
-      {/* Note coach */}
+    <div style={{ borderRadius: 10, border: '1.5px solid #2C64E5', background: '#F8FBFF', padding: isMobile ? 12 : 16, marginBottom: 8 }}>
       {exercise.note && (
-        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'white', borderRadius: 8, borderLeft: '3px solid #B8860B', fontSize: 13, color: '#0D1B2A', lineHeight: 1.65 }}>
+        <div style={{ marginBottom: 10, padding: '7px 12px', background: 'white', borderRadius: 8, borderLeft: '3px solid #2C64E5', fontSize: 13, color: '#0D1B4E', lineHeight: 1.6 }}>
           📋 <span style={{ fontWeight: 700 }}>Note coach :</span> {exercise.note}
         </div>
       )}
-
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <div style={{ fontWeight: 900, fontSize: 14, color: '#0D1B4E' }}>{exercise.name}</div>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-        {/* Prescription */}
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 8 }}>Prescription</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 800, padding: '5px 12px', background: '#0D1B2A', color: 'white', borderRadius: 20 }}>
-              {exercise.sets} × {exercise.reps}
-            </span>
-            {exercise.rest && (
-              <span style={{ fontSize: 12, padding: '5px 12px', background: 'white', color: '#8A8070', borderRadius: 20, border: '1px solid #EDE9E0' }}>
-                ⏱ {exercise.rest}
-              </span>
-            )}
+          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>PRESCRIPTION</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', background: '#2C64E5', color: 'white', borderRadius: 20 }}>{exercise.sets} × {exercise.reps}</span>
+            <span style={{ fontSize: 12, padding: '4px 10px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 20 }}>⏱ {exercise.rest}</span>
           </div>
-          {/* Dernier log */}
-          {latestLog && (
-            <div style={{ background: 'white', borderRadius: 8, padding: '8px 10px', border: '1px solid #EDE9E0', fontSize: 12 }}>
-              <div style={{ fontSize: 10, color: '#A09880', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Dernière perf</div>
-              <div style={{ fontWeight: 800, color: '#B8860B' }}>
-                {latestLog.weight ? `${latestLog.weight} kg` : ''}
-                {latestLog.weight && latestLog.reps ? ' · ' : ''}
-                {latestLog.reps ? `${latestLog.reps} reps` : ''}
-              </div>
-              {latestLog.note && <div style={{ fontSize: 11, color: '#A09880', marginTop: 3, fontStyle: 'italic' }}>"{latestLog.note}"</div>}
-            </div>
-          )}
+          <div style={{ color: '#4A6FB5', lineHeight: 1.5, fontSize: 12 }}>{exercise.note || 'Aucune note.'}</div>
         </div>
-
-        {/* Logger */}
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 8 }}>Enregistrer</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-            <Field label="Charge">
-              <input value={input.weight || ''} onChange={e => onInput('weight', e.target.value)} placeholder="kg" style={inputStyle()} />
-            </Field>
-            <Field label="Reps">
-              <input value={input.reps || ''} onChange={e => onInput('reps', e.target.value)} placeholder="reps" style={inputStyle()} />
-            </Field>
+          <div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, letterSpacing: '0.5px' }}>RÉSULTAT</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <Field label="Charge"><input value={input.weight || ''} onChange={(e) => onInput('weight', e.target.value)} placeholder="kg" style={inputStyle()} /></Field>
+            <Field label="Reps"><input value={input.reps || ''} onChange={(e) => onInput('reps', e.target.value)} placeholder="reps" style={inputStyle()} /></Field>
           </div>
-          <button type="button" onClick={onLog} disabled={logging} style={{
-            width: '100%', border: 'none',
-            background: logging ? '#A09880' : '#0D1B2A',
-            color: 'white', borderRadius: 10, padding: '11px',
-            fontSize: 13, fontWeight: 800, cursor: logging ? 'not-allowed' : 'pointer',
-            fontFamily: "'DM Sans',sans-serif",
-            transition: 'background 0.15s',
-          }}>
-            {logging ? '…' : '✓ Enregistrer la perf'}
+          <button type="button" onClick={onLog} disabled={logging} style={{ marginTop: 8, width: '100%', border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+            {logging ? '...' : '✓ Enregistrer'}
           </button>
         </div>
       </div>
@@ -1081,7 +1022,7 @@ function ExerciseWorkspace({ exercise, input, onInput, onLog, logging, onImageOp
 }
 
 function inputStyle() {
-  return { width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: 8, border: '1px solid #EDE9E0', background: '#FAF9F7', fontSize: 13, color: '#0D1B2A', fontFamily: "'DM Sans',sans-serif" }
+  return { width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: 8, border: '1px solid #C5D8F5', background: 'white', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif" }
 }
 
 function Field({ label, children }) {
@@ -1089,9 +1030,9 @@ function Field({ label, children }) {
 }
 
 function MiniKpi({ label, value }) {
-  return <div style={{ border: '1px solid #EDE9E0', borderRadius: 10, background: '#EEF4FF', padding: 10 }}><div style={{ fontSize: 10, color: '#6B8ED6', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>{label}</div><div style={{ fontWeight: 900, fontSize: 22, color: '#0D1B4E' }}>{value}</div></div>
+  return <div style={{ border: '1px solid #C5D8F5', borderRadius: 10, background: '#EEF4FF', padding: 10 }}><div style={{ fontSize: 10, color: '#6B8ED6', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>{label}</div><div style={{ fontWeight: 900, fontSize: 22, color: '#0D1B4E' }}>{value}</div></div>
 }
 
 function InfoCard({ title, value }) {
-  return <div style={{ border: '1px solid #EDE9E0', borderRadius: 10, background: 'white', padding: 12 }}><div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, textTransform: 'uppercase' }}>{title}</div><div style={{ color: '#4A6FB5', fontSize: 13 }}>{value}</div></div>
+  return <div style={{ border: '1px solid #C5D8F5', borderRadius: 10, background: 'white', padding: 12 }}><div style={{ fontWeight: 800, color: '#0D1B4E', marginBottom: 6, fontSize: 10, textTransform: 'uppercase' }}>{title}</div><div style={{ color: '#4A6FB5', fontSize: 13 }}>{value}</div></div>
 }
