@@ -47,6 +47,8 @@ export default function NutritionPage() {
   const [logs, setLogs] = useState([])
   const [selectedDate, setSelectedDate] = useState(todayString())
   const [foodTotals, setFoodTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const [userName, setUserName] = useState('')
+  const [cycleName, setCycleName] = useState('')
 
   const [form, setForm] = useState({
     calories: '',
@@ -80,9 +82,10 @@ export default function NutritionPage() {
         if (!active) return
         setUser(currentUser)
 
-        const [{ data: planData, error: planError }, { data: logsData, error: logsError }] = await Promise.all([
+        const [{ data: planData, error: planError }, { data: logsData, error: logsError }, { data: profileData }] = await Promise.all([
           supabase.from('nutrition_plans').select('*').eq('client_id', currentUser.id).order('created_at', { ascending: false }).limit(1),
           supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', currentUser.id).order('date', { ascending: false }).limit(84),
+          supabase.from('profiles').select('full_name, current_cycle_name').eq('id', currentUser.id).single(),
         ])
 
         if (planError) throw planError
@@ -91,6 +94,8 @@ export default function NutritionPage() {
 
         setPlan(planData?.[0] || null)
         setLogs(logsData || [])
+        setUserName(profileData?.full_name?.split(' ')[0] || '')
+        setCycleName(profileData?.current_cycle_name || '')
       } catch (e) {
         if (!active) return
         setError(e.message || 'Impossible de charger la nutrition')
@@ -172,6 +177,10 @@ export default function NutritionPage() {
       title="Nutrition"
       subtitle="Tu peux renseigner tes macros ou tes aliments dans l’ordre que tu veux. Les aliments s’ajoutent automatiquement aux apports du jour."
       actions={<SegmentTabs items={NUTRITION_TABS} value={activeTab} onChange={setActiveTab} />}
+      userName={userName}
+      cycleName={cycleName}
+      coachName="Ben"
+      coachAvailable={true}
     >
       {error ? (
         <div style={{ marginBottom: 16 }}>
