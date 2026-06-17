@@ -347,6 +347,7 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
   const [imageSyncing, setImageSyncing] = useState(false)
   const [exerciseImageFiles, setExerciseImageFiles] = useState([])
   const [imageFilesLoading, setImageFilesLoading] = useState(true)
+  const [logsByExerciseName, setLogsByExerciseName] = useState({})
 
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 
@@ -368,12 +369,34 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
     const load = async () => {
       setLoading(true)
       await reloadWorkouts()
+      await loadClientLogs()
       setLoading(false)
       setOpenWorkout(null)
       setEditMode(null)
     }
     load()
   }, [clientId])
+
+  async function loadClientLogs() {
+    try {
+      const { data } = await supabase
+        .from('workout_logs')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('logged_at', { ascending: false })
+        .limit(300)
+      const grouped = {}
+      ;(data || []).forEach(log => {
+        const key = log.exercise_name
+        if (!key) return
+        if (!grouped[key]) grouped[key] = []
+        grouped[key].push(log)
+      })
+      setLogsByExerciseName(grouped)
+    } catch (e) {
+      console.error('Erreur chargement logs:', e.message)
+    }
+  }
 
   useEffect(() => {
     setImageFilesLoading(true)
@@ -1142,12 +1165,12 @@ function ProgrammeTab({ clientId, clientName, coachId }) {
                             <span>⚡ {ex.group_type}</span>
                             {isEdit && <button onClick={() => addExercise(workout.id, ex.group_type, ex.group_id)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>+ Exercice</button>}
                           </div>
-                          {group.map((e, ei) => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={ei===0} isLast={ei===group.length-1} />)}
+                          {group.map((e, ei) => <ExRow key={e.id} ex={e} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={ei===0} isLast={ei===group.length-1} recentLogs={logsByExerciseName[e.name] || []} />)}
                         </div>
                       )
                     }
                     rendered.add(ex.id)
-                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={exs.indexOf(ex)===0} isLast={exs.indexOf(ex)===exs.length-1} />
+                    return <ExRow key={ex.id} ex={ex} wId={workout.id} edit={isEdit} onUpdate={updateExercise} onDelete={deleteExercise} onMove={moveExercise} isFirst={exs.indexOf(ex)===0} isLast={exs.indexOf(ex)===exs.length-1} recentLogs={logsByExerciseName[ex.name] || []} />
                   })
                 })()}
 
@@ -1353,8 +1376,10 @@ function ExercisePicker({ picker, query, setQuery, mode, setMode, freeVal, setFr
   )
 }
 
-function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
+function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast, recentLogs = [] }) {
   const [showImg, setShowImg] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const lastLog = recentLogs[0]
 
   if (edit) {
     return (
@@ -1421,13 +1446,24 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
           </div>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 80px 90px 1fr', gap: '6px', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 80px 90px 1fr', gap: '6px', alignItems: 'center', padding: '12px 14px', borderBottom: showHistory ? 'none' : '1px solid rgba(0,0,0,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {ex.image_url
             ? <img src={ex.image_url} alt={ex.name} onClick={() => setShowImg(true)} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '7px', cursor: 'pointer', flexShrink: 0, border: '1px solid #C5D0F0' }} />
             : <div style={{ width: '60px', height: '60px', borderRadius: '7px', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>💪</div>
           }
-          <div><div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>{ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}</div>
+          <div>
+            <div style={{ fontWeight: '500', fontSize: '13px' }}>{ex.name}</div>
+            {ex.note && <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>}
+            {lastLog && (
+              <button onClick={() => setShowHistory(s => !s)} style={{ marginTop: '3px', border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#2C64E5' }}>
+                  ↳ {lastLog.weight_used ? `${lastLog.weight_used} kg` : ''}{lastLog.weight_used && lastLog.reps_done ? ' · ' : ''}{lastLog.reps_done ? `${lastLog.reps_done} reps` : ''}
+                </span>
+                <span style={{ fontSize: '9px', color: '#9BA8C0' }}>{showHistory ? '▲' : '▼'} historique ({recentLogs.length})</span>
+              </button>
+            )}
+          </div>
         </div>
         <div style={{ fontSize: '13px', textAlign: 'center' }}>{ex.sets}</div>
         <div style={{ fontSize: '13px', textAlign: 'center' }}>{ex.reps}</div>
@@ -1435,6 +1471,30 @@ function ExRow({ ex, wId, edit, onUpdate, onDelete, onMove, isFirst, isLast }) {
         <div style={{ fontSize: '12px', textAlign: 'center', color: '#6B7A99' }}>{ex.target_weight ? `${ex.target_weight} kg` : '—'}</div>
         <div style={{ fontSize: '11px', color: '#6B7A99' }}>{ex.note}</div>
       </div>
+
+      {showHistory && recentLogs.length > 0 && (
+        <div style={{ background: '#F8FBFF', padding: '10px 14px 12px 88px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
+            {recentLogs.slice(0, 8).map((log, i) => (
+              <div key={log.id || i} style={{ background: 'white', borderRadius: '8px', padding: '7px 10px', border: '1px solid #DCE5F3', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: '800', color: '#0D1B4E' }}>
+                    {log.weight_used ? `${log.weight_used} kg` : ''}
+                    {log.weight_used && log.reps_done ? ' · ' : ''}
+                    {log.reps_done ? `${log.reps_done} reps` : ''}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#9BA8C0' }}>
+                    {log.logged_at ? new Date(log.logged_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                  </span>
+                </div>
+                {(log.notes || log.note) && (
+                  <div style={{ fontSize: '11px', color: '#4A6FB5', marginTop: '3px', fontStyle: 'italic' }}>💬 "{log.notes || log.note}"</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   )
 }
