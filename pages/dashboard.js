@@ -652,5 +652,3 @@ function RecipeOfTheDay() {
     </div>
   )
 }
-EOF
-echo "done"
