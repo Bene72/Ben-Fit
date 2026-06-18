@@ -34,39 +34,61 @@ export default function CoachPage() {
       setError(null)
 
       console.log('Chargement des clients...')
+      console.log('User ID:', user?.id)
       
-      // Requête simplifiée avec syntaxe de base
+      // ESSAI 1: Table 'profiles'
+      console.log('Essai 1: Table profiles')
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
-        .eq('role', 'client')
-        .order('full_name')
+        .select('*')
+        .limit(10)
       
       if (error) {
-        console.error('Erreur Supabase:', error)
+        console.warn('Erreur profiles:', error.message)
         
-        // Fallback : récupérer tous les profils et filtrer
-        console.log('Fallback: récupération de tous les profils...')
-        const { data: allData, error: allError } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, role')
+        // ESSAI 2: Table 'users'
+        console.log('Essai 2: Table users')
+        const { data: data2, error: error2 } = await supabase
+          .from('users')
+          .select('*')
+          .limit(10)
         
-        if (allError) {
-          console.error('Erreur fallback:', allError)
-          setError('Impossible de charger les clients')
-          setClients([])
+        if (error2) {
+          console.warn('Erreur users:', error2.message)
+          
+          // ESSAI 3: Table 'clients'
+          console.log('Essai 3: Table clients')
+          const { data: data3, error: error3 } = await supabase
+            .from('clients')
+            .select('*')
+            .limit(10)
+          
+          if (error3) {
+            console.error('Toutes les tables ont échoué:', error3.message)
+            setError('Aucune table trouvée. Vérifie ta base de données.')
+            setClients([])
+          } else {
+            console.log('✅ Clients trouvés dans table "clients":', data3?.length)
+            setClients(data3 || [])
+          }
         } else {
+          console.log('✅ Clients trouvés dans table "users":', data2?.length)
           // Filtrer les clients
-          const clientsList = (allData || []).filter(p => p.role === 'client')
-          console.log(`✅ ${clientsList.length} clients trouvés (fallback)`)
-          setClients(clientsList)
+          const clientsList = (data2 || []).filter(p => 
+            p.role === 'client' || p.user_type === 'client'
+          )
+          setClients(clientsList.length > 0 ? clientsList : data2 || [])
         }
       } else {
-        console.log(`✅ ${data?.length || 0} clients trouvés`)
-        setClients(data || [])
+        console.log('✅ Clients trouvés dans table "profiles":', data?.length)
+        // Filtrer les clients
+        const clientsList = (data || []).filter(p => 
+          p.role === 'client' || p.user_type === 'client'
+        )
+        setClients(clientsList.length > 0 ? clientsList : data || [])
       }
     } catch (err) {
-      console.error('Erreur:', err)
+      console.error('Erreur chargement clients:', err)
       setError(err.message)
       setClients([])
     } finally {
@@ -101,7 +123,9 @@ export default function CoachPage() {
           padding: '60px',
           background: '#FFF5F5',
           borderRadius: '12px',
-          border: '1px solid #FECACA'
+          border: '1px solid #FECACA',
+          maxWidth: '600px',
+          margin: '0 auto'
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
           <div style={{ fontSize: '18px', fontWeight: '600', color: '#991B1B', marginBottom: '8px' }}>
@@ -109,6 +133,14 @@ export default function CoachPage() {
           </div>
           <div style={{ fontSize: '14px', color: '#6B7A99', marginBottom: '16px' }}>
             {error}
+          </div>
+          <div style={{ fontSize: '13px', color: '#999', marginBottom: '16px', background: '#F5F5F5', padding: '12px', borderRadius: '8px', textAlign: 'left' }}>
+            <strong>💡 Solutions possibles :</strong>
+            <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+              <li>Vérifie que la table <code>profiles</code> existe dans Supabase</li>
+              <li>Vérifie les politiques RLS (Row Level Security)</li>
+              <li>Vérifie que tu es bien connecté avec un compte coach</li>
+            </ul>
           </div>
           <button
             onClick={loadClients}
@@ -188,12 +220,14 @@ export default function CoachPage() {
             gap: '16px' 
           }}>
             {clients.map(client => {
-              const initials = client.full_name
+              const initials = client.full_name || client.name || client.email
                 ?.split(' ')
                 .map(n => n[0])
                 .join('')
                 .toUpperCase()
                 .slice(0, 2) || '?'
+              
+              const displayName = client.full_name || client.name || client.email || 'Sans nom'
               
               return (
                 <div
@@ -243,7 +277,7 @@ export default function CoachPage() {
                       fontSize: '16px', 
                       color: '#0D1B4E' 
                     }}>
-                      {client.full_name || 'Sans nom'}
+                      {displayName}
                     </div>
                     <div style={{ 
                       fontSize: '12px', 
