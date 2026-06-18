@@ -9,6 +9,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ci, inp, lbl, btn, buildStoragePublicUrlFromFileName } from '../../lib/coachHelpers'
 
+// Constantes pour les jours de la semaine (AJOUTÉES)
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+const DAYS_FR = DAYS
+
 function ProgrammeTab({ clientId, clientName, coachId }) {
   const [workouts, setWorkouts] = useState([])
   const [openWorkout, setOpenWorkout] = useState(null)
