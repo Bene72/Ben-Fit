@@ -13,153 +13,161 @@ export default function ClientPage() {
   const router = useRouter()
   const { clientId, tab } = router.query
   const [user, setUser] = useState(null)
-  const [clientName, setClientName] = useState('')
+  const [client, setClient] = useState(null)   // objet complet
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(tab || 'overview')
 
+  // Auth
   useEffect(() => {
-    // Récupérer l'utilisateur connecté
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
         setUser(data.session.user)
       } else {
-        router.push('/login')
+        router.push('/')
       }
     })
   }, [])
 
+  // Chargement du profil complet du client (avec measures pour OverviewTab)
   useEffect(() => {
-    // Récupérer le nom du client
-    if (clientId && typeof clientId === 'string') {
-      supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', clientId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setClientName(data.full_name)
-          }
-          setLoading(false)
+    if (!clientId || typeof clientId !== 'string') return
+    const load = async () => {
+      setLoading(true)
+      try {
+        // Profil complet
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', clientId)
+          .single()
+        if (error) throw error
+
+        // Mesures pour lastWeight + sessionsThisWeek
+        const { data: measures } = await supabase
+          .from('measures')
+          .select('weight, date')
+          .eq('client_id', clientId)
+          .order('date', { ascending: false })
+          .limit(10)
+
+        const weekStart = new Date()
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+        const { data: sessions } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('client_id', clientId)
+          .gte('date', weekStart.toISOString().split('T')[0])
+
+        setClient({
+          ...profile,
+          measures: measures || [],
+          sessionsThisWeek: sessions?.length || 0,
         })
-        .catch(() => setLoading(false))
+      } catch (e) {
+        console.error('Erreur chargement client:', e.message)
+      } finally {
+        setLoading(false)
+      }
     }
+    load()
   }, [clientId])
 
-  // Mettre à jour l'onglet actif quand l'URL change
+  // Sync onglet depuis URL
   useEffect(() => {
-    if (tab && typeof tab === 'string') {
-      setActiveTab(tab)
-    }
+    if (tab && typeof tab === 'string') setActiveTab(tab)
   }, [tab])
-
-  const tabs = [
-    { id: 'overview', label: '📊 Aperçu', component: OverviewTab },
-    { id: 'programme', label: '💪 Programme', component: ProgrammeTab },
-    { id: 'nutrition', label: '🍽️ Nutrition', component: NutritionTab },
-    { id: 'gestion', label: '⚙️ Gestion', component: GestionTab },
-    { id: 'messages', label: '💬 Messages', component: MessagesTab },
-    { id: 'bilan', label: '📈 Bilan', component: BilanTab },
-  ]
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId)
-    // Mettre à jour l'URL sans recharger la page
-    router.push(
-      {
-        pathname: `/coach/${clientId}`,
-        query: { tab: tabId }
-      },
-      undefined,
-      { shallow: true }
-    )
+    router.push({ pathname: `/coach/${clientId}`, query: { tab: tabId } }, undefined, { shallow: true })
   }
 
-  if (loading) {
-    return (
-      <Layout title="Chargement..." user={user}>
-        <div style={{ textAlign: 'center', padding: '60px', color: '#6B7A99' }}>
-          Chargement...
-        </div>
-      </Layout>
-    )
-  }
+  // Callback quand OverviewTab met à jour le client (note coach, programme, poids)
+  const handleClientUpdate = (updated) => setClient(updated)
 
-  if (!clientId || typeof clientId !== 'string') {
-    return (
-      <Layout title="Erreur" user={user}>
-        <div style={{ textAlign: 'center', padding: '60px', color: '#C45C3A' }}>
-          Client non trouvé
-        </div>
-      </Layout>
-    )
-  }
+  const tabs = [
+    { id: 'overview',   label: '👁 Vue d\'ensemble' },
+    { id: 'programme',  label: '🏋️ Programme' },
+    { id: 'nutrition',  label: '🥗 Nutrition' },
+    { id: 'bilan',      label: '📋 Bilan' },
+    { id: 'messages',   label: '💬 Messages' },
+    { id: 'gestion',    label: '⚙️ Gestion' },
+  ]
 
-  const ActiveComponent = tabs.find(t => t.id === activeTab)?.component || tabs[0].component
+  if (loading || !client) return (
+    <Layout title="Chargement..." user={user}>
+      <div style={{ textAlign: 'center', padding: '60px', color: '#6B7A99', fontSize: '14px', fontFamily: "'DM Sans',sans-serif" }}>
+        Chargement...
+      </div>
+    </Layout>
+  )
+
+  if (!clientId || typeof clientId !== 'string') return (
+    <Layout title="Erreur" user={user}>
+      <div style={{ textAlign: 'center', padding: '60px', color: '#C45C3A' }}>Client non trouvé</div>
+    </Layout>
+  )
 
   return (
-    <Layout title={clientName || 'Client'} user={user}>
+    <Layout title={client.full_name || 'Client'} user={user}>
       <div>
-        {/* En-tête avec le nom du client */}
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E', letterSpacing: '1.5px', marginBottom: '4px' }}>
-            {clientName || 'Client'}
+        {/* En-tête */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <button onClick={() => router.push('/coach')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6B7A99', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0 }}>
+              ← Accueil coach
+            </button>
+          </div>
+          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E', letterSpacing: '1.5px', margin: 0 }}>
+            {client.full_name || 'Client'}
           </h1>
-          <p style={{ color: '#6B7A99', fontSize: '13px' }}>
-            Programme personnalisé · Suivi nutritionnel
+          <p style={{ color: '#6B7A99', fontSize: '13px', margin: '4px 0 0' }}>
+            {client.email} · Programme personnalisé
           </p>
         </div>
 
-        {/* Onglets de navigation */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '4px', 
-          marginBottom: '24px',
-          borderBottom: '2px solid #E8ECFA',
-          paddingBottom: '2px',
-          flexWrap: 'wrap'
-        }}>
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={{
-                padding: '10px 20px',
-                border: 'none',
-                background: 'transparent',
-                color: activeTab === tab.id ? '#0D1B4E' : '#6B7A99',
-                fontWeight: activeTab === tab.id ? '700' : '400',
-                fontSize: '14px',
-                cursor: 'pointer',
-                borderBottom: activeTab === tab.id ? '3px solid #0D1B4E' : '3px solid transparent',
-                transition: 'all 0.2s',
-                fontFamily: "'DM Sans',sans-serif",
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = '#0D1B4E'
-                  e.currentTarget.style.borderBottomColor = '#C5D0F0'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = '#6B7A99'
-                  e.currentTarget.style.borderBottomColor = 'transparent'
-                }
-              }}
-            >
-              {tab.label}
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '2px', marginBottom: '24px', borderBottom: '2px solid #E8ECFA', flexWrap: 'wrap' }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => handleTabChange(t.id)} style={{
+              padding: '10px 18px', border: 'none', background: 'transparent',
+              color: activeTab === t.id ? '#0D1B4E' : '#6B7A99',
+              fontWeight: activeTab === t.id ? '700' : '400',
+              fontSize: '13px', cursor: 'pointer',
+              borderBottom: activeTab === t.id ? '3px solid #0D1B4E' : '3px solid transparent',
+              transition: 'all 0.15s', fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
+              marginBottom: '-2px',
+            }}>
+              {t.label}
             </button>
           ))}
         </div>
 
-        {/* Contenu de l'onglet actif */}
-        <ActiveComponent 
-          clientId={clientId} 
-          clientName={clientName}
-          coachId={user?.id}
-        />
+        {/* Contenu */}
+        {activeTab === 'overview' && (
+          <OverviewTab
+            client={client}
+            sessionsThisWeek={client.sessionsThisWeek}
+            lastWeight={client.measures?.[0]?.weight}
+            coachId={user?.id}
+            onUpdate={handleClientUpdate}
+          />
+        )}
+        {activeTab === 'programme' && (
+          <ProgrammeTab clientId={clientId} clientName={client.full_name} coachId={user?.id} />
+        )}
+        {activeTab === 'nutrition' && (
+          <NutritionTab clientId={clientId} clientName={client.full_name} />
+        )}
+        {activeTab === 'bilan' && (
+          <BilanTab clientId={clientId} clientName={client.full_name} coachId={user?.id} />
+        )}
+        {activeTab === 'messages' && (
+          <MessagesTab coachId={user?.id} clientId={clientId} clientName={client.full_name} onRead={() => {}} />
+        )}
+        {activeTab === 'gestion' && (
+          <GestionTab client={client} onDelete={() => router.push('/coach')} />
+        )}
       </div>
     </Layout>
   )
