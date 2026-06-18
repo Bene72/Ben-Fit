@@ -9,6 +9,8 @@ import { ci, inp, lbl, btn } from '../../lib/coachHelpers'
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const DAYS_FR = DAYS
 
+// ─── COMPOSANT PRINCIPAL ──────────────────────────────────
+
 function NutritionTab({ clientId, clientName }) {
   const [plan, setPlan] = useState(null)
   const [logs, setLogs] = useState([])
@@ -29,7 +31,6 @@ function NutritionTab({ clientId, clientName }) {
     const load = async () => {
       setLoading(true)
       try {
-        // Charger le plan nutritionnel
         const { data: np } = await supabase
           .from('nutrition_plans')
           .select('*')
@@ -49,7 +50,6 @@ function NutritionTab({ clientId, clientName }) {
           })
         }
         
-        // Charger les logs
         const { data: lg } = await supabase
           .from('nutrition_logs')
           .select('*, nutrition_log_meals(*)')
@@ -143,7 +143,7 @@ function NutritionTab({ clientId, clientName }) {
 
   return (
     <div>
-      {/* Plan nutritionnel */}
+      {/* Bloc plan nutritionnel */}
       <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '14px', padding: '20px 24px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '18px', color: '#0D1B4E', letterSpacing: '2px' }}>
@@ -422,12 +422,22 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
 }
 
 function NutritionScoreBlock({ log, plan }) {
-  // VÉRIFICATION : si pas de plan ou pas de log, on ne rend rien
-  if (!log || !plan) {
+  // SÉCURITÉ : si pas de plan, on affiche un message
+  if (!plan) {
+    return (
+      <div style={{ padding: '14px 18px', borderRadius: '12px', background: '#FFF8E1', border: '1px solid #FFD54F', marginBottom: '16px', textAlign: 'center' }}>
+        <span style={{ fontSize: '13px', color: '#7B6000' }}>
+          ⚠️ Aucun plan nutritionnel défini pour ce client
+        </span>
+      </div>
+    )
+  }
+  
+  if (!log || log.calories === 0) {
     return (
       <div style={{ padding: '14px 18px', borderRadius: '12px', background: '#F7F7F7', border: '1px solid #EAEAEA', marginBottom: '16px', textAlign: 'center' }}>
         <span style={{ fontSize: '13px', color: '#999' }}>
-          {!plan ? '⚠️ Aucun plan nutritionnel défini' : '📝 Aucune donnée pour aujourd\'hui'}
+          📝 Aucune donnée pour aujourd'hui
         </span>
       </div>
     )
