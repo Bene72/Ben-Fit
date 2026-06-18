@@ -1,125 +1,137 @@
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
-import AppNav from './AppNav'
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 
-export default function Layout({ title, user, children }) {
-  const router = useRouter()
-  const [navOpen, setNavOpen] = useState(true)
+export default function Layout({ children }) {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 980) {
-      setNavOpen(false)
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        setProfile(profile);
+      }
+      setLoading(false);
     }
-  }, [])
+    loadUser();
+  }, []);
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+  const isCoach = profile?.role === 'coach';
+  const isClient = profile?.role === 'client';
+
+  if (loading) return <div>Chargement...</div>;
 
   return (
-    <div
-      style={{
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */}
+      <div style={{ 
+        width: 260, 
+        background: '#0D1B4E', 
+        color: 'white', 
+        padding: '20px 0',
         display: 'flex',
-        minHeight: '100vh',
-        background: '#EEF0F5',
-        fontFamily: "'DM Sans',sans-serif",
-      }}
-    >
-      <AppNav 
-        user={user} 
-        onLogout={logout} 
-        mobileOpen={navOpen} 
-        setMobileOpen={setNavOpen} 
-        currentClientId={router.query.clientId} // Passer le clientId pour la navigation
-      />
-
-      <main
-        style={{
-          marginLeft: navOpen ? '260px' : '0px',
-          flex: 1,
-          transition: 'margin-left 0.25s ease',
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            padding: '16px 32px',
-            borderBottom: '1px solid #C5D0F0',
-            background: '#EEF2FF',
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-          }}
-        >
-          <button
-            onClick={() => setNavOpen(!navOpen)}
-            style={{
-              display: 'none',
-              background: 'none',
-              border: 'none',
-              fontSize: '24px',
-              cursor: 'pointer',
-              color: '#0D1B4E',
-              padding: '4px 8px'
-            }}
-            className="mobile-menu-btn"
-          >
-            ☰
-          </button>
-
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: '#0D1B4E',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              flexShrink: 0,
-            }}
-          >
-            <img
-              src="/logo-small.png"
-              alt="Ben&Fit"
-              style={{ width: '28px', height: '28px', objectFit: 'contain' }}
-            />
-          </div>
-
-          <div>
-            <div
-              style={{
-                fontFamily: "'Bebas Neue',sans-serif",
-                fontSize: '22px',
-                letterSpacing: '2px',
-                color: '#0D1B4E',
-                lineHeight: 1,
-              }}
-            >
-              {title || 'BEN&FIT'}
-            </div>
-            <div style={{ fontSize: '12px', color: '#6B7A99', marginTop: '2px' }}>
-              {router.query.clientId ? 'Suivi client' : 'Ben&Fit · Only Benefit'}
-            </div>
+        flexDirection: 'column',
+        position: 'fixed',
+        height: '100vh',
+        overflowY: 'auto'
+      }}>
+        {/* Logo */}
+        <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <h2 style={{ color: 'white', margin: 0 }}>BEN&FIT COACH</h2>
+          <div style={{ fontSize: 12, color: '#6B8ED6', marginTop: 4 }}>{user?.email}</div>
+          <div style={{ fontSize: 11, color: '#6B8ED6' }}>
+            {isCoach ? '👨‍🏫 Coach' : '🏃 Athlète'}
           </div>
         </div>
 
-        <div style={{ padding: '28px 32px' }}>{children}</div>
-      </main>
+        {/* Navigation commune à tous */}
+        <nav style={{ flex: 1, padding: '16px 0' }}>
+          <NavItem href="/apercu" icon="📊">Aperçu</NavItem>
+          <NavItem href="/programme" icon="💪">Programme</NavItem>
+          <NavItem href="/nutrition" icon="🍽️">Nutrition</NavItem>
+          <NavItem href="/bilan" icon="📈">Bilan</NavItem>
+          <NavItem href="/messages" icon="💬">Messages</NavItem>
+          <NavItem href="/gestion" icon="⚙️">Gestion</NavItem>
+        </nav>
 
-      <style jsx>{`
-        @media (max-width: 980px) {
-          .mobile-menu-btn {
-            display: block !important;
-          }
-        }
-      `}</style>
+        {/* Navigation réservée au coach */}
+        {isCoach && (
+          <div style={{ 
+            borderTop: '1px solid rgba(255,255,255,0.1)', 
+            paddingTop: 12,
+            paddingBottom: 12
+          }}>
+            <div style={{ padding: '0 20px 8px', fontSize: 10, color: '#6B8ED6', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              👨‍🏫 GESTION COACH
+            </div>
+            <NavItem href="/dashboard" icon="📊">Dashboard</NavItem>
+            <NavItem href="/eleves" icon="👥">Élèves</NavItem>
+            <NavItem href="/saison" icon="📅">Saison / Cycles</NavItem>
+            <NavItem href="/programmes/template" icon="📋">Bibliothèque programmes</NavItem>
+          </div>
+        )}
+
+        {/* Déconnexion */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '16px 20px' }}>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#6B8ED6',
+              cursor: 'pointer',
+              fontSize: 14,
+              padding: 0,
+              width: '100%',
+              textAlign: 'left'
+            }}
+          >
+            🚪 Se déconnecter
+          </button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ marginLeft: 260, flex: 1, padding: '24px', background: '#F8FAFF', minHeight: '100vh' }}>
+        {children}
+      </div>
     </div>
-  )
+  );
+}
+
+// Composant NavItem
+function NavItem({ href, icon, children }) {
+  const router = useRouter();
+  const isActive = router.pathname === href || router.pathname.startsWith(href + '/');
+
+  return (
+    <Link href={href}>
+      <div style={{
+        padding: '10px 20px',
+        margin: '2px 8px',
+        borderRadius: 8,
+        cursor: 'pointer',
+        fontSize: 14,
+        color: isActive ? 'white' : '#6B8ED6',
+        background: isActive ? 'rgba(44,100,229,0.3)' : 'transparent',
+        transition: 'all 0.15s',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }}>
+        <span>{icon}</span>
+        {children}
+      </div>
+    </Link>
+  );
 }
