@@ -27,7 +27,13 @@ export default function Layout({ title, user, children }) {
         fontFamily: "'DM Sans',sans-serif",
       }}
     >
-      <AppNav user={user} onLogout={logout} mobileOpen={navOpen} setMobileOpen={setNavOpen} />
+      <AppNav 
+        user={user} 
+        onLogout={logout} 
+        mobileOpen={navOpen} 
+        setMobileOpen={setNavOpen} 
+        currentClientId={router.query.clientId} // Passer le clientId pour la navigation
+      />
 
       <main
         style={{
@@ -50,6 +56,22 @@ export default function Layout({ title, user, children }) {
             gap: '16px',
           }}
         >
+          <button
+            onClick={() => setNavOpen(!navOpen)}
+            style={{
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              color: '#0D1B4E',
+              padding: '4px 8px'
+            }}
+            className="mobile-menu-btn"
+          >
+            ☰
+          </button>
+
           <div
             style={{
               width: '40px',
@@ -83,13 +105,21 @@ export default function Layout({ title, user, children }) {
               {title || 'BEN&FIT'}
             </div>
             <div style={{ fontSize: '12px', color: '#6B7A99', marginTop: '2px' }}>
-              Ben&Fit · Only Benefit
+              {router.query.clientId ? 'Suivi client' : 'Ben&Fit · Only Benefit'}
             </div>
           </div>
         </div>
 
         <div style={{ padding: '28px 32px' }}>{children}</div>
       </main>
+
+      <style jsx>{`
+        @media (max-width: 980px) {
+          .mobile-menu-btn {
+            display: block !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
