@@ -1,48 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-
-// Helpers locaux (au cas où coachHelpers ne les exporte pas)
-const ci = {
-  padding: '10px 14px',
-  border: '1.5px solid #E0E6F0',
-  borderRadius: '8px',
-  fontSize: '14px',
-  fontFamily: "'DM Sans',sans-serif",
-  outline: 'none',
-  background: 'white',
-  color: '#0D1B4E',
-  width: '100%',
-  boxSizing: 'border-box',
-  transition: 'border-color 0.2s',
-}
-
-const inp = { ...ci }
-
-const lbl = {
-  display: 'block',
-  fontSize: '11px',
-  letterSpacing: '1px',
-  textTransform: 'uppercase',
-  color: '#6B7A99',
-  fontWeight: '600',
-  marginBottom: '6px',
-}
-
-const btn = (bg, color, border) => ({
-  padding: '8px 18px',
-  background: bg || '#0D1B4E',
-  color: color || 'white',
-  border: border ? `1px solid ${border}` : 'none',
-  borderRadius: '8px',
-  fontSize: '13px',
-  fontWeight: '600',
-  cursor: 'pointer',
-  fontFamily: "'DM Sans',sans-serif",
-  transition: 'all 0.15s',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-})
+import { btn, inp, lbl, ci } from '../../lib/coachHelpers'
 
 export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
   const [editing, setEditing] = useState(false)
@@ -65,22 +23,29 @@ export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coac
 
   const save = async () => {
     setSaving(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        coach_note: form.coach_note,
-        current_program: form.current_program,
-        session_target: form.session_target,
-      })
-      .eq('id', client.id)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          coach_note: form.coach_note,
+          current_program: form.current_program,
+          session_target: form.session_target,
+        })
+        .eq('id', client.id)
+        .select()
+        .single()
 
-    if (!error && data) {
-      if (onUpdate) onUpdate({ ...client, ...data })
-      setEditing(false)
+      if (!error && data) {
+        if (onUpdate) onUpdate({ ...client, ...data })
+        setEditing(false)
+      } else if (error) {
+        console.error('Erreur sauvegarde:', error)
+      }
+    } catch (e) {
+      console.error('Erreur:', e)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   if (!client) {
@@ -110,7 +75,14 @@ export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coac
       <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #EAEAEA', marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ fontWeight: '700', fontSize: '14px', color: '#0D1B4E' }}>📝 Note coach</div>
-          <button onClick={() => setEditing(!editing)} style={btn(editing ? '#EEF2FF' : '#0D1B4E', editing ? '#0D1B4E' : 'white')}>
+          <button 
+            onClick={() => setEditing(!editing)} 
+            style={btn(
+              editing ? '#EEF2FF' : '#0D1B4E',
+              editing ? '#0D1B4E' : 'white',
+              editing ? '#C5D0F0' : null
+            )}
+          >
             {editing ? 'Annuler' : '✏️ Modifier'}
           </button>
         </div>
@@ -147,7 +119,15 @@ export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coac
                 />
               </div>
             </div>
-            <button onClick={save} disabled={saving} style={btn('#0D1B4E', 'white')}>
+            <button 
+              onClick={save} 
+              disabled={saving} 
+              style={btn(
+                saving ? '#CCCCCC' : '#0D1B4E',
+                'white',
+                null
+              )}
+            >
               {saving ? 'Sauvegarde...' : '✓ Enregistrer'}
             </button>
           </div>
@@ -183,7 +163,7 @@ export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coac
           <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>Email</div>
           <div style={{ fontSize: '14px', fontWeight: '500', color: '#0D1B4E', marginBottom: '12px' }}>{client.email || '—'}</div>
           <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>ID</div>
-          <div style={{ fontSize: '12px', color: '#999', fontFamily: 'monospace' }}>{client.id}</div>
+          <div style={{ fontSize: '12px', color: '#999', fontFamily: 'monospace', wordBreak: 'break-all' }}>{client.id}</div>
         </div>
         <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #EAEAEA' }}>
           <div style={{ fontWeight: '700', fontSize: '14px', color: '#0D1B4E', marginBottom: '12px' }}>📊 Activité</div>
