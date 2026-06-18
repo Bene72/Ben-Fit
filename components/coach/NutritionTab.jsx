@@ -6,9 +6,13 @@
  *
  * Extrait de coach.js — logique strictement identique.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ci, inp, lbl, btn } from '../../lib/coachHelpers'
+
+// Constantes pour les jours de la semaine
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+const DAYS_FR = DAYS
 
 function NutritionTab({ clientId, clientName }) {
   const [plan, setPlan] = useState(null)
