@@ -240,6 +240,72 @@ function UserFooter({ user, collapsed }) {
   );
 }
 
+/* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
+const MAIN_NAV = [
+  { href: '/apercu',    icon: '📊', label: 'Aperçu'     },
+  { href: '/training',  icon: '💪', label: 'Programme'  },
+  { href: '/nutrition', icon: '🍽️', label: 'Nutrition'  },
+  { href: '/bilan',     icon: '📈', label: 'Bilan'      },
+  { href: '/messages',  icon: '💬', label: 'Messages'   },
+  { href: '/gestion',   icon: '⚙️', label: 'Gestion'    },
+];
+
+const COACH_NAV = [
+  { href: '/dashboard',           icon: '🗂️', label: 'Dashboard'   },
+  { href: '/eleves',              icon: '👥', label: 'Élèves'      },
+  { href: '/saison',              icon: '📅', label: 'Saison'      },
+  { href: '/programmes/template', icon: '📋', label: 'Biblio'      },
+];
+
+function BottomNav({ isCoach }) {
+  const router  = useRouter();
+  const items   = isCoach ? [...MAIN_NAV, ...COACH_NAV] : MAIN_NAV;
+
+  return (
+    <nav style={{
+      position:       'fixed',
+      bottom:         0,
+      left:           0,
+      right:          0,
+      height:         62,
+      background:     T.navy,
+      borderTop:      `1px solid ${T.border}`,
+      display:        'flex',
+      alignItems:     'stretch',
+      zIndex:         190,
+      overflowX:      'auto',
+      overflowY:      'hidden',
+      scrollbarWidth: 'none',
+    }}>
+      {items.map(item => {
+        const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
+        return (
+          <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 56px', minWidth: 48 }}>
+            <div style={{
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              justifyContent: 'center',
+              gap:            2,
+              height:         '100%',
+              padding:        '0 4px',
+              color:          isActive ? T.white : T.muted,
+              borderTop:      isActive ? `2px solid ${T.blue}` : '2px solid transparent',
+              transition:     'color 0.15s, border-color 0.15s',
+              background:     isActive ? 'rgba(44,100,229,0.12)' : 'transparent',
+            }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
+                {item.label}
+              </span>
+            </div>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 /* ─── Top bar mobile ─────────────────────────────────────────────────────── */
 function TopBar({ onOpen, title }) {
   return (
@@ -335,8 +401,10 @@ export default function AppShell({
     loadUser();
   }, []);
 
-  const isCoach  = profile?.role === 'coach';
-  const sidebarW = collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDE;
+  const isCoach    = profile?.role === 'coach';
+  const sidebarW   = collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDE;
+  const showBottom = isMobile || collapsed;
+  const BOTTOM_H   = 62;
 
   return (
     <div style={{
@@ -374,13 +442,20 @@ export default function AppShell({
         />
       )}
 
+      {/* ── Bottom nav (mobile OU sidebar collapsée) ── */}
+      {showBottom && <BottomNav isCoach={isCoach} />}
+
       {/* ── Contenu principal ── */}
       <main style={{
         marginLeft:  isMobile ? 0 : sidebarW,
         flex:        1,
         minWidth:    0,
         minHeight:   '100dvh',
-        padding:     isMobile ? `${TOPBAR_H + 16}px 14px 24px` : '24px 28px',
+        padding:     isMobile
+          ? `${TOPBAR_H + 16}px 14px ${62 + 16}px`
+          : collapsed
+            ? `24px 28px ${62 + 16}px`
+            : '24px 28px 24px',
         transition:  'margin-left 0.22s cubic-bezier(.4,0,.2,1)',
         boxSizing:   'border-box',
       }}>
@@ -449,13 +524,13 @@ export default function AppShell({
 
 function LogoMark({ size = 32 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="32" height="32" rx="9" fill="#2C64E5" />
-      {/* Haltère stylisé */}
-      <rect x="7"  y="14" width="18" height="4" rx="2"  fill="white" />
-      <rect x="5"  y="11" width="5"  height="10" rx="2.5" fill="white" opacity=".85" />
-      <rect x="22" y="11" width="5"  height="10" rx="2.5" fill="white" opacity=".85" />
-    </svg>
+    <img
+      src="/logo-small.png"
+      alt="Ben&Fit"
+      width={size}
+      height={size}
+      style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }}
+    />
   );
 }
 
