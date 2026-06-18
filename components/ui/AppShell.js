@@ -150,7 +150,7 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* ── Navigation principale ── */}
         <nav style={{ flex: 1, paddingTop: 10 }}>
-          <NavItem href="/apercu"    icon="📊" collapsed={collapsed}>Aperçu</NavItem>
+          <NavItem href="/dashboard" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
           <NavItem href="/training"  icon="💪" collapsed={collapsed}>Programme</NavItem>
           <NavItem href="/nutrition" icon="🍽️" collapsed={collapsed}>Nutrition</NavItem>
           <NavItem href="/bilan"     icon="📈" collapsed={collapsed}>Bilan</NavItem>
@@ -173,7 +173,6 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                 Espace Coach
               </div>
             )}
-            <NavItem href="/dashboard"          icon="🗂️" collapsed={collapsed}>Dashboard</NavItem>
             <NavItem href="/eleves"             icon="👥" collapsed={collapsed}>Élèves</NavItem>
             <NavItem href="/saison"             icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
             <NavItem href="/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
@@ -242,7 +241,7 @@ function UserFooter({ user, collapsed }) {
 
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
 const MAIN_NAV = [
-  { href: '/apercu',    icon: '📊', label: 'Aperçu'     },
+  { href: '/dashboard', icon: '📊', label: 'Aperçu'     },
   { href: '/training',  icon: '💪', label: 'Programme'  },
   { href: '/nutrition', icon: '🍽️', label: 'Nutrition'  },
   { href: '/bilan',     icon: '📈', label: 'Bilan'      },
@@ -251,7 +250,6 @@ const MAIN_NAV = [
 ];
 
 const COACH_NAV = [
-  { href: '/dashboard',           icon: '🗂️', label: 'Dashboard'   },
   { href: '/eleves',              icon: '👥', label: 'Élèves'      },
   { href: '/saison',              icon: '📅', label: 'Saison'      },
   { href: '/programmes/template', icon: '📋', label: 'Biblio'      },
