@@ -8,15 +8,21 @@ export default function CoachPage() {
   const [user, setUser] = useState(null)
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (data.session?.user) {
-        setUser(data.session.user)
-        await loadClients()
-      } else {
-        router.push('/login')
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (data.session?.user) {
+          setUser(data.session.user)
+          await loadClients()
+        } else {
+          router.push('/login')
+        }
+      } catch (err) {
+        console.error('Erreur init:', err)
+        setLoading(false)
       }
     }
     init()
@@ -25,6 +31,10 @@ export default function CoachPage() {
   const loadClients = async () => {
     try {
       setLoading(true)
+      setError(null)
+
+      // MÉTHODE 1: Avec filtre role
+      console.log('Tentative 1: avec filtre role...')
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
@@ -32,24 +42,43 @@ export default function CoachPage() {
         .order('full_name', { ascending: true })
       
       if (error) {
-        console.error('Erreur Supabase:', error)
-        // Tentative de fallback sans filtre role
-        const { data: fallbackData, error: fallbackError } = await supabase
+        console.warn('Erreur méthode 1:', error.message)
+        
+        // MÉTHODE 2: Sans filtre, tout récupérer
+        console.log('Tentative 2: sans filtre...')
+        const { data: data2, error: error2 } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url')
           .order('full_name', { ascending: true })
         
-        if (fallbackError) {
-          console.error('Erreur fallback:', fallbackError)
-          setClients([])
+        if (error2) {
+          console.warn('Erreur méthode 2:', error2.message)
+          
+          // MÉTHODE 3: Sélection limitée
+          console.log('Tentative 3: sélection limitée...')
+          const { data: data3, error: error3 } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .limit(100)
+          
+          if (error3) {
+            console.error('Erreur méthode 3:', error3.message)
+            setError('Impossible de charger les clients: ' + error3.message)
+            setClients([])
+          } else {
+            setClients(data3 || [])
+          }
         } else {
-          setClients(fallbackData || [])
+          // Filtrer côté client si la colonne role existe
+          const clientsList = (data2 || []).filter(p => p.role === 'client')
+          setClients(clientsList.length > 0 ? clientsList : data2 || [])
         }
       } else {
         setClients(data || [])
       }
     } catch (err) {
       console.error('Erreur chargement clients:', err)
+      setError(err.message)
       setClients([])
     } finally {
       setLoading(false)
@@ -60,6 +89,7 @@ export default function CoachPage() {
     router.push(`/coach/${clientId}?tab=overview`)
   }
 
+  // Affichage du chargement
   if (loading) {
     return (
       <Layout title="Chargement..." user={user}>
@@ -70,6 +100,44 @@ export default function CoachPage() {
           fontSize: '14px'
         }}>
           ⏳ Chargement des élèves...
+        </div>
+      </Layout>
+    )
+  }
+
+  // Affichage de l'erreur
+  if (error) {
+    return (
+      <Layout title="Erreur" user={user}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '60px',
+          background: '#FFF5F5',
+          borderRadius: '12px',
+          border: '1px solid #FECACA'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+          <div style={{ fontSize: '18px', fontWeight: '600', color: '#991B1B', marginBottom: '8px' }}>
+            Erreur de chargement
+          </div>
+          <div style={{ fontSize: '14px', color: '#6B7A99', marginBottom: '16px' }}>
+            {error}
+          </div>
+          <button
+            onClick={loadClients}
+            style={{
+              padding: '8px 24px',
+              background: '#0D1B4E',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontFamily: "'DM Sans',sans-serif"
+            }}
+          >
+            🔄 Réessayer
+          </button>
         </div>
       </Layout>
     )
@@ -109,6 +177,22 @@ export default function CoachPage() {
             <div style={{ fontSize: '14px' }}>
               Les clients que tu suis apparaîtront ici.
             </div>
+            <button
+              onClick={loadClients}
+              style={{
+                marginTop: '16px',
+                padding: '8px 24px',
+                background: '#EEF2FF',
+                color: '#0D1B4E',
+                border: '1px solid #C5D0F0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontFamily: "'DM Sans',sans-serif"
+              }}
+            >
+              🔄 Rafraîchir
+            </button>
           </div>
         ) : (
           <div style={{ 
