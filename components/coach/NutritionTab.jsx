@@ -99,7 +99,6 @@ function NutritionTab({ clientId, clientName }) {
       }
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
-      alert('Erreur lors de la sauvegarde du plan')
     } finally {
       setSaving(false)
       setEditPlan(false)
@@ -263,7 +262,7 @@ function NutritionTab({ clientId, clientName }) {
   )
 }
 
-// ─── SOUS-COMPOSANTS ──────────────────────────────────
+// ─── NUTRITION RING ──────────────────────────────────
 
 function NutritionRing({ value, target, label, unit, color }) {
   const percent = target ? Math.min(100, (value / target) * 100) : 0
@@ -299,6 +298,8 @@ function NutritionRing({ value, target, label, unit, color }) {
     </div>
   )
 }
+
+// ─── MACRO BLOCK ──────────────────────────────────
 
 function NutritionMacroBlock({ log, plan, date, onSave }) {
   const [editing, setEditing] = useState(false)
@@ -421,6 +422,8 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
   )
 }
 
+// ─── SCORE BLOCK ──────────────────────────────────
+
 function NutritionScoreBlock({ log, plan }) {
   // SÉCURITÉ : si pas de plan, on affiche un message
   if (!plan) {
@@ -487,6 +490,8 @@ function NutritionScoreBlock({ log, plan }) {
   )
 }
 
+// ─── WEEK GRAPH ──────────────────────────────────
+
 function NutritionWeekGraph({ logs, plan, today }) {
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today)
@@ -520,6 +525,8 @@ function NutritionWeekGraph({ logs, plan, today }) {
     </div>
   )
 }
+
+// ─── FOOD BLOCK ──────────────────────────────────
 
 function NutritionFoodBlock({ log }) {
   const [items, setItems] = useState([])
@@ -672,6 +679,7 @@ function NutritionFoodBlock({ log }) {
         )}
       </div>
 
+      {/* Recherche d'aliments */}
       {showSearch && log && mode === 'search' && (
         <div style={{ padding: '12px 16px', background: '#F5F8FF', borderBottom: '1px solid #EAEAEA' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '8px', marginBottom: '8px' }}>
@@ -743,6 +751,7 @@ function NutritionFoodBlock({ log }) {
         </div>
       )}
 
+      {/* Ajout manuel */}
       {showSearch && log && mode === 'manual' && (
         <div style={{ padding: '12px 16px', background: '#F5F8FF', borderBottom: '1px solid #EAEAEA' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px', marginBottom: '8px' }}>
@@ -819,6 +828,7 @@ function NutritionFoodBlock({ log }) {
         </div>
       )}
 
+      {/* Liste des aliments */}
       {items.length === 0 ? (
         <div style={{ padding: '16px', textAlign: 'center', color: '#CCC', fontSize: '12px' }}>
           {log ? 'Aucun aliment' : "Saisis d'abord les apports"}
@@ -857,6 +867,8 @@ function NutritionFoodBlock({ log }) {
   )
 }
 
+// ─── TODAY VIEW ──────────────────────────────────
+
 function NutritionTodayView({ today, logs, plan, onSave }) {
   const log = logs.find(l => l.date === today)
   
@@ -872,6 +884,8 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
     </div>
   )
 }
+
+// ─── WEEK VIEW ──────────────────────────────────
 
 function NutritionWeekView({ logs, plan, onSave, today }) {
   const [openDay, setOpenDay] = useState(today)
