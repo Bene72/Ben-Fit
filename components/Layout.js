@@ -1,3 +1,4 @@
+// components/Layout.js
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
@@ -47,7 +48,7 @@ export default function Layout({ children }) {
       }}>
         {/* Logo */}
         <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <h2 style={{ color: 'white', margin: 0 }}>BEN&FIT COACH</h2>
+          <h2 style={{ color: 'white', margin: 0, fontSize: 18 }}>BEN&FIT COACH</h2>
           <div style={{ fontSize: 12, color: '#6B8ED6', marginTop: 4 }}>{user?.email}</div>
           <div style={{ fontSize: 11, color: '#6B8ED6' }}>
             {isCoach ? '👨‍🏫 Coach' : '🏃 Athlète'}
@@ -57,7 +58,7 @@ export default function Layout({ children }) {
         {/* Navigation commune à tous */}
         <nav style={{ flex: 1, padding: '16px 0' }}>
           <NavItem href="/apercu" icon="📊">Aperçu</NavItem>
-          <NavItem href="/programme" icon="💪">Programme</NavItem>
+          <NavItem href="/training" icon="💪">Programme</NavItem>  {/* ← ICI la correction */}
           <NavItem href="/nutrition" icon="🍽️">Nutrition</NavItem>
           <NavItem href="/bilan" icon="📈">Bilan</NavItem>
           <NavItem href="/messages" icon="💬">Messages</NavItem>
@@ -109,7 +110,6 @@ export default function Layout({ children }) {
   );
 }
 
-// Composant NavItem
 function NavItem({ href, icon, children }) {
   const router = useRouter();
   const isActive = router.pathname === href || router.pathname.startsWith(href + '/');
