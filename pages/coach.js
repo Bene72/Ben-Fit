@@ -10,24 +10,50 @@ export default function CoachPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession()
       if (data.session?.user) {
         setUser(data.session.user)
-        loadClients()
+        await loadClients()
       } else {
         router.push('/login')
       }
-    })
+    }
+    init()
   }, [])
 
   const loadClients = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .eq('role', 'client')
-      .order('full_name')
-    setClients(data || [])
-    setLoading(false)
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('role', 'client')
+        .order('full_name', { ascending: true })
+      
+      if (error) {
+        console.error('Erreur Supabase:', error)
+        // Tentative de fallback sans filtre role
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .order('full_name', { ascending: true })
+        
+        if (fallbackError) {
+          console.error('Erreur fallback:', fallbackError)
+          setClients([])
+        } else {
+          setClients(fallbackData || [])
+        }
+      } else {
+        setClients(data || [])
+      }
+    } catch (err) {
+      console.error('Erreur chargement clients:', err)
+      setClients([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const navigateToClient = (clientId) => {
@@ -37,8 +63,13 @@ export default function CoachPage() {
   if (loading) {
     return (
       <Layout title="Chargement..." user={user}>
-        <div style={{ textAlign: 'center', padding: '60px', color: '#6B7A99' }}>
-          Chargement des élèves...
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '60px', 
+          color: '#6B7A99',
+          fontSize: '14px'
+        }}>
+          ⏳ Chargement des élèves...
         </div>
       </Layout>
     )
@@ -48,69 +79,116 @@ export default function CoachPage() {
     <Layout title="Mes Élèves" user={user}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '32px', color: '#0D1B4E', letterSpacing: '2px', marginBottom: '8px' }}>
+          <h1 style={{ 
+            fontFamily: "'Bebas Neue',sans-serif", 
+            fontSize: '32px', 
+            color: '#0D1B4E', 
+            letterSpacing: '2px', 
+            marginBottom: '8px' 
+          }}>
             👥 Mes Élèves
           </h1>
-          <p style={{ color: '#6B7A99' }}>{clients.length} élève{clients.length > 1 ? 's' : ''} · Clique sur un élève pour accéder à son programme</p>
+          <p style={{ color: '#6B7A99', fontSize: '14px' }}>
+            {clients.length} élève{clients.length > 1 ? 's' : ''} · Clique sur un élève pour accéder à son programme
+          </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          {clients.map(client => (
-            <div
-              key={client.id}
-              onClick={() => navigateToClient(client.id)}
-              style={{
-                background: 'white',
-                borderRadius: '14px',
-                padding: '20px',
-                border: '1px solid #EAEAEA',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)'
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(13,27,78,0.12)'
-                e.currentTarget.style.borderColor = '#4A6FD4'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'
-                e.currentTarget.style.borderColor = '#EAEAEA'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  background: '#EEF2FF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: '#0D1B4E',
-                  flexShrink: 0
-                }}>
-                  {client.full_name?.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '16px', color: '#0D1B4E' }}>
-                    {client.full_name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#6B7A99' }}>
-                    Cliquez pour gérer son programme
-                  </div>
-                </div>
-              </div>
+        {clients.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '80px 20px',
+            background: 'white',
+            borderRadius: '16px',
+            border: '2px dashed #C5D0F0',
+            color: '#6B7A99'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏋️</div>
+            <div style={{ fontSize: '18px', fontWeight: '600', color: '#0D1B4E', marginBottom: '8px' }}>
+              Aucun élève pour le moment
             </div>
-          ))}
-        </div>
-
-        {clients.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#6B7A99' }}>
-            Aucun élève pour le moment.
+            <div style={{ fontSize: '14px' }}>
+              Les clients que tu suis apparaîtront ici.
+            </div>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+            gap: '16px' 
+          }}>
+            {clients.map(client => {
+              const initials = client.full_name
+                ?.split(' ')
+                .map(n => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2) || '?'
+              
+              return (
+                <div
+                  key={client.id}
+                  onClick={() => navigateToClient(client.id)}
+                  style={{
+                    background: 'white',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    border: '1px solid #EAEAEA',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(13,27,78,0.12)'
+                    e.currentTarget.style.borderColor = '#4A6FD4'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none'
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'
+                    e.currentTarget.style.borderColor = '#EAEAEA'
+                  }}
+                >
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: '#EEF2FF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#0D1B4E',
+                    flexShrink: 0
+                  }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      fontSize: '16px', 
+                      color: '#0D1B4E' 
+                    }}>
+                      {client.full_name || 'Sans nom'}
+                    </div>
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#6B7A99',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span>👤 Client</span>
+                      <span style={{ color: '#C5D0F0' }}>·</span>
+                      <span>Cliquez pour gérer</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
