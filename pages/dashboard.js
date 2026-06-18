@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import Layout from '../components/Layout'
+import Layout from '../components/ui/AppShell'
 import { useToast } from '../lib/useToast'
 
 export default function Dashboard() {
@@ -163,7 +163,7 @@ export default function Dashboard() {
   return (
     <>
       <ToastComponent />
-      <Layout title="" user={user}>
+      <AppShell title="Aperçu">
         <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif" }}>
 
           {/* ── TABS ── */}
