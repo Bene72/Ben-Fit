@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import Layout from '../components/ui/AppShell'
+import AppShell from '../components/ui/AppShell'
 import { useToast } from '../lib/useToast'
 
 export default function Dashboard() {
@@ -44,7 +44,7 @@ export default function Dashboard() {
         setUser(user)
         const { data: prof, error: profErr } = await supabase.from('profiles').select('*').eq('id', user.id).single()
         if (profErr) throw profErr
-        if (prof?.role === 'coach') { router.replace('/coach'); return }
+        if (prof?.role === 'coach') { router.replace('/eleves'); return }
         setProfile(prof)
         setProfileForm({ full_name: prof?.full_name || '', current_program: prof?.current_program || '', objective: prof?.objective || '', height: prof?.height || '' })
         const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(10)
@@ -145,10 +145,10 @@ export default function Dashboard() {
   }
 
   const latestWeight = measures[0]?.weight
-  const prevWeight = measures[1]?.weight
-  const weightDelta = latestWeight && prevWeight ? (latestWeight - prevWeight).toFixed(1) : null
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  const adherence = sessions.length > 0 ? Math.round((sessions.length / 5) * 100) : 0
+  const prevWeight   = measures[1]?.weight
+  const weightDelta  = latestWeight && prevWeight ? (latestWeight - prevWeight).toFixed(1) : null
+  const today        = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const adherence    = sessions.length > 0 ? Math.round((sessions.length / 5) * 100) : 0
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#FAF9F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -163,24 +163,29 @@ export default function Dashboard() {
   return (
     <>
       <ToastComponent />
-      <AppShell title="Aperçu">
+      <AppShell
+        title="Aperçu"
+        userName={profile?.full_name?.split(' ')[0]}
+        cycleName={profile?.current_cycle_name}
+      >
         <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif" }}>
 
           {/* ── TABS ── */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid #E8E4DC', paddingBottom: 0 }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid #E8E4DC', overflowX: 'auto' }}>
             {[
-              { id: 'dashboard', label: 'Dashboard' },
-              { id: 'body', label: 'Mensurations' },
-              { id: 'recipe', label: 'Recette du chef' },
+              { id: 'dashboard',  label: 'Dashboard'      },
+              { id: 'body',       label: 'Mensurations'   },
+              { id: 'recipe',     label: 'Recette du chef'},
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                padding: '10px 20px', border: 'none', borderRadius: '8px 8px 0 0',
-                fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'DM Sans',sans-serif",
+                padding: isMobile ? '9px 14px' : '10px 20px',
+                border: 'none', borderRadius: '8px 8px 0 0',
+                fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
+                fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
                 background: activeTab === tab.id ? '#0D1B2A' : 'transparent',
                 color: activeTab === tab.id ? 'white' : '#8A8070',
                 borderBottom: activeTab === tab.id ? '2px solid #0D1B2A' : '2px solid transparent',
-                marginBottom: -1, transition: 'all 0.15s', letterSpacing: '0.3px',
+                marginBottom: -1, transition: 'all 0.15s',
               }}>{tab.label}</button>
             ))}
           </div>
@@ -197,28 +202,22 @@ export default function Dashboard() {
             />
           ) : (
             <>
-              {/* ══ NIVEAU 1 : HERO ══════════════════════════════════════════ */}
+              {/* ══ HERO ══ */}
               <div style={{
-                background: '#0D1B2A',
-                borderRadius: 20, padding: isMobile ? '24px 20px' : '32px 36px',
+                background: '#0D1B2A', borderRadius: 20,
+                padding: isMobile ? '24px 18px' : '32px 36px',
                 marginBottom: 20, position: 'relative', overflow: 'hidden',
               }}>
-                {/* Texture subtile */}
                 <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(184,134,11,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
-
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
                   <div>
-                    <div style={{ fontSize: 12, letterSpacing: '2px', textTransform: 'uppercase', color: '#B8860B', fontWeight: 700, marginBottom: 8 }}>
-                      {today}
-                    </div>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 34, fontWeight: 800, color: 'white', lineHeight: 1.1, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, letterSpacing: '2px', textTransform: 'uppercase', color: '#B8860B', fontWeight: 700, marginBottom: 8 }}>{today}</div>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 34, fontWeight: 800, color: 'white', lineHeight: 1.1, marginBottom: 6 }}>
                       Bonjour {profile?.full_name?.split(' ')[0] || 'Toi'} 👋
                     </div>
                     <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 20 }}>
                       {profile?.current_program || 'Aucun programme défini'}
                     </div>
-
-                    {/* Barre de progression du cycle */}
                     {sessions.length > 0 && (
                       <div style={{ marginBottom: 20 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -230,29 +229,13 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )}
-
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button onClick={() => router.push('/training')} style={{
-                        padding: '11px 22px', background: '#B8860B', color: 'white',
-                        border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                        cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-                        boxShadow: '0 4px 16px rgba(184,134,11,0.35)',
-                      }}>▶ Séance du jour</button>
-                      <button onClick={() => router.push('/messages')} style={{
-                        padding: '11px 22px', background: 'rgba(255,255,255,0.08)',
-                        color: 'white', border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: 10, fontSize: 13, fontWeight: 700,
-                        cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-                      }}>💬 Coach</button>
+                      <button onClick={() => router.push('/training')} style={{ padding: '11px 22px', background: '#B8860B', color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", boxShadow: '0 4px 16px rgba(184,134,11,0.35)' }}>▶ Séance du jour</button>
+                      <button onClick={() => router.push('/messages')} style={{ padding: '11px 22px', background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>💬 Coach</button>
                     </div>
                   </div>
-
-                  {/* Objectif poids */}
                   {profile?.objective && (
-                    <div style={{
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 14, padding: '16px 20px', minWidth: 160, backdropFilter: 'blur(10px)',
-                    }}>
+                    <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 20px', minWidth: 160, backdropFilter: 'blur(10px)' }}>
                       <div style={{ fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>Objectif</div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: 'white', lineHeight: 1.4 }}>🎯 {profile.objective}</div>
                     </div>
@@ -260,10 +243,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* ══ NIVEAU 2 : KPIs ══════════════════════════════════════════ */}
+              {/* ══ KPIs ══ */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-
-                {/* Séances */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #3F7D58' }}>
                   <div style={kpiLabel}>Séances / semaine</div>
                   <div style={kpiValue}>{sessions.length}<span style={{ fontSize: 16, color: '#A09880', fontWeight: 400 }}>/5</span></div>
@@ -272,8 +253,6 @@ export default function Dashboard() {
                   </div>
                   <div style={{ marginTop: 6, fontSize: 11, color: '#3F7D58', fontWeight: 700 }}>{adherence}% adherence</div>
                 </div>
-
-                {/* Poids */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #B8860B' }}>
                   <div style={kpiLabel}>Poids actuel</div>
                   <div style={kpiValue}>{latestWeight || '—'}<span style={{ fontSize: 16, color: '#A09880', fontWeight: 400 }}> kg</span></div>
@@ -283,8 +262,6 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-
-                {/* Programme */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #0D1B2A', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
                   <div style={kpiLabel}>Programme</div>
                   <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2A', marginTop: 4, lineHeight: 1.3 }}>
@@ -293,10 +270,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* ══ NIVEAU 3 : RESTE ═════════════════════════════════════════ */}
+              {/* ══ CARDS ══ */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-
-                {/* Message coach */}
                 {profile?.coach_note && (
                   <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px', gridColumn: isMobile ? '1' : '1 / -1' }}>
                     <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: '#A09880', marginBottom: 10, fontWeight: 700 }}>📌 Message de ton coach</div>
@@ -337,10 +312,10 @@ export default function Dashboard() {
                   {editProfile ? (
                     <div>
                       {[
-                        { label: 'Prénom / Nom', key: 'full_name', placeholder: 'Jean Dupont' },
-                        { label: 'Programme actuel', key: 'current_program', placeholder: 'Phase 2 · Hypertrophie' },
-                        { label: 'Objectif', key: 'objective', placeholder: 'Prise de masse…' },
-                        { label: 'Taille (cm)', key: 'height', placeholder: '180' },
+                        { label: 'Prénom / Nom',     key: 'full_name',        placeholder: 'Jean Dupont'            },
+                        { label: 'Programme actuel', key: 'current_program',  placeholder: 'Phase 2 · Hypertrophie' },
+                        { label: 'Objectif',         key: 'objective',        placeholder: 'Prise de masse…'        },
+                        { label: 'Taille (cm)',       key: 'height',           placeholder: '180'                    },
                       ].map(f => (
                         <div key={f.key} style={{ marginBottom: 10 }}>
                           <label style={lbl3}>{f.label}</label>
@@ -355,10 +330,10 @@ export default function Dashboard() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {[
-                        { label: 'Nom', value: profile?.full_name },
-                        { label: 'Programme', value: profile?.current_program },
-                        { label: 'Objectif', value: profile?.objective },
-                        { label: 'Taille', value: profile?.height ? `${profile.height} cm` : null },
+                        { label: 'Nom',        value: profile?.full_name       },
+                        { label: 'Programme',  value: profile?.current_program },
+                        { label: 'Objectif',   value: profile?.objective       },
+                        { label: 'Taille',     value: profile?.height ? `${profile.height} cm` : null },
                       ].map(f => f.value ? (
                         <div key={f.label} style={{ display: 'flex', gap: 8, fontSize: 14 }}>
                           <span style={{ color: '#A09880', width: 90, flexShrink: 0 }}>{f.label}</span>
@@ -384,9 +359,9 @@ export default function Dashboard() {
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {[
-                            { key: 'current', label: 'Ancien mot de passe', placeholder: '••••••••' },
-                            { key: 'next', label: 'Nouveau mot de passe', placeholder: '6 caractères minimum' },
-                            { key: 'confirm', label: 'Confirmer', placeholder: '••••••••' },
+                            { key: 'current', label: 'Ancien mot de passe',   placeholder: '••••••••'           },
+                            { key: 'next',    label: 'Nouveau mot de passe',   placeholder: '6 caractères minimum' },
+                            { key: 'confirm', label: 'Confirmer',              placeholder: '••••••••'           },
                           ].map(f => (
                             <div key={f.key}>
                               <label style={lbl3}>{f.label}</label>
@@ -403,12 +378,11 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-
               </div>
             </>
           )}
         </div>
-      </Layout>
+      </AppShell>
     </>
   )
 }
@@ -416,11 +390,11 @@ export default function Dashboard() {
 // ── Styles locaux ──────────────────────────────────────────────────────────────
 const kpiLabel = { fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 6, fontWeight: 700 }
 const kpiValue = { fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, lineHeight: 1, color: '#0D1B2A' }
-const lbl3 = { display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 600 }
-const inp3 = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
-const btn3 = (bg, color, border) => ({ padding: '7px 14px', background: bg, color, border: border ? `1.5px solid ${border}` : 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
+const lbl3     = { display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 600 }
+const inp3     = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
+const btn3     = (bg, color, border) => ({ padding: '7px 14px', background: bg, color, border: border ? `1.5px solid ${border}` : 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
 
-// ── BodyTracker & RecipeOfTheDay : identiques à l'original ────────────────────
+// ── Constantes mesures ────────────────────────────────────────────────────────
 const MEASURE_FIELDS = [
   { key: 'weight', label: 'Poids',            unit: 'kg', icon: '⚖️', color: '#C45C3A', required: true },
   { key: 'waist',  label: 'Tour de taille',   unit: 'cm', icon: '📏', color: '#4A6FD4' },
@@ -433,9 +407,9 @@ const MEASURE_FIELDS = [
 ]
 
 function MiniChart({ measures, field }) {
-  const data = [...measures].filter(m => m[field] != null).reverse().slice(-16)
+  const data      = [...measures].filter(m => m[field] != null).reverse().slice(-16)
   const fieldMeta = MEASURE_FIELDS.find(f => f.key === field)
-  const color = fieldMeta?.color || '#B8860B'
+  const color     = fieldMeta?.color || '#B8860B'
   if (data.length < 2) return (
     <div style={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#E8E4DC', gap: 8 }}>
       <div style={{ fontSize: 32 }}>📉</div>
@@ -443,22 +417,22 @@ function MiniChart({ measures, field }) {
     </div>
   )
   const vals = data.map(m => +m[field])
-  const min = Math.min(...vals), max = Math.max(...vals)
+  const min  = Math.min(...vals), max = Math.max(...vals)
   const range = max - min || 1
   const W = 400, H = 140, PX = 12, PY = 14
-  const pts = data.map((m, i) => [PX + (i / (data.length - 1)) * (W - PX * 2), PY + ((max - +m[field]) / range) * (H - PY * 2 - 14)])
+  const pts      = data.map((m, i) => [PX + (i / (data.length - 1)) * (W - PX * 2), PY + ((max - +m[field]) / range) * (H - PY * 2 - 14)])
   const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ')
-  const area = `M${pts[0][0]},${H - 14} ` + pts.map(([x, y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length - 1][0]},${H - 14} Z`
-  const delta = (vals[vals.length - 1] - vals[0]).toFixed(1)
-  const isPositive = parseFloat(delta) > 0
-  const deltaColor = field === 'weight' ? (isPositive ? '#C45C3A' : '#3F7D58') : (isPositive ? '#B8860B' : '#C45C3A')
+  const area     = `M${pts[0][0]},${H - 14} ` + pts.map(([x, y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length - 1][0]},${H - 14} Z`
+  const delta    = (vals[vals.length - 1] - vals[0]).toFixed(1)
+  const isPos    = parseFloat(delta) > 0
+  const dColor   = field === 'weight' ? (isPos ? '#C45C3A' : '#3F7D58') : (isPos ? '#B8860B' : '#C45C3A')
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140, overflow: 'visible' }}>
         <defs>
           <linearGradient id={`g-${field}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
+            <stop offset="0%"   stopColor={color} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={color} stopOpacity="0"    />
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75].map((t, i) => (
@@ -467,14 +441,14 @@ function MiniChart({ measures, field }) {
         <path d={area} fill={`url(#g-${field})`} />
         <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 5 : 3.5} fill="white" stroke={color} strokeWidth="2.5" />)}
-        <text x={pts[0][0]} y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
-        <text x={pts[pts.length - 1][0]} y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[data.length - 1].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
-        <text x={W - PX + 3} y={PY + 3} fontSize="9" fill={color} fontWeight="700">{max}</text>
-        <text x={W - PX + 3} y={H - PY - 12} fontSize="9" fill="#A09880">{min}</text>
+        <text x={pts[0][0]}              y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={pts[pts.length-1][0]}   y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={W - PX + 3} y={PY + 3}        fontSize="9" fill={color}   fontWeight="700">{max}</text>
+        <text x={W - PX + 3} y={H - PY - 12}   fontSize="9" fill="#A09880">{min}</text>
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-        <div style={{ fontSize: 11, color: '#A09880' }}>{data.length} mesures · du {new Date(data[0].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {new Date(data[data.length - 1].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
-        <div style={{ fontSize: 12, fontWeight: 800, color: deltaColor }}>{isPositive ? '+' : ''}{delta} {fieldMeta?.unit} sur la période</div>
+        <div style={{ fontSize: 11, color: '#A09880' }}>{data.length} mesures · du {new Date(data[0].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: dColor }}>{isPos ? '+' : ''}{delta} {fieldMeta?.unit} sur la période</div>
       </div>
     </div>
   )
@@ -482,8 +456,8 @@ function MiniChart({ measures, field }) {
 
 function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditWeight, saving, saveWeight, deleteMeasure, deletingId, editingMeasure, setEditingMeasure, updateMeasure, startEditMeasure, bodyTab, setBodyTab, chartField, setChartField }) {
   const latest = measures[0] || {}
-  const inpB = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 14, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
-  const btnB = (bg, col, brd) => ({ padding: '9px 18px', background: bg, color: col, border: brd ? `1.5px solid ${brd}` : 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
+  const inpB   = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 14, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
+  const btnB   = (bg, col, brd) => ({ padding: '9px 18px', background: bg, color: col, border: brd ? `1.5px solid ${brd}` : 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ background: '#0D1B2A', borderRadius: 16, padding: '22px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -498,7 +472,10 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
       {editWeight && (
         <div style={{ background: 'white', border: '1.5px solid #E8E4DC', borderRadius: 14, padding: '20px 18px' }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B2A', marginBottom: 16 }}>
-            {editingMeasure ? <span>✏️ Modifier la mesure du <span style={{ color: '#B8860B' }}>{new Date(measures.find(m => m.id === editingMeasure)?.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span> : <span>✏️ {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>}
+            {editingMeasure
+              ? <span>✏️ Modifier la mesure du <span style={{ color: '#B8860B' }}>{new Date(measures.find(m => m.id === editingMeasure)?.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span>
+              : <span>✏️ {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            }
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 10 }}>
             {MEASURE_FIELDS.map(f => (
@@ -521,10 +498,10 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
       {measures.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {MEASURE_FIELDS.filter(f => latest[f.key] != null).map(f => {
-            const prev = measures.find((m, i) => i > 0 && m[f.key] != null)
-            const delta = prev ? (+latest[f.key] - +prev[f.key]).toFixed(1) : null
+            const prev    = measures.find((m, i) => i > 0 && m[f.key] != null)
+            const delta   = prev ? (+latest[f.key] - +prev[f.key]).toFixed(1) : null
             const positive = delta !== null && parseFloat(delta) > 0
-            const deltaColor = f.key === 'weight' ? (positive ? '#C45C3A' : '#3F7D58') : (positive ? '#3F7D58' : '#C45C3A')
+            const dColor  = f.key === 'weight' ? (positive ? '#C45C3A' : '#3F7D58') : (positive ? '#3F7D58' : '#C45C3A')
             return (
               <div key={f.key} onClick={() => { setBodyTab('curve'); setChartField(f.key) }}
                 style={{ background: 'white', border: `1.5px solid ${f.color}20`, borderTop: `3px solid ${f.color}`, borderRadius: 13, padding: '13px 10px', textAlign: 'center', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
@@ -534,7 +511,7 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
                 <div style={{ fontWeight: 900, fontSize: 22, color: f.color, lineHeight: 1 }}>{latest[f.key]}</div>
                 <div style={{ fontSize: 10, color: '#A09880', marginBottom: 3 }}>{f.unit}</div>
                 <div style={{ fontSize: 9, color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700, marginBottom: 5 }}>{f.label}</div>
-                {delta !== null && <div style={{ fontSize: 10, fontWeight: 800, color: parseFloat(delta) === 0 ? '#A09880' : deltaColor }}>{positive ? '+' : ''}{delta} {f.unit}</div>}
+                {delta !== null && <div style={{ fontSize: 10, fontWeight: 800, color: parseFloat(delta) === 0 ? '#A09880' : dColor }}>{positive ? '+' : ''}{delta} {f.unit}</div>}
               </div>
             )
           })}
@@ -624,7 +601,12 @@ function RecipeOfTheDay() {
       <div>
         <div style={{ fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', color: '#A09880', fontWeight: 700, marginBottom: 12 }}>Valeurs nutritionnelles · par muffin</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-          {[{ label: 'Calories', value: r.macros.calories, unit: 'kcal', color: '#C45C3A', bg: '#FFF3EE', icon: '🔥' }, { label: 'Protéines', value: r.macros.proteines, unit: 'g', color: '#3F7D58', bg: '#EEF6EE', icon: '💪' }, { label: 'Glucides', value: r.macros.glucides, unit: 'g', color: '#B8860B', bg: '#FFFBEE', icon: '⚡' }, { label: 'Lipides', value: r.macros.lipides, unit: 'g', color: '#8A7060', bg: '#F9F5F0', icon: '🫒' }].map(m => (
+          {[
+            { label: 'Calories',  value: r.macros.calories,   unit: 'kcal', color: '#C45C3A', bg: '#FFF3EE', icon: '🔥' },
+            { label: 'Protéines', value: r.macros.proteines,  unit: 'g',    color: '#3F7D58', bg: '#EEF6EE', icon: '💪' },
+            { label: 'Glucides',  value: r.macros.glucides,   unit: 'g',    color: '#B8860B', bg: '#FFFBEE', icon: '⚡' },
+            { label: 'Lipides',   value: r.macros.lipides,    unit: 'g',    color: '#8A7060', bg: '#F9F5F0', icon: '🫒' },
+          ].map(m => (
             <div key={m.label} style={{ background: m.bg, border: `1.5px solid ${m.color}22`, borderRadius: 14, padding: '16px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: 22, marginBottom: 6 }}>{m.icon}</div>
               <div style={{ fontWeight: 900, fontSize: 22, color: m.color, lineHeight: 1 }}>{m.value}</div>
@@ -670,3 +652,5 @@ function RecipeOfTheDay() {
     </div>
   )
 }
+EOF
+echo "done"
