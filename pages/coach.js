@@ -33,51 +33,40 @@ export default function CoachPage() {
       setLoading(true)
       setError(null)
 
-      // MÉTHODE 1: Avec filtre role
-      console.log('Tentative 1: avec filtre role...')
+      console.log('Chargement des clients...')
+      
+      // Requête simplifiée avec syntaxe de base
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
         .eq('role', 'client')
-        .order('full_name', { ascending: true })
+        .order('full_name')
       
       if (error) {
-        console.warn('Erreur méthode 1:', error.message)
+        console.error('Erreur Supabase:', error)
         
-        // MÉTHODE 2: Sans filtre, tout récupérer
-        console.log('Tentative 2: sans filtre...')
-        const { data: data2, error: error2 } = await supabase
+        // Fallback : récupérer tous les profils et filtrer
+        console.log('Fallback: récupération de tous les profils...')
+        const { data: allData, error: allError } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url')
-          .order('full_name', { ascending: true })
+          .select('id, full_name, avatar_url, role')
         
-        if (error2) {
-          console.warn('Erreur méthode 2:', error2.message)
-          
-          // MÉTHODE 3: Sélection limitée
-          console.log('Tentative 3: sélection limitée...')
-          const { data: data3, error: error3 } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .limit(100)
-          
-          if (error3) {
-            console.error('Erreur méthode 3:', error3.message)
-            setError('Impossible de charger les clients: ' + error3.message)
-            setClients([])
-          } else {
-            setClients(data3 || [])
-          }
+        if (allError) {
+          console.error('Erreur fallback:', allError)
+          setError('Impossible de charger les clients')
+          setClients([])
         } else {
-          // Filtrer côté client si la colonne role existe
-          const clientsList = (data2 || []).filter(p => p.role === 'client')
-          setClients(clientsList.length > 0 ? clientsList : data2 || [])
+          // Filtrer les clients
+          const clientsList = (allData || []).filter(p => p.role === 'client')
+          console.log(`✅ ${clientsList.length} clients trouvés (fallback)`)
+          setClients(clientsList)
         }
       } else {
+        console.log(`✅ ${data?.length || 0} clients trouvés`)
         setClients(data || [])
       }
     } catch (err) {
-      console.error('Erreur chargement clients:', err)
+      console.error('Erreur:', err)
       setError(err.message)
       setClients([])
     } finally {
@@ -89,7 +78,6 @@ export default function CoachPage() {
     router.push(`/coach/${clientId}?tab=overview`)
   }
 
-  // Affichage du chargement
   if (loading) {
     return (
       <Layout title="Chargement..." user={user}>
@@ -105,7 +93,6 @@ export default function CoachPage() {
     )
   }
 
-  // Affichage de l'erreur
   if (error) {
     return (
       <Layout title="Erreur" user={user}>
