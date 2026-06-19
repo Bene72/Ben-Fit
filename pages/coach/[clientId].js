@@ -1,3 +1,4 @@
+// pages/coach/[clientId].js
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
@@ -31,14 +32,22 @@ export default function ClientPage() {
       if (data.session?.user) {
         setUser(data.session.user)
       } else {
-        router.push('/')
+        router.push('/login')
       }
     })
   }, [])
 
   // Chargement du profil complet du client
   useEffect(() => {
+    // ✅ Vérifier que clientId est bien un UUID valide
     if (!clientId || typeof clientId !== 'string') return
+    
+    // ✅ Ne pas charger si clientId est un nom de route comme "activite"
+    if (clientId === 'activite' || clientId === 'saison' || clientId === 'programmes') {
+      router.push('/coach')
+      return
+    }
+
     const load = async () => {
       setLoading(true)
       try {
@@ -47,7 +56,15 @@ export default function ClientPage() {
           .select('*')
           .eq('id', clientId)
           .single()
-        if (error) throw error
+        
+        if (error) {
+          if (error.code === '22P02') {
+            // Invalid UUID format
+            router.push('/coach')
+            return
+          }
+          throw error
+        }
 
         const { data: measures } = await supabase
           .from('measures')
@@ -71,6 +88,8 @@ export default function ClientPage() {
         })
       } catch (e) {
         console.error('Erreur chargement client:', e.message)
+        // ✅ Rediriger vers /coach en cas d'erreur
+        router.push('/coach')
       } finally {
         setLoading(false)
       }
@@ -109,19 +128,18 @@ export default function ClientPage() {
     </AppShell>
   )
 
-  if (!clientId || typeof clientId !== 'string') return (
-    <AppShell title="Erreur">
-      <div style={{ textAlign: 'center', padding: '60px', color: '#C45C3A' }}>Client non trouvé</div>
-    </AppShell>
-  )
-
   return (
     <AppShell title={client.full_name || 'Client'}>
       <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px', padding: isMobile ? '20px 16px' : '24px 28px' }}>
 
         {/* En-tête */}
         <div style={{ marginBottom: '24px' }}>
-          <button onClick={() => router.push('/coach')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* ✅ Redirige vers /coach au lieu de /eleves */}
+          <button onClick={() => router.push('/coach')} style={{ 
+            border: 'none', background: 'none', cursor: 'pointer', 
+            color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", 
+            padding: 0, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 
+          }}>
             ← Mes élèves
           </button>
 
@@ -186,7 +204,7 @@ export default function ClientPage() {
           <MessagesTab coachId={user?.id} clientId={clientId} clientName={client.full_name} onRead={() => {}} />
         )}
         {activeTab === 'gestion' && (
-          <GestionTab client={client} onDelete={() => router.push('/eleves')} />
+          <GestionTab client={client} onDelete={() => router.push('/coach')} />  {/* ← changer ici aussi */}
         )}
       </div>
     </AppShell>
