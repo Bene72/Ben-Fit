@@ -1,3 +1,4 @@
+// pages/eleves.js
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
@@ -120,13 +121,12 @@ export default function ElevesPage() {
     return name.includes(search.toLowerCase())
   })
 
-  // ── États dérivés pour le hero ──
   const totalClients = clients.length
   const withProgram = clients.filter(c => c.current_program).length
 
   if (loading) {
     return (
-      <AppShell title="Mes Élèves">
+      <AppShell title="Gestion des Élèves">
         <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8E4DC', borderTopColor: '#B8860B', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
@@ -140,7 +140,7 @@ export default function ElevesPage() {
 
   if (error) {
     return (
-      <AppShell title="Mes Élèves">
+      <AppShell title="Gestion des Élèves">
         <div style={{
           textAlign: 'center', padding: '60px', background: '#FFF5F5',
           borderRadius: '16px', border: '1px solid #FECACA', maxWidth: '600px', margin: '0 auto'
@@ -166,7 +166,7 @@ export default function ElevesPage() {
   const lblC = { display: 'block', fontSize: 11, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#8A8070', marginBottom: 5, fontWeight: 700 }
 
   return (
-    <AppShell title="Mes Élèves">
+    <AppShell title="Gestion des Élèves">
       <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px', padding: isMobile ? '20px 16px' : '24px 28px' }}>
 
         {/* ══ HERO ══ */}
@@ -182,7 +182,7 @@ export default function ElevesPage() {
                 ESPACE COACH
               </div>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 34, fontWeight: 800, color: 'white', lineHeight: 1.1, marginBottom: 6 }}>
-                👥 Mes Élèves
+                👥 Gestion des Élèves
               </div>
               <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 20 }}>
                 {totalClients} élève{totalClients > 1 ? 's' : ''} sous ton suivi
