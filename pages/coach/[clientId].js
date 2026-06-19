@@ -121,7 +121,7 @@ export default function ClientPage() {
 
         {/* En-tête */}
         <div style={{ marginBottom: '24px' }}>
-          <button onClick={() => router.push('/eleves')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button onClick={() => router.push('/coach')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
             ← Mes élèves
           </button>
 
