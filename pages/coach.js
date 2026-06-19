@@ -110,7 +110,7 @@ export default function CoachPage() {
 
   return (
     <AppShell title="Mes Élèves">
-      <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px", padding: isMobile ? '20px 16px' : '24px 28px' }}>
+      <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px', padding: isMobile ? '20px 16px' : '24px 28px' }}>
 
         {/* ══ HERO ══ */}
         <div style={{
