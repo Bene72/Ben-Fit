@@ -20,7 +20,10 @@ function NutritionTab({ clientId, clientName }) {
     target_protein: '', 
     target_carbs: '', 
     target_fat: '', 
-    coach_note: '' 
+    coach_note: '',
+    cyclic_diet: false,
+    high_calories: '', high_protein: '', high_carbs: '', high_fat: '',
+    low_calories: '',  low_protein: '',  low_carbs: '',  low_fat: ''
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -46,7 +49,10 @@ function NutritionTab({ clientId, clientName }) {
             target_protein: np.target_protein || '', 
             target_carbs: np.target_carbs || '', 
             target_fat: np.target_fat || '', 
-            coach_note: np.coach_note || '' 
+            coach_note: np.coach_note || '',
+            cyclic_diet: np.cyclic_diet || false,
+            high_calories: np.high_calories || '', high_protein: np.high_protein || '', high_carbs: np.high_carbs || '', high_fat: np.high_fat || '',
+            low_calories:  np.low_calories  || '', low_protein:  np.low_protein  || '', low_carbs:  np.low_carbs  || '', low_fat:  np.low_fat  || ''
           })
         }
         
@@ -78,7 +84,10 @@ function NutritionTab({ clientId, clientName }) {
         target_protein: +planForm.target_protein || 0, 
         target_carbs: +planForm.target_carbs || 0, 
         target_fat: +planForm.target_fat || 0, 
-        coach_note: planForm.coach_note || '' 
+        coach_note: planForm.coach_note || '',
+        cyclic_diet: planForm.cyclic_diet || false,
+        high_calories: +planForm.high_calories || 0, high_protein: +planForm.high_protein || 0, high_carbs: +planForm.high_carbs || 0, high_fat: +planForm.high_fat || 0,
+        low_calories:  +planForm.low_calories  || 0, low_protein:  +planForm.low_protein  || 0, low_carbs:  +planForm.low_carbs  || 0, low_fat:  +planForm.low_fat  || 0
       }
       
       if (plan) {
@@ -174,6 +183,47 @@ function NutritionTab({ clientId, clientName }) {
                 </div>
               ))}
             </div>
+
+            {/* Toggle diète cyclique */}
+            <div style={{ marginBottom: '12px', padding: '14px 16px', background: planForm.cyclic_diet ? '#EEF4FF' : '#F5F5F5', borderRadius: '10px', border: `1px solid ${planForm.cyclic_diet ? '#B8CBF5' : '#E0E0E0'}`, transition: 'all 0.2s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '13px', color: '#0D1B4E' }}>🔄 Diète cyclique</div>
+                  <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Définir des jours hauts et bas en glucides / calories</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPlanForm(p => ({ ...p, cyclic_diet: !p.cyclic_diet }))}
+                  style={{ position: 'relative', width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: planForm.cyclic_diet ? '#0D1B4E' : '#CCC', transition: 'background 0.2s', flexShrink: 0, padding: 0 }}
+                >
+                  <span style={{ position: 'absolute', top: '3px', left: planForm.cyclic_diet ? '23px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', display: 'block' }} />
+                </button>
+              </div>
+
+              {planForm.cyclic_diet && (
+                <div style={{ marginTop: '14px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#3A7BD5', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>📈 Jour Haut</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '12px' }}>
+                    {[['high_calories','🔥 Calories','2600'],['high_protein','🥩 Protéines','180'],['high_carbs','🌾 Glucides','300'],['high_fat','🥑 Lipides','70']].map(([key,label,ph]) => (
+                      <div key={key}>
+                        <label style={lbl}>{label}</label>
+                        <input type="number" value={planForm[key]} onChange={e => setPlanForm(p => ({ ...p, [key]: e.target.value }))} placeholder={ph} style={{ ...inp, borderColor: '#3A7BD566' }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#C45C3A', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>📉 Jour Bas</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
+                    {[['low_calories','🔥 Calories','1800'],['low_protein','🥩 Protéines','160'],['low_carbs','🌾 Glucides','120'],['low_fat','🥑 Lipides','65']].map(([key,label,ph]) => (
+                      <div key={key}>
+                        <label style={lbl}>{label}</label>
+                        <input type="number" value={planForm[key]} onChange={e => setPlanForm(p => ({ ...p, [key]: e.target.value }))} placeholder={ph} style={{ ...inp, borderColor: '#C45C3A66' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div style={{ marginBottom: '12px' }}>
               <label style={lbl}>Note coach</label>
               <textarea 
@@ -188,22 +238,54 @@ function NutritionTab({ clientId, clientName }) {
             </button>
           </div>
         ) : plan ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px' }}>
-            {[
-              ['🔥', plan.target_calories || 0, 'kcal / jour'],
-              ['🥩', plan.target_protein || 0, 'g protéines'],
-              ['🌾', plan.target_carbs || 0, 'g glucides'],
-              ['🥑', plan.target_fat || 0, 'g lipides']
-            ].map(([icon, val, label]) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>{icon}</div>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E' }}>
-                  {val || '—'}
-                </div>
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: plan.cyclic_diet ? '14px' : '0' }}>
+              {[
+                ['🔥', plan.target_calories || 0, 'kcal / jour'],
+                ['🥩', plan.target_protein || 0, 'g protéines'],
+                ['🌾', plan.target_carbs || 0, 'g glucides'],
+                ['🥑', plan.target_fat || 0, 'g lipides']
+              ].map(([icon, val, label]) => (
+                <div key={label} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>{icon}</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E' }}>
+                    {val || '—'}
+                  </div>
                 <div style={{ fontSize: '12px', color: '#6B7A99' }}>{label}</div>
               </div>
             ))}
           </div>
+          {plan.cyclic_diet && (
+            <div style={{ marginTop: '14px', padding: '12px 16px', background: '#F5F8FF', borderRadius: '10px', border: '1px solid #D0DCFF' }}>
+              <div style={{ fontWeight: '700', fontSize: '12px', color: '#0D1B4E', marginBottom: '10px', letterSpacing: '1px' }}>🔄 DIÈTE CYCLIQUE</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ background: '#EEF4FF', borderRadius: '8px', padding: '10px 14px', border: '1px solid #B8CBF5' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#3A7BD5', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📈 Jour Haut</div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    {[['🔥', plan.high_calories, 'kcal'], ['🥩', plan.high_protein, 'g P'], ['🌾', plan.high_carbs, 'g G'], ['🥑', plan.high_fat, 'g L']].map(([icon, val, unit]) => (
+                      <div key={unit} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '13px' }}>{icon}</div>
+                        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#2A50B0' }}>{val || '—'}</div>
+                        <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ background: '#FFF4F0', borderRadius: '8px', padding: '10px 14px', border: '1px solid #F5C9BB' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#C45C3A', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📉 Jour Bas</div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    {[['🔥', plan.low_calories, 'kcal'], ['🥩', plan.low_protein, 'g P'], ['🌾', plan.low_carbs, 'g G'], ['🥑', plan.low_fat, 'g L']].map(([icon, val, unit]) => (
+                      <div key={unit} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '13px' }}>{icon}</div>
+                        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#C45C3A' }}>{val || '—'}</div>
+                        <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         ) : (
           <div style={{ color: '#6B7A99', fontSize: '14px', textAlign: 'center', padding: '10px' }}>
             Aucun plan nutritionnel. Clique sur "+ Créer le plan" pour commencer.
