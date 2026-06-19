@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
-import Layout from '../../components/Layout'
+import AppShell from '../../components/ui/AppShell'
 import OverviewTab from '../../components/coach/OverviewTab'
 import ProgrammeTab from '../../components/coach/ProgrammeTab'
 import NutritionTab from '../../components/coach/NutritionTab'
@@ -13,9 +13,17 @@ export default function ClientPage() {
   const router = useRouter()
   const { clientId, tab } = router.query
   const [user, setUser] = useState(null)
-  const [client, setClient] = useState(null)   // objet complet
+  const [client, setClient] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(tab || 'overview')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Auth
   useEffect(() => {
@@ -28,13 +36,12 @@ export default function ClientPage() {
     })
   }, [])
 
-  // Chargement du profil complet du client (avec measures pour OverviewTab)
+  // Chargement du profil complet du client
   useEffect(() => {
     if (!clientId || typeof clientId !== 'string') return
     const load = async () => {
       setLoading(true)
       try {
-        // Profil complet
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
@@ -42,7 +49,6 @@ export default function ClientPage() {
           .single()
         if (error) throw error
 
-        // Mesures pour lastWeight + sessionsThisWeek
         const { data: measures } = await supabase
           .from('measures')
           .select('weight, date')
@@ -82,7 +88,6 @@ export default function ClientPage() {
     router.push({ pathname: `/coach/${clientId}`, query: { tab: tabId } }, undefined, { shallow: true })
   }
 
-  // Callback quand OverviewTab met à jour le client (note coach, programme, poids)
   const handleClientUpdate = (updated) => setClient(updated)
 
   const tabs = [
@@ -95,48 +100,63 @@ export default function ClientPage() {
   ]
 
   if (loading || !client) return (
-    <Layout title="Chargement..." user={user}>
-      <div style={{ textAlign: 'center', padding: '60px', color: '#6B7A99', fontSize: '14px', fontFamily: "'DM Sans',sans-serif" }}>
+    <AppShell title="Chargement...">
+      <div style={{ textAlign: 'center', padding: '60px', color: '#8A8070', fontSize: '14px', fontFamily: "'DM Sans',sans-serif" }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid #E8E4DC', borderTopColor: '#B8860B', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         Chargement...
       </div>
-    </Layout>
+    </AppShell>
   )
 
   if (!clientId || typeof clientId !== 'string') return (
-    <Layout title="Erreur" user={user}>
+    <AppShell title="Erreur">
       <div style={{ textAlign: 'center', padding: '60px', color: '#C45C3A' }}>Client non trouvé</div>
-    </Layout>
+    </AppShell>
   )
 
   return (
-    <Layout title={client.full_name || 'Client'} user={user}>
-      <div>
+    <AppShell title={client.full_name || 'Client'}>
+      <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px', padding: isMobile ? '20px 16px' : '24px 28px' }}>
+
         {/* En-tête */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <button onClick={() => router.push('/coach')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6B7A99', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0 }}>
-              ← Accueil coach
-            </button>
+        <div style={{ marginBottom: '24px' }}>
+          <button onClick={() => router.push('/eleves')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", padding: 0, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+            ← Mes élèves
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #0D1B2A, #1A2F4A)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, fontWeight: 800, color: '#B8860B', flexShrink: 0,
+              fontFamily: "'Playfair Display',serif",
+            }}>
+              {(client.full_name || client.email || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+            <div>
+              <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 28, fontWeight: 800, color: '#0D1B2A', margin: 0, lineHeight: 1.15 }}>
+                {client.full_name || 'Client'}
+              </h1>
+              <p style={{ color: '#8A8070', fontSize: '13px', margin: '2px 0 0' }}>
+                {client.email}
+              </p>
+            </div>
           </div>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E', letterSpacing: '1.5px', margin: 0 }}>
-            {client.full_name || 'Client'}
-          </h1>
-          <p style={{ color: '#6B7A99', fontSize: '13px', margin: '4px 0 0' }}>
-            {client.email} · Programme personnalisé
-          </p>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '2px', marginBottom: '24px', borderBottom: '2px solid #E8ECFA', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '2px', marginBottom: '24px', borderBottom: '1px solid #E8E4DC', flexWrap: 'wrap', overflowX: 'auto' }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => handleTabChange(t.id)} style={{
               padding: '10px 18px', border: 'none', background: 'transparent',
-              color: activeTab === t.id ? '#0D1B4E' : '#6B7A99',
-              fontWeight: activeTab === t.id ? '700' : '400',
+              color: activeTab === t.id ? '#0D1B2A' : '#8A8070',
+              fontWeight: activeTab === t.id ? '700' : '500',
               fontSize: '13px', cursor: 'pointer',
-              borderBottom: activeTab === t.id ? '3px solid #0D1B4E' : '3px solid transparent',
+              borderBottom: activeTab === t.id ? '2px solid #0D1B2A' : '2px solid transparent',
               transition: 'all 0.15s', fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
-              marginBottom: '-2px',
+              marginBottom: '-1px',
             }}>
               {t.label}
             </button>
@@ -166,9 +186,9 @@ export default function ClientPage() {
           <MessagesTab coachId={user?.id} clientId={clientId} clientName={client.full_name} onRead={() => {}} />
         )}
         {activeTab === 'gestion' && (
-          <GestionTab client={client} onDelete={() => router.push('/coach')} />
+          <GestionTab client={client} onDelete={() => router.push('/eleves')} />
         )}
       </div>
-    </Layout>
+    </AppShell>
   )
 }
