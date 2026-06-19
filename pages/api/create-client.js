@@ -37,9 +37,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: `Impossible de vérifier le rôle coach: ${profileLookupErr.message}` })
     }
 
+    // 🔍 LOG DEBUG — à retirer après fix
+    console.log("DEBUG profil coach:", JSON.stringify(callerProfile), "| caller.id:", caller.id, "| caller.email:", caller.email)
+
     if (callerProfile?.role !== 'coach') {
       console.error('Rôle insuffisant:', callerProfile?.role, 'pour user', caller.id, caller.email)
-      return res.status(403).json({ error: `Réservé aux coachs (rôle détecté: ${callerProfile?.role || 'aucun'})` })
+      return res.status(403).json({ error: `Réservé aux coachs`, debug: { role: callerProfile?.role ?? 'PROFIL INTROUVABLE', userId: caller.id } })
     }
 
     // ── 2. Validation des champs ──────────────────────────────────────────
