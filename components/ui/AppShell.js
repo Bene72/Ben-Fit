@@ -150,12 +150,18 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* ── Navigation principale ── */}
         <nav style={{ flex: 1, paddingTop: 10 }}>
-          <NavItem href="/dashboard" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
-          <NavItem href="/training"  icon="💪" collapsed={collapsed}>Programme</NavItem>
-          <NavItem href="/nutrition" icon="🍽️" collapsed={collapsed}>Nutrition</NavItem>
-          <NavItem href="/bilan"     icon="📈" collapsed={collapsed}>Bilan</NavItem>
-          <NavItem href="/messages"  icon="💬" collapsed={collapsed}>Messages</NavItem>
-          <NavItem href="/gestion"   icon="⚙️" collapsed={collapsed}>Gestion</NavItem>
+          {isCoach ? (
+            <NavItem href="/eleves" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
+          ) : (
+            <>
+              <NavItem href="/dashboard" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
+              <NavItem href="/training"  icon="💪" collapsed={collapsed}>Programme</NavItem>
+              <NavItem href="/nutrition" icon="🍽️" collapsed={collapsed}>Nutrition</NavItem>
+              <NavItem href="/bilan"     icon="📈" collapsed={collapsed}>Bilan</NavItem>
+              <NavItem href="/messages"  icon="💬" collapsed={collapsed}>Messages</NavItem>
+              <NavItem href="/gestion"   icon="⚙️" collapsed={collapsed}>Gestion</NavItem>
+            </>
+          )}
         </nav>
 
         {/* ── Section coach ── */}
@@ -173,8 +179,8 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                 Espace Coach
               </div>
             )}
-            <NavItem href="/eleves"             icon="👥" collapsed={collapsed}>Élèves</NavItem>
-            <NavItem href="/saison"             icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
+            <NavItem href="/activite"            icon="📋" collapsed={collapsed}>Activité</NavItem>
+            <NavItem href="/saison"              icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
             <NavItem href="/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
           </div>
         )}
@@ -240,7 +246,7 @@ function UserFooter({ user, collapsed }) {
 }
 
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
-const MAIN_NAV = [
+const CLIENT_NAV = [
   { href: '/dashboard', icon: '📊', label: 'Aperçu'     },
   { href: '/training',  icon: '💪', label: 'Programme'  },
   { href: '/nutrition', icon: '🍽️', label: 'Nutrition'  },
@@ -250,14 +256,15 @@ const MAIN_NAV = [
 ];
 
 const COACH_NAV = [
-  { href: '/eleves',              icon: '👥', label: 'Élèves'      },
+  { href: '/eleves',              icon: '📊', label: 'Aperçu'      },
+  { href: '/activite',            icon: '📋', label: 'Activité'    },
   { href: '/saison',              icon: '📅', label: 'Saison'      },
   { href: '/programmes/template', icon: '📋', label: 'Biblio'      },
 ];
 
 function BottomNav({ isCoach }) {
   const router  = useRouter();
-  const items   = isCoach ? [...MAIN_NAV, ...COACH_NAV] : MAIN_NAV;
+  const items   = isCoach ? COACH_NAV : CLIENT_NAV;
 
   return (
     <nav style={{
