@@ -103,7 +103,7 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
           minHeight:     64,
           flexShrink:    0,
         }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/coach" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
             <LogoMark />
             {!collapsed && (
               <span style={{
@@ -153,10 +153,11 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
               <div style={{ padding: '4px 22px 6px', fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700, marginTop: 4 }}>
                 Gestion Coach
               </div>
-              <NavItem href="/eleves" icon="👥" collapsed={collapsed}>Élèves</NavItem>
-              <NavItem href="/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
-              <NavItem href="/saison" icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
-              <NavItem href="/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
+              {/* ✅ URLs corrigées avec /coach */}
+              <NavItem href="/coach" icon="👥" collapsed={collapsed}>Élèves</NavItem>
+              <NavItem href="/coach/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
+              <NavItem href="/coach/saison" icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
+              <NavItem href="/coach/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
 
               {/* Séparateur */}
               <div style={{ borderTop: `1px solid ${T.border}`, margin: '12px 16px 8px' }} />
@@ -233,17 +234,18 @@ function UserFooter({ user, collapsed }) {
 }
 
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
+// ✅ URLs corrigées avec /coach
 const COACH_NAV = [
-  { href: '/eleves',   icon: '👥', label: 'Élèves'   },
-  { href: '/activite', icon: '📋', label: 'Activité'  },
-  { href: '/saison',   icon: '📅', label: 'Saison'    },
-  { href: '/programmes/template', icon: '📋', label: 'Biblio' },
+  { href: '/coach', icon: '👥', label: 'Élèves' },
+  { href: '/coach/activite', icon: '📋', label: 'Activité' },
+  { href: '/coach/saison', icon: '📅', label: 'Saison' },
+  { href: '/coach/programmes/template', icon: '📋', label: 'Biblio' },
 ];
 
 function BottomNav({ isCoach }) {
   const router  = useRouter();
   
-  if (!isCoach) return null; // Seulement visible pour les coachs
+  if (!isCoach) return null;
 
   return (
     <nav style={{
@@ -326,7 +328,7 @@ function TopBar({ onOpen, title }) {
         <HamburgerIcon />
       </button>
 
-      <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Link href="/coach" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
         <LogoMark size={28} />
         <span style={{ color: T.white, fontWeight: 800, fontSize: 14, letterSpacing: '-0.2px' }}>
           BEN&FIT
