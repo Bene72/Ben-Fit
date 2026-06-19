@@ -251,41 +251,42 @@ function NutritionTab({ clientId, clientName }) {
                   <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '28px', color: '#0D1B4E' }}>
                     {val || '—'}
                   </div>
-                <div style={{ fontSize: '12px', color: '#6B7A99' }}>{label}</div>
-              </div>
-            ))}
-          </div>
-          {plan.cyclic_diet && (
-            <div style={{ marginTop: '14px', padding: '12px 16px', background: '#F5F8FF', borderRadius: '10px', border: '1px solid #D0DCFF' }}>
-              <div style={{ fontWeight: '700', fontSize: '12px', color: '#0D1B4E', marginBottom: '10px', letterSpacing: '1px' }}>🔄 DIÈTE CYCLIQUE</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ background: '#EEF4FF', borderRadius: '8px', padding: '10px 14px', border: '1px solid #B8CBF5' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#3A7BD5', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📈 Jour Haut</div>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    {[['🔥', plan.high_calories, 'kcal'], ['🥩', plan.high_protein, 'g P'], ['🌾', plan.high_carbs, 'g G'], ['🥑', plan.high_fat, 'g L']].map(([icon, val, unit]) => (
-                      <div key={unit} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '13px' }}>{icon}</div>
-                        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#2A50B0' }}>{val || '—'}</div>
-                        <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
-                      </div>
-                    ))}
-                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7A99' }}>{label}</div>
                 </div>
-                <div style={{ background: '#FFF4F0', borderRadius: '8px', padding: '10px 14px', border: '1px solid #F5C9BB' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#C45C3A', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📉 Jour Bas</div>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    {[['🔥', plan.low_calories, 'kcal'], ['🥩', plan.low_protein, 'g P'], ['🌾', plan.low_carbs, 'g G'], ['🥑', plan.low_fat, 'g L']].map(([icon, val, unit]) => (
-                      <div key={unit} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '13px' }}>{icon}</div>
-                        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#C45C3A' }}>{val || '—'}</div>
-                        <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-          )}
+            {plan.cyclic_diet && (
+              <div style={{ marginTop: '14px', padding: '12px 16px', background: '#F5F8FF', borderRadius: '10px', border: '1px solid #D0DCFF' }}>
+                <div style={{ fontWeight: '700', fontSize: '12px', color: '#0D1B4E', marginBottom: '10px', letterSpacing: '1px' }}>🔄 DIÈTE CYCLIQUE</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ background: '#EEF4FF', borderRadius: '8px', padding: '10px 14px', border: '1px solid #B8CBF5' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#3A7BD5', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📈 Jour Haut</div>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      {[['🔥', plan.high_calories, 'kcal'], ['🥩', plan.high_protein, 'g P'], ['🌾', plan.high_carbs, 'g G'], ['🥑', plan.high_fat, 'g L']].map(([icon, val, unit]) => (
+                        <div key={unit} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '13px' }}>{icon}</div>
+                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#2A50B0' }}>{val || '—'}</div>
+                          <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ background: '#FFF4F0', borderRadius: '8px', padding: '10px 14px', border: '1px solid #F5C9BB' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#C45C3A', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>📉 Jour Bas</div>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      {[['🔥', plan.low_calories, 'kcal'], ['🥩', plan.low_protein, 'g P'], ['🌾', plan.low_carbs, 'g G'], ['🥑', plan.low_fat, 'g L']].map(([icon, val, unit]) => (
+                        <div key={unit} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '13px' }}>{icon}</div>
+                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '20px', color: '#C45C3A' }}>{val || '—'}</div>
+                          <div style={{ fontSize: '9px', color: '#6B7A99' }}>{unit}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div style={{ color: '#6B7A99', fontSize: '14px', textAlign: 'center', padding: '10px' }}>
             Aucun plan nutritionnel. Clique sur "+ Créer le plan" pour commencer.
