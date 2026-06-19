@@ -592,6 +592,131 @@ function FoodDetailBlock({ log: initialLog, date, onSave, onItemsChange, isMobil
   )
 }
 
+const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+
+function NutritionWeekTable({ logs, plan, isMobile, onOpenDay }) {
+  const getWeekStart = (dateStr) => {
+    const d = new Date(dateStr)
+    const day = d.getDay() === 0 ? 7 : d.getDay()
+    const mon = new Date(d)
+    mon.setDate(d.getDate() - day + 1)
+    return mon.toISOString().split('T')[0]
+  }
+
+  const today = todayString()
+  const weeks = { [getWeekStart(today)]: [] }
+  logs.forEach((log) => {
+    const wk = getWeekStart(log.date)
+    if (!weeks[wk]) weeks[wk] = []
+    weeks[wk].push(log)
+  })
+  const sortedWeeks = Object.keys(weeks).sort((a, b) => b.localeCompare(a))
+
+  const getWeekLabel = (wk) => {
+    const s = new Date(wk), e = new Date(wk)
+    e.setDate(e.getDate() + 6)
+    return `${s.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+  }
+
+  const macros = [
+    { key: 'calories', label: 'Calories',  unit: 'kcal', target: 'target_calories', color: '#0D1B4E' },
+    { key: 'protein',  label: 'Protéines', unit: 'g',    target: 'target_protein',  color: '#C45C3A' },
+    { key: 'carbs',    label: 'Glucides',  unit: 'g',    target: 'target_carbs',    color: '#2A50B0' },
+    { key: 'fat',      label: 'Lipides',   unit: 'g',    target: 'target_fat',      color: '#3A7BD5' },
+  ]
+
+  return (
+    <SurfaceCard padded>
+      <SectionHead title="Vue semaine" caption="Clique sur un jour pour le modifier." />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {sortedWeeks.map((weekStart) => {
+          const weekLogs = weeks[weekStart]
+          const isCurrent = weekStart === getWeekStart(today)
+          const days = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(weekStart)
+            d.setDate(d.getDate() + i)
+            const ds = d.toISOString().split('T')[0]
+            return { date: ds, log: weekLogs.find((l) => l.date === ds) || null, isToday: ds === today, isFuture: ds > today }
+          })
+
+          return (
+            <div key={weekStart} style={{ background: 'white', borderRadius: 12, border: `1px solid ${isCurrent ? '#C0CAEF' : '#EAEAEA'}`, overflow: 'hidden', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+              <div style={{ padding: '10px 16px', background: isCurrent ? '#EEF2FF' : '#F5F7FF', borderBottom: '1px solid #EAEAEA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#0D1B4E' }}>📅 {getWeekLabel(weekStart)}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>{weekLogs.filter((l) => l.calories > 0).length}/7 jours</div>
+              </div>
+
+              {!isMobile && (
+                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr 1fr', background: '#F8FAFF', borderBottom: '1px solid #F0F0F0' }}>
+                  {['Jour', 'Calories', 'Protéines', 'Glucides', 'Lipides'].map((h) => (
+                    <div key={h} style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: '#999', fontWeight: 600, padding: '6px 12px' }}>{h}</div>
+                  ))}
+                </div>
+              )}
+
+              {days.map(({ date, log, isToday, isFuture }) => {
+                const dayName = DAYS_FR[new Date(date).getDay() === 0 ? 6 : new Date(date).getDay() - 1]
+                const hasData = log && log.calories > 0
+
+                return (
+                  <div
+                    key={date}
+                    onClick={() => { if (!isFuture && onOpenDay) onOpenDay(date) }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: isMobile ? '1fr' : '130px 1fr 1fr 1fr 1fr',
+                      borderBottom: '1px solid #F5F5F5',
+                      background: isToday ? '#FAFBFF' : 'transparent',
+                      cursor: isFuture ? 'default' : 'pointer',
+                      padding: isMobile ? '10px 12px' : undefined,
+                    }}
+                    onMouseEnter={(e) => { if (!isFuture) e.currentTarget.style.background = '#F0F4FF' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = isToday ? '#FAFBFF' : 'transparent' }}
+                  >
+                    <div style={{ padding: isMobile ? 0 : '9px 12px' }}>
+                      <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isFuture ? '#CCC' : '#0D1B4E' }}>
+                        {isToday ? '📍 ' : ''}{dayName}
+                        {isMobile && hasData && (
+                          <span style={{ color: '#6B7A99', fontWeight: 400, marginLeft: 8 }}>
+                            {log.calories} kcal · P {log.protein}g
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {!isMobile && macros.map((m) => {
+                      const val = log?.[m.key] || 0
+                      const target = plan?.[m.target]
+                      const pct = target && val ? Math.min(100, (val / target) * 100) : 0
+                      return (
+                        <div key={m.key} style={{ padding: '9px 12px' }}>
+                          {hasData && val > 0 ? (
+                            <>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: m.color }}>
+                                {val}<span style={{ fontSize: 9, color: '#BBB' }}> {m.unit}</span>
+                              </div>
+                              {target && (
+                                <div style={{ marginTop: 2, height: 3, width: 60, background: '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', background: m.color, width: `${pct}%` }} />
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ color: '#DDD', fontSize: 12 }}>—</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </SurfaceCard>
+  )
+}
+
 function ProgressBar({ label, value, target, percent }) {
   return (
     <div>
