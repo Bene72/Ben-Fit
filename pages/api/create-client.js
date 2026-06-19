@@ -1,104 +1,91 @@
 // pages/api/create-client.js
+// Route serveur uniquement — utilise la service_role key, jamais exposée au front.
 import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' })
   }
 
-  // ── 1. Récupérer le token du coach ──
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token manquant' })
-  }
-  const token = authHeader.split(' ')[1]
+  try {
+    // ── 1. Vérifie que l'appelant est bien un coach authentifié ──────────
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Non authentifié' })
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+    if (authErr || !caller) {
+      console.error('Erreur auth.getUser:', authErr)
+      return res.status(401).json({ error: 'Session invalide' })
+    }
 
-  // ── 2. Client Supabase avec le token du coach (pour vérifier son identité) ──
-  const supabaseUser = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  )
+    const { data: callerProfile, error: profileLookupErr } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', caller.id)
+      .maybeSingle()
 
-  // ── 3. Vérifier que l'appelant est bien un coach ──
-  const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Non authentifié' })
-  }
+    if (profileLookupErr) {
+      console.error('Erreur lookup profil coach:', profileLookupErr, 'caller.id:', caller.id)
+      return res.status(500).json({ error: `Impossible de vérifier le rôle coach: ${profileLookupErr.message}` })
+    }
 
-  // ── CORRECTION CLÉ : .maybeSingle() au lieu de .single() ──
-  const { data: coachProfile, error: profileError } = await supabaseUser
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .maybeSingle()
+    if (callerProfile?.role !== 'coach') {
+      console.error('Rôle insuffisant:', callerProfile?.role, 'pour user', caller.id, caller.email)
+      return res.status(403).json({ error: `Réservé aux coachs (rôle détecté: ${callerProfile?.role || 'aucun'})` })
+    }
 
-  if (profileError) {
-    console.error('Erreur vérif profil coach:', profileError)
-    return res.status(500).json({ error: `Impossible de vérifier le profil: ${profileError.message}` })
-  }
+    // ── 2. Validation des champs ──────────────────────────────────────────
+    const { email, password, full_name, objective, height, current_program } = req.body
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis' })
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: '6 caractères minimum pour le mot de passe' })
+    }
 
-  // Si le profil n'existe pas encore, on tolère si l'email correspond à un coach connu
-  // Sinon on vérifie le rôle
-  if (coachProfile && coachProfile.role !== 'coach') {
-    return res.status(403).json({ error: 'Accès réservé aux coachs' })
-  }
-
-  // ── 4. Client admin (service_role) pour créer l'utilisateur ──
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-
-  const { email, password, full_name, objective, height, current_program } = req.body
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email et mot de passe obligatoires' })
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Mot de passe trop court (6 caractères min)' })
-  }
-
-  // ── 5. Créer le compte Auth ──
-  const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true, // pas de confirmation email requise
-  })
-
-  if (createError) {
-    console.error('Erreur création user:', createError)
-    return res.status(500).json({ error: createError.message })
-  }
-
-  const newUserId = newUser.user.id
-
-  // ── 6. Upsert le profil client ──
-  const profileData = {
-    id: newUserId,
-    email,
-    role: 'client',
-    coach_id: user.id,
-    ...(full_name && { full_name }),
-    ...(objective && { objective }),
-    ...(height && { height: parseInt(height) }),
-    ...(current_program && { current_program }),
-  }
-
-  const { data: profile, error: profileInsertError } = await supabaseAdmin
-    .from('profiles')
-    .upsert(profileData)
-    .select()
-    .maybeSingle()
-
-  if (profileInsertError) {
-    console.error('Erreur création profil:', profileInsertError)
-    // Le user auth est créé, on retourne quand même un résultat partiel
-    return res.status(207).json({
-      error: `Compte créé mais profil incomplet: ${profileInsertError.message}`,
-      profile: { id: newUserId, email, role: 'client', coach_id: user.id }
+    // ── 3. Création du compte Auth ────────────────────────────────────────
+    const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // pas besoin de confirmation email pour un compte créé par le coach
     })
-  }
+    if (createErr) {
+      return res.status(400).json({ error: createErr.message })
+    }
 
-  return res.status(200).json({ profile: profile || profileData })
+    // ── 4. Création / mise à jour du profil ──────────────────────────────
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: newUser.user.id,
+        email,
+        full_name: full_name || '',
+        role: 'client',
+        coach_id: caller.id,
+        objective: objective || null,
+        height: height ? +height : null,
+        current_program: current_program || null,
+      })
+      .select()
+      .maybeSingle()
+
+    if (profileErr) {
+      // Rollback : si le profil échoue, on supprime le compte auth créé
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+      return res.status(400).json({ error: profileErr.message })
+    }
+
+    return res.status(200).json({ success: true, profile })
+  } catch (err) {
+    console.error('Erreur create-client:', err)
+    return res.status(500).json({ error: err.message || 'Erreur serveur' })
+  }
 }
