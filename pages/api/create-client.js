@@ -22,15 +22,24 @@ export default async function handler(req, res) {
     const token = authHeader.replace('Bearer ', '')
     const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token)
     if (authErr || !caller) {
+      console.error('Erreur auth.getUser:', authErr)
       return res.status(401).json({ error: 'Session invalide' })
     }
-    const { data: callerProfile } = await supabaseAdmin
+
+    const { data: callerProfile, error: profileLookupErr } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', caller.id)
       .single()
+
+    if (profileLookupErr) {
+      console.error('Erreur lookup profil coach:', profileLookupErr, 'caller.id:', caller.id)
+      return res.status(500).json({ error: `Impossible de vérifier le rôle coach: ${profileLookupErr.message}` })
+    }
+
     if (callerProfile?.role !== 'coach') {
-      return res.status(403).json({ error: 'Réservé aux coachs' })
+      console.error('Rôle insuffisant:', callerProfile?.role, 'pour user', caller.id, caller.email)
+      return res.status(403).json({ error: `Réservé aux coachs (rôle détecté: ${callerProfile?.role || 'aucun'})` })
     }
 
     // ── 2. Validation des champs ──────────────────────────────────────────
