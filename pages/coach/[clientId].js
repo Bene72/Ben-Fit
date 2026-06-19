@@ -39,10 +39,10 @@ export default function ClientPage() {
 
   // Chargement du profil complet du client
   useEffect(() => {
-    // ✅ Vérifier que clientId est bien un UUID valide
+    // Vérifier que clientId est bien un UUID valide
     if (!clientId || typeof clientId !== 'string') return
     
-    // ✅ Ne pas charger si clientId est un nom de route comme "activite"
+    // Ne pas charger si clientId est un nom de route comme "activite"
     if (clientId === 'activite' || clientId === 'saison' || clientId === 'programmes') {
       router.push('/coach')
       return
@@ -88,7 +88,6 @@ export default function ClientPage() {
         })
       } catch (e) {
         console.error('Erreur chargement client:', e.message)
-        // ✅ Rediriger vers /coach en cas d'erreur
         router.push('/coach')
       } finally {
         setLoading(false)
@@ -134,7 +133,6 @@ export default function ClientPage() {
 
         {/* En-tête */}
         <div style={{ marginBottom: '24px' }}>
-          {/* ✅ Redirige vers /coach au lieu de /eleves */}
           <button onClick={() => router.push('/coach')} style={{ 
             border: 'none', background: 'none', cursor: 'pointer', 
             color: '#8A8070', fontSize: '13px', fontFamily: "'DM Sans',sans-serif", 
@@ -204,7 +202,7 @@ export default function ClientPage() {
           <MessagesTab coachId={user?.id} clientId={clientId} clientName={client.full_name} onRead={() => {}} />
         )}
         {activeTab === 'gestion' && (
-          <GestionTab client={client} onDelete={() => router.push('/coach')} />  {/* ← changer ici aussi */}
+          <GestionTab client={client} onDelete={() => router.push('/coach')} />
         )}
       </div>
     </AppShell>
