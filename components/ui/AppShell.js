@@ -62,7 +62,6 @@ function NavItem({ href, icon, children, collapsed }) {
 function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose }) {
   const width = collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDE;
 
-  /* overlay mobile */
   return (
     <>
       {/* Overlay mobile */}
@@ -90,7 +89,6 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
         transition:      'width 0.22s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1)',
         overflowX:       'hidden',
         overflowY:       'auto',
-        /* mobile : slide depuis la gauche */
         transform:       `translateX(${mobileOpen === false ? -SIDEBAR_WIDE : 0}px)`,
       }}>
 
@@ -106,7 +104,6 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
           flexShrink:    0,
         }}>
           <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Logo SVG inline — remplace par <img src="/logo.svg"> si tu as un fichier */}
             <LogoMark />
             {!collapsed && (
               <span style={{
@@ -151,7 +148,19 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
         {/* ── Navigation principale ── */}
         <nav style={{ flex: 1, paddingTop: 10 }}>
           {isCoach ? (
-            <NavItem href="/eleves" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
+            <>
+              {/* 👨‍🏫 GESTION COACH - remonté en haut */}
+              <div style={{ padding: '4px 22px 6px', fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700, marginTop: 4 }}>
+                Gestion Coach
+              </div>
+              <NavItem href="/eleves" icon="👥" collapsed={collapsed}>Élèves</NavItem>
+              <NavItem href="/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
+              <NavItem href="/saison" icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
+              <NavItem href="/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
+
+              {/* Séparateur */}
+              <div style={{ borderTop: `1px solid ${T.border}`, margin: '12px 16px 8px' }} />
+            </>
           ) : (
             <>
               <NavItem href="/dashboard" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
@@ -163,27 +172,6 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
             </>
           )}
         </nav>
-
-        {/* ── Section coach ── */}
-        {isCoach && (
-          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 8, paddingBottom: 4 }}>
-            {!collapsed && (
-              <div style={{
-                padding:         '4px 22px 6px',
-                fontSize:        9,
-                color:           T.muted,
-                textTransform:   'uppercase',
-                letterSpacing:   '1.2px',
-                fontWeight:      700,
-              }}>
-                Espace Coach
-              </div>
-            )}
-            <NavItem href="/activite"            icon="📋" collapsed={collapsed}>Activité</NavItem>
-            <NavItem href="/saison"              icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
-            <NavItem href="/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
-          </div>
-        )}
 
         {/* ── Profil & déconnexion ── */}
         <UserFooter user={user} collapsed={collapsed} />
@@ -206,7 +194,6 @@ function UserFooter({ user, collapsed }) {
       gap:         10,
       justifyContent: collapsed ? 'center' : 'flex-start',
     }}>
-      {/* Avatar */}
       <div style={{
         width:        34,
         height:       34,
@@ -246,25 +233,17 @@ function UserFooter({ user, collapsed }) {
 }
 
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
-const CLIENT_NAV = [
-  { href: '/dashboard', icon: '📊', label: 'Aperçu'     },
-  { href: '/training',  icon: '💪', label: 'Programme'  },
-  { href: '/nutrition', icon: '🍽️', label: 'Nutrition'  },
-  { href: '/bilan',     icon: '📈', label: 'Bilan'      },
-  { href: '/messages',  icon: '💬', label: 'Messages'   },
-  { href: '/gestion',   icon: '⚙️', label: 'Gestion'    },
-];
-
 const COACH_NAV = [
-  { href: '/eleves',              icon: '📊', label: 'Aperçu'      },
-  { href: '/activite',            icon: '📋', label: 'Activité'    },
-  { href: '/saison',              icon: '📅', label: 'Saison'      },
-  { href: '/programmes/template', icon: '📋', label: 'Biblio'      },
+  { href: '/eleves',   icon: '👥', label: 'Élèves'   },
+  { href: '/activite', icon: '📋', label: 'Activité'  },
+  { href: '/saison',   icon: '📅', label: 'Saison'    },
+  { href: '/programmes/template', icon: '📋', label: 'Biblio' },
 ];
 
 function BottomNav({ isCoach }) {
   const router  = useRouter();
-  const items   = isCoach ? COACH_NAV : CLIENT_NAV;
+  
+  if (!isCoach) return null; // Seulement visible pour les coachs
 
   return (
     <nav style={{
@@ -282,7 +261,7 @@ function BottomNav({ isCoach }) {
       overflowY:      'hidden',
       scrollbarWidth: 'none',
     }}>
-      {items.map(item => {
+      {COACH_NAV.map(item => {
         const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
         return (
           <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 56px', minWidth: 48 }}>
@@ -380,11 +359,10 @@ export default function AppShell({
   const [user,        setUser]        = useState(null);
   const [profile,     setProfile]     = useState(null);
   const [loading,     setLoading]     = useState(true);
-  const [collapsed,   setCollapsed]   = useState(false);   // desktop sidebar
-  const [mobileOpen,  setMobileOpen]  = useState(null);    // null = SSR safe
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(null);
   const [isMobile,    setIsMobile]    = useState(false);
 
-  /* Detect mobile */
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -409,7 +387,6 @@ export default function AppShell({
   const isCoach    = profile?.role === 'coach';
   const sidebarW   = collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDE;
   const showBottom = isMobile || collapsed;
-  const BOTTOM_H   = 62;
 
   return (
     <div style={{
@@ -419,14 +396,11 @@ export default function AppShell({
       fontFamily: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
     }}>
 
-      {/* ── Mobile top bar ── */}
       {isMobile && (
         <TopBar onOpen={() => setMobileOpen(true)} title={title} />
       )}
 
-      {/* ── Sidebar ── */}
       {!isMobile ? (
-        /* DESKTOP : sidebar fixe collapsible */
         <Sidebar
           isCoach={isCoach}
           user={user}
@@ -436,7 +410,6 @@ export default function AppShell({
           onMobileClose={() => {}}
         />
       ) : (
-        /* MOBILE : sidebar drawer */
         <Sidebar
           isCoach={isCoach}
           user={user}
@@ -447,10 +420,8 @@ export default function AppShell({
         />
       )}
 
-      {/* ── Bottom nav (mobile OU sidebar collapsée) ── */}
       {showBottom && <BottomNav isCoach={isCoach} />}
 
-      {/* ── Contenu principal ── */}
       <main style={{
         marginLeft:  isMobile ? 0 : sidebarW,
         flex:        1,
@@ -465,7 +436,6 @@ export default function AppShell({
         boxSizing:   'border-box',
       }}>
 
-        {/* ── Page header ── */}
         <div style={{
           display:        'flex',
           justifyContent: 'space-between',
