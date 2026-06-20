@@ -168,14 +168,19 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setActivating(false)
   }
 
-  // ── Images d'exercices ───────────────────────────────────────
+  // ── Images d'exercices (listing direct depuis Supabase Storage) ──
   const fetchImageFiles = async () => {
     try {
-      const r = await fetch('/api/exercise-images')
-      if (!r.ok) return
-      const d = await r.json()
-      const files = (d.files || []).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'))
-      setExerciseImageFiles(files)
+      const { data, error } = await supabase.storage
+        .from('exercise-images')
+        .list('', { limit: 500, sortBy: { column: 'name', order: 'asc' } })
+      if (!error && data?.length) {
+        const files = data
+          .map(f => f.name)
+          .filter(n => n && /\.(jpg|jpeg|png|gif|webp)$/i.test(n))
+          .sort((a, b) => a.localeCompare(b, 'fr'))
+        setExerciseImageFiles(files)
+      }
     } catch {}
     setImageFilesLoading(false)
   }
