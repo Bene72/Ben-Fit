@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
-import AppShell from '../components/ui/AppShell'
+import { supabase } from '../../lib/supabase'
+import AppShell from '../../components/ui/AppShell'
 
 // ── Helper : formatte une date relative en français ──────────────────────
 function timeAgo(dateStr) {
