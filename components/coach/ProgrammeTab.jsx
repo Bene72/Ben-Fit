@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachUtils'
+import { btn, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachUtils'
 import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
 
@@ -435,7 +435,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const syncImages = async (forceAll = false) => {
     setImageSyncing(true)
     try {
-      // Recharger la liste d'images si elle est vide (ex: 401 au mount)
       let files = exerciseImageFiles
       if (!files.length) {
         const { data: { session } } = await supabase.auth.getSession()
@@ -546,12 +545,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
       {/* ── Barre d'outils ── */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center' }}>
-        <button onClick={() => setShowAdd(s => !s)} style={btnVariant('primary')}>+ Séance</button>
-        <button onClick={exportPDF} disabled={exporting || !displayedWorkouts.length} style={btnVariant('outline')}>{exporting ? '⏳ Export…' : '📄 PDF'}</button>
-        <button onClick={() => syncImages(false)} disabled={imageSyncing} style={btnVariant('outline')}>{imageSyncing ? '⏳ Sync…' : '🖼 Images'}</button>
-        <button onClick={() => { loadAllClients(); setShowDuplicate(true) }} style={btnVariant('outline')}>📋 Dupliquer</button>
-        {cycleMode === 'current' && <button onClick={loadHistory} style={btnVariant('ghost')}>🗂 Historique</button>}
-        <button onClick={() => fetchAthleteLogs()} style={btnVariant('ghost')} title="Rafraîchir les logs athlète">🔄</button>
+        <button onClick={() => setShowAdd(s => !s)} style={btn('primary')}>+ Séance</button>
+        <button onClick={exportPDF} disabled={exporting || !displayedWorkouts.length} style={btn('outline')}>{exporting ? '⏳ Export…' : '📄 PDF'}</button>
+        <button onClick={() => syncImages(false)} disabled={imageSyncing} style={btn('outline')}>{imageSyncing ? '⏳ Sync…' : '🖼 Images'}</button>
+        <button onClick={() => { loadAllClients(); setShowDuplicate(true) }} style={btn('outline')}>📋 Dupliquer</button>
+        {cycleMode === 'current' && <button onClick={loadHistory} style={btn('ghost')}>🗂 Historique</button>}
+        <button onClick={() => fetchAthleteLogs()} style={btn('ghost')} title="Rafraîchir les logs athlète">🔄</button>
       </div>
 
       {/* ── Cycle name + archivage (actuel seulement) ── */}
@@ -559,10 +558,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
           <input value={currentCycleName} onChange={e => setCurrentCycleName(e.target.value)}
             placeholder="Nom du cycle actuel (ex: Cycle Force #3)" style={{ ...inp, flex: 1, minWidth: 200 }} />
-          <button onClick={saveCurrentCycleName} disabled={savingCycleName} style={btnVariant('outline')}>{savingCycleName ? '…' : '💾 Sauver nom'}</button>
+          <button onClick={saveCurrentCycleName} disabled={savingCycleName} style={btn('outline')}>{savingCycleName ? '…' : '💾 Sauver nom'}</button>
           <input value={cycleName} onChange={e => setCycleName(e.target.value)}
             placeholder="Nom pour archiver…" style={{ ...inp, flex: 1, minWidth: 160 }} />
-          <button onClick={archiveCycle} disabled={archiving} style={btnVariant('danger')}>{archiving ? '…' : '📦 Archiver'}</button>
+          <button onClick={archiveCycle} disabled={archiving} style={btn('danger')}>{archiving ? '…' : '📦 Archiver'}</button>
         </div>
       )}
 
@@ -584,7 +583,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             <div>
               <label style={lbl}>Jour</label>
               <select value={newW.day_of_week} onChange={e => setNewW(p => ({ ...p, day_of_week: +e.target.value }))} style={inp}>
-                {DAYS.map((d, i) => <option key={d} value={DAYS[i]}>{DAYS_FR[i]}</option>)}
+                {DAYS.map((d, i) => <option key={d} value={d}>{DAYS_FR[i]}</option>)}
               </select>
             </div>
             <div>
@@ -593,8 +592,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={addWorkout} style={btnVariant('primary')}>✓ Créer</button>
-            <button onClick={() => setShowAdd(false)} style={btnVariant('ghost')}>Annuler</button>
+            <button onClick={addWorkout} style={btn('primary')}>✓ Créer</button>
+            <button onClick={() => setShowAdd(false)} style={btn('ghost')}>Annuler</button>
           </div>
         </div>
       )}
@@ -629,11 +628,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 8 }}>
                 <button onClick={e => { e.stopPropagation(); setEditMode(isEdit ? null : workout.id); if (!isOpen) setOpenWorkout(workout.id) }}
-                  style={{ ...btnVariant(isEdit ? 'primary' : 'outline'), fontSize: 12, padding: '5px 10px' }}>
+                  style={{ ...btn(isEdit ? 'primary' : 'outline'), fontSize: 12, padding: '5px 10px' }}>
                   {isEdit ? '✓ Fin édition' : '✏️ Éditer'}
                 </button>
                 <button onClick={e => { e.stopPropagation(); deleteWorkout(workout.id) }}
-                  style={{ ...btnVariant('ghost'), fontSize: 12, color: '#C45C3A', padding: '5px 10px' }}>🗑</button>
+                  style={{ ...btn('ghost'), fontSize: 12, color: '#C45C3A', padding: '5px 10px' }}>🗑</button>
                 <span style={{ fontSize: 12, color: '#9BA8C0' }}>{isOpen ? '▲' : '▼'}</span>
               </div>
             </div>
@@ -644,7 +643,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   <div style={{ padding: '10px 16px', background: '#FAFBFF', borderBottom: '1px solid #E0E6F0', display: 'flex', gap: 8, alignItems: 'center' }}>
                     <label style={lbl}>Jour :</label>
                     <select value={workout.day_of_week} onChange={e => updateWorkoutDay(workout.id, e.target.value)} style={{ ...inp, width: 120 }}>
-                      {DAYS.map((d, i) => <option key={d} value={DAYS[i]}>{DAYS_FR[i]}</option>)}
+                      {DAYS.map((d, i) => <option key={d} value={d}>{DAYS_FR[i]}</option>)}
                     </select>
                   </div>
                 )}
@@ -713,11 +712,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
                 {isEdit && (
                   <div style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid #F0F4FF' }}>
-                    <button onClick={() => addExercise(workout.id, 'Normal', null)} style={btnVariant('outline')}>+ Exercice</button>
-                    <button onClick={() => addExercise(workout.id, 'Superset', null)} style={{ ...btnVariant('outline'), borderColor: '#C45C3A', color: '#C45C3A' }}>+ Superset</button>
-                    <button onClick={() => addExercise(workout.id, 'Giant Set', null)} style={{ ...btnVariant('outline'), borderColor: '#8FA07A', color: '#8FA07A' }}>+ Giant Set</button>
-                    <button onClick={() => addExercise(workout.id, 'Drop Set', null)} style={{ ...btnVariant('outline'), borderColor: '#4A6FD4', color: '#4A6FD4' }}>+ Drop Set</button>
-                    <button onClick={() => addWorkoutBlock(workout.id)} style={{ ...btnVariant('outline'), borderColor: '#1A1A2E', color: '#1A1A2E' }}>+ WOD Block</button>
+                    <button onClick={() => addExercise(workout.id, 'Normal', null)} style={btn('outline')}>+ Exercice</button>
+                    <button onClick={() => addExercise(workout.id, 'Superset', null)} style={{ ...btn('outline'), borderColor: '#C45C3A', color: '#C45C3A' }}>+ Superset</button>
+                    <button onClick={() => addExercise(workout.id, 'Giant Set', null)} style={{ ...btn('outline'), borderColor: '#8FA07A', color: '#8FA07A' }}>+ Giant Set</button>
+                    <button onClick={() => addExercise(workout.id, 'Drop Set', null)} style={{ ...btn('outline'), borderColor: '#4A6FD4', color: '#4A6FD4' }}>+ Drop Set</button>
+                    <button onClick={() => addWorkoutBlock(workout.id)} style={{ ...btn('outline'), borderColor: '#1A1A2E', color: '#1A1A2E' }}>+ WOD Block</button>
                   </div>
                 )}
               </div>
@@ -761,8 +760,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 rows={6} style={{ ...inp, resize: 'vertical' }} />
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={confirmAddWorkoutBlock} style={btnVariant('primary')}>✓ Créer</button>
-              <button onClick={() => setWbPicker(null)} style={btnVariant('ghost')}>Annuler</button>
+              <button onClick={confirmAddWorkoutBlock} style={btn('primary')}>✓ Créer</button>
+              <button onClick={() => setWbPicker(null)} style={btn('ghost')}>Annuler</button>
             </div>
           </div>
         </div>
@@ -783,10 +782,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
               Remettre les charges à zéro <span style={{ color: '#6B7A99', fontSize: 11 }}>(recommandé pour un nouveau client)</span>
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => duplicateProgram(duplicateTarget)} disabled={!duplicateTarget || duplicating} style={btnVariant('primary')}>
+              <button onClick={() => duplicateProgram(duplicateTarget)} disabled={!duplicateTarget || duplicating} style={btn('primary')}>
                 {duplicating ? '⏳ Duplication…' : '📋 Dupliquer'}
               </button>
-              <button onClick={() => setShowDuplicate(false)} style={btnVariant('ghost')}>Annuler</button>
+              <button onClick={() => setShowDuplicate(false)} style={btn('ghost')}>Annuler</button>
             </div>
           </div>
         </div>
@@ -798,7 +797,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           <div style={{ background: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 600, maxHeight: '80vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: '#0D1B4E' }}>Historique des cycles</h3>
-              <button onClick={() => setShowHistory(false)} style={btnVariant('ghost')}>✕ Fermer</button>
+              <button onClick={() => setShowHistory(false)} style={btn('ghost')}>✕ Fermer</button>
             </div>
             {archivedWorkouts.length === 0
               ? <div style={{ color: '#9BA8C0', textAlign: 'center', padding: '20px 0' }}>Aucun cycle archivé</div>
