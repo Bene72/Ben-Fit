@@ -359,6 +359,22 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         const groupIdMap = {}; let gIdx = 0
         exs.forEach(ex => { if (ex.group_id && !groupIdMap[ex.group_id]) groupIdMap[ex.group_id] = `dup_${newWorkout.id.slice(0, 8)}_g${gIdx++}` })
         for (const ex of exs) {
+          // ── Synchro image : réutiliser l'image source ou matcher depuis la bibliothèque ──
+          let resolvedImageUrl = ex.image_url || null
+          if (!resolvedImageUrl && exerciseImageFiles.length) {
+            const exNorm = String(ex.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+            const nf = exerciseImageFiles.map(fname => ({
+              normalized: fname.toLowerCase().replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim(),
+              url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
+            }))
+            let match = nf.find(f => f.normalized === exNorm)
+            if (!match) match = nf.find(f => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
+            if (!match) {
+              const words = exNorm.split(' ').filter(w => w.length > 2)
+              match = nf.find(f => words.filter(w => f.normalized.includes(w)).length >= Math.min(2, words.length))
+            }
+            if (match) resolvedImageUrl = match.url
+          }
           const { error: exErr } = await supabase.from('exercises').insert({
             workout_id: newWorkout.id, name: String(ex.name || ''),
             sets: ex.sets != null ? parseInt(ex.sets) || null : null,
@@ -368,6 +384,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             order_index: parseInt(ex.order_index) || 0,
             group_type: ex.group_type || 'Normal',
             group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
+            image_url: resolvedImageUrl,
           })
           if (exErr) console.error('Erreur insert exercice', ex.name, exErr.message)
           else totalExInserted++
