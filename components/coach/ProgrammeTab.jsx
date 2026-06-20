@@ -171,13 +171,16 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   // ── Images d'exercices ─────────────────────────────────────
   useEffect(() => {
     setImageFilesLoading(true)
-    fetch('/api/exercise-images')
-      .then(r => r.json())
-      .then(d => {
-        setExerciseImageFiles((d.files || []).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr')))
-        setImageFilesLoading(false)
-      })
-      .catch(() => setImageFilesLoading(false))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token
+      fetch('/api/exercise-images', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        .then(r => r.json())
+        .then(d => {
+          setExerciseImageFiles((d.files || []).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr')))
+          setImageFilesLoading(false)
+        })
+        .catch(() => setImageFilesLoading(false))
+    })
   }, [])
 
   // ── Picker d'exercice ──────────────────────────────────────
