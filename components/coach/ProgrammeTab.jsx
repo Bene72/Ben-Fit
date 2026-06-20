@@ -435,7 +435,18 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const syncImages = async (forceAll = false) => {
     setImageSyncing(true)
     try {
-      const normalizedFiles = exerciseImageFiles.map(fname => ({
+      // Recharger la liste d'images si elle est vide (ex: 401 au mount)
+      let files = exerciseImageFiles
+      if (!files.length) {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        const r = await fetch('/api/exercise-images', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+        const d = await r.json()
+        files = (d.files || []).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'))
+        if (files.length) setExerciseImageFiles(files)
+      }
+      if (!files.length) { alert('⚠️ Aucune image trouvée dans la bibliothèque'); setImageSyncing(false); return }
+      const normalizedFiles = files.map(fname => ({
         normalized: fname.toLowerCase().replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim(),
         url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
       }))
@@ -445,6 +456,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         const exNorm = ex.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
         let match = normalizedFiles.find(f => f.normalized === exNorm)
         if (!match) match = normalizedFiles.find(f => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
+        if (!match) {
+          const words = exNorm.split(' ').filter(w => w.length > 2)
+          match = normalizedFiles.find(f => words.filter(w => f.normalized.includes(w)).length >= Math.min(2, words.length))
+        }
         if (match) await supabase.from('exercises').update({ image_url: match.url }).eq('id', ex.id)
       }
       await reloadWorkouts()
@@ -533,7 +548,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center' }}>
         <button onClick={() => setShowAdd(s => !s)} style={btnVariant('primary')}>+ Séance</button>
         <button onClick={exportPDF} disabled={exporting || !displayedWorkouts.length} style={btnVariant('outline')}>{exporting ? '⏳ Export…' : '📄 PDF'}</button>
-        <button onClick={() => syncImages(false)} disabled={imageSyncing || imageFilesLoading} style={btnVariant('outline')}>{imageSyncing ? '⏳ Sync…' : '🖼 Images'}</button>
+        <button onClick={() => syncImages(false)} disabled={imageSyncing} style={btnVariant('outline')}>{imageSyncing ? '⏳ Sync…' : '🖼 Images'}</button>
         <button onClick={() => { loadAllClients(); setShowDuplicate(true) }} style={btnVariant('outline')}>📋 Dupliquer</button>
         {cycleMode === 'current' && <button onClick={loadHistory} style={btnVariant('ghost')}>🗂 Historique</button>}
         <button onClick={() => fetchAthleteLogs()} style={btnVariant('ghost')} title="Rafraîchir les logs athlète">🔄</button>
