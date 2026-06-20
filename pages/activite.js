@@ -47,7 +47,8 @@ export default function ActivitePage() {
   useEffect(() => {
     const init = async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data: refreshData } = await supabase.auth.refreshSession()
+        const data = refreshData
         const currentUser = data.session?.user
         if (!currentUser) { router.push('/login'); return }
         setUser(currentUser)
