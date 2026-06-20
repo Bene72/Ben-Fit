@@ -168,24 +168,19 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setActivating(false)
   }
 
-  // ── Images d'exercices (fetch après que la session soit dispo) ──
+  // ── Images d'exercices ───────────────────────────────────────
   const fetchImageFiles = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) return
-      const r = await fetch('/api/exercise-images', { headers: { Authorization: `Bearer ${token}` } })
+      const r = await fetch('/api/exercise-images')
       if (!r.ok) return
       const d = await r.json()
       const files = (d.files || []).filter(Boolean).sort((a, b) => a.localeCompare(b, 'fr'))
       setExerciseImageFiles(files)
-      setImageFilesLoading(false)
     } catch {}
+    setImageFilesLoading(false)
   }
 
-  useEffect(() => {
-    if (clientId) fetchImageFiles()
-  }, [clientId]) // eslint-disable-line
+  useEffect(() => { fetchImageFiles() }, []) // eslint-disable-line
 
   // ── Picker d'exercice ──────────────────────────────────────
   const [exPicker, setExPicker]         = useState(null)
