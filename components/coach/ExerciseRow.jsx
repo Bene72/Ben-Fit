@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ci } from '../../lib/coachUtils'
+import { ci } from '../../lib/coachShared'
 
 export default function ExRow({ 
   ex, 
