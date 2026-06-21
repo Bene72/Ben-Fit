@@ -44,6 +44,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [allClients, setAllClients]         = useState([])
   const [showHistory, setShowHistory]       = useState(false)
   const [archivedWorkouts, setArchivedWorkouts] = useState([])
+  const [openArchivedCycle, setOpenArchivedCycle] = useState(null)
   const [archiving, setArchiving]           = useState(false)
   const [cycleName, setCycleName]           = useState('')
   const [exporting, setExporting]           = useState(false)
@@ -392,7 +393,34 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .eq('client_id', clientId).eq('is_archived', true).order('archived_at', { ascending: false })
     setArchivedWorkouts(data || [])
     setShowHistory(true)
+    setOpenArchivedCycle(null)
   }
+
+  // ── Groupement des séances archivées par cycle ──────────────
+  const archivedCycles = (() => {
+    const groups = {}
+    const order = []
+    archivedWorkouts.forEach(w => {
+      const key = w.cycle_name && w.cycle_name.trim()
+        ? w.cycle_name.trim()
+        : `__sans_nom_${w.archived_at ? w.archived_at.slice(0, 10) : 'inconnu'}`
+      if (!groups[key]) {
+        groups[key] = {
+          key,
+          name: w.cycle_name && w.cycle_name.trim() ? w.cycle_name.trim() : 'Cycle sans nom',
+          archivedAt: w.archived_at || null,
+          workouts: [],
+        }
+        order.push(key)
+      }
+      groups[key].workouts.push(w)
+      // Garder la date d'archivage la plus récente du groupe pour le tri/affichage
+      if (w.archived_at && (!groups[key].archivedAt || w.archived_at > groups[key].archivedAt)) {
+        groups[key].archivedAt = w.archived_at
+      }
+    })
+    return order.map(k => groups[k])
+  })()
 
   // ── Duplication ────────────────────────────────────────────
   const loadAllClients = async () => {
@@ -879,22 +907,58 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 600, maxHeight: '80vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, color: '#0D1B4E' }}>Historique des cycles</h3>
+              <h3 style={{ margin: 0, color: '#0D1B4E' }}>
+                {openArchivedCycle
+                  ? <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => setOpenArchivedCycle(null)} style={{ ...btnVariant('ghost'), fontSize: 13, padding: '4px 8px' }}>← Cycles</button>
+                      <span>{archivedCycles.find(c => c.key === openArchivedCycle)?.name}</span>
+                    </span>
+                  : 'Historique des cycles'}
+              </h3>
               <button onClick={() => setShowHistory(false)} style={btnVariant('ghost')}>✕ Fermer</button>
             </div>
-            {archivedWorkouts.length === 0
-              ? <div style={{ color: '#9BA8C0', textAlign: 'center', padding: '20px 0' }}>Aucun cycle archivé</div>
-              : archivedWorkouts.map(w => (
-                <div key={w.id} style={{ marginBottom: 10, padding: '10px 14px', background: '#F5F7FF', borderRadius: 10, border: '1px solid #E0E6F0' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>{w.name}</div>
-                  <div style={{ fontSize: 12, color: '#6B7A99' }}>
-                    {w.cycle_name && <span>{w.cycle_name} · </span>}
-                    {DAYS_FR[(w.day_of_week || 1) - 1]} · {(w.exercises || []).length} exercice(s)
-                    {w.archived_at && <span> · archivé le {new Date(w.archived_at).toLocaleDateString('fr-FR')}</span>}
+
+            {archivedCycles.length === 0 ? (
+              <div style={{ color: '#9BA8C0', textAlign: 'center', padding: '20px 0' }}>Aucun cycle archivé</div>
+            ) : !openArchivedCycle ? (
+              // ── Vue liste des cycles ──
+              archivedCycles.map(cycle => (
+                <button key={cycle.key} onClick={() => setOpenArchivedCycle(cycle.key)}
+                  style={{ width: '100%', textAlign: 'left', marginBottom: 10, padding: '12px 14px', background: '#F5F7FF', borderRadius: 10, border: '1px solid #E0E6F0', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>🗂 {cycle.name}</div>
+                    <div style={{ fontSize: 12, color: '#6B7A99', marginTop: 2 }}>
+                      {cycle.workouts.length} séance{cycle.workouts.length > 1 ? 's' : ''}
+                      {cycle.archivedAt && <span> · archivé le {new Date(cycle.archivedAt).toLocaleDateString('fr-FR')}</span>}
+                    </div>
                   </div>
-                </div>
+                  <span style={{ fontSize: 16, color: '#9BA8C0' }}>›</span>
+                </button>
               ))
-            }
+            ) : (
+              // ── Vue détail des séances d'un cycle ──
+              archivedCycles.find(c => c.key === openArchivedCycle)?.workouts
+                .slice()
+                .sort((a, b) => (a.day_of_week || 0) - (b.day_of_week || 0))
+                .map(w => (
+                  <div key={w.id} style={{ marginBottom: 10, padding: '10px 14px', background: '#F5F7FF', borderRadius: 10, border: '1px solid #E0E6F0' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>{w.name}</div>
+                    <div style={{ fontSize: 12, color: '#6B7A99', marginBottom: (w.exercises || []).length ? 8 : 0 }}>
+                      {DAYS_FR[(w.day_of_week || 1) - 1]} · {(w.exercises || []).length} exercice{(w.exercises || []).length > 1 ? 's' : ''}
+                    </div>
+                    {(w.exercises || [])
+                      .slice()
+                      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                      .map(ex => (
+                        <div key={ex.id} style={{ fontSize: 12, color: '#0D1B4E', padding: '4px 0', borderTop: '1px solid #E8ECF7', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <span>{ex.name}</span>
+                          <span style={{ color: '#6B7A99', flexShrink: 0 }}>{ex.sets} × {ex.reps}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                ))
+            )}
           </div>
         </div>
       )}
