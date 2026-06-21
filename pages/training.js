@@ -188,6 +188,40 @@ function hasLogsOnDate(date, logsByExerciseName) {
   )
 }
 
+// ── Annotations calendrier (coach + client) ─────────────────────
+async function loadCalendarNotes(clientId) {
+  const { data, error } = await supabase
+    .from('calendar_notes')
+    .select('*')
+    .eq('client_id', clientId)
+  if (error) { console.warn('calendar_notes fetch error:', error.message); return {} }
+  const byDate = {}
+  ;(data || []).forEach(row => { byDate[row.note_date] = row })
+  return byDate
+}
+
+async function upsertCalendarNote({ clientId, dateStr, text, authorId }) {
+  const { data, error } = await supabase
+    .from('calendar_notes')
+    .upsert(
+      { client_id: clientId, note_date: dateStr, note: text, updated_by: authorId, updated_at: new Date().toISOString() },
+      { onConflict: 'client_id,note_date' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+async function deleteCalendarNote({ clientId, dateStr }) {
+  const { error } = await supabase
+    .from('calendar_notes')
+    .delete()
+    .eq('client_id', clientId)
+    .eq('note_date', dateStr)
+  if (error) throw error
+}
+
 export default function TrainingPage() {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
@@ -212,6 +246,12 @@ export default function TrainingPage() {
   // ── Calendrier ─────────────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0)
 
+  // ── Annotations calendrier (deload, bilan, notes libres...) ──
+  const [calendarNotes, setCalendarNotes] = useState({}) // { 'YYYY-MM-DD': { id, note, ... } }
+  const [noteDraft, setNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false)
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 980)
     handleResize()
@@ -233,12 +273,15 @@ export default function TrainingPage() {
         setUser(currentUser)
 
         // Charger les workouts actifs et les logs en parallèle
-        const [{ data: workoutData, error: workoutError }, logsData] = await Promise.all([
+        const [{ data: workoutData, error: workoutError }, logsData, notesData] = await Promise.all([
           supabase.from('workouts').select('*, exercises(*)').eq('client_id', currentUser.id).eq('is_archived', false).order('day_of_week', { ascending: true }),
           loadLogsForClient(currentUser.id),
+          loadCalendarNotes(currentUser.id),
         ])
 
         if (workoutError) throw workoutError
+        if (!active) return
+        setCalendarNotes(notesData || {})
 
         // Charger le profil pour récupérer le nom du cycle actuel + le prénom
         const { data: profileData } = await supabase
@@ -349,8 +392,62 @@ export default function TrainingPage() {
     else setSelectedExerciseId(null)
   }
 
+  function selectCalDay(dateStr) {
+    setSelectedCalDay((prev) => (prev === dateStr ? null : dateStr))
+    setNoteEditorOpen(false)
+    setNoteDraft('')
+  }
+
   function onLogInput(exerciseId, field, value) {
     setLogInputs((prev) => ({ ...prev, [exerciseId]: { ...(prev[exerciseId] || {}), [field]: value } }))
+  }
+
+  // ── Annotations calendrier ───────────────────────────────────
+  function openNoteEditor(dateStr) {
+    setNoteDraft(calendarNotes[dateStr]?.note || '')
+    setNoteEditorOpen(true)
+  }
+
+  function closeNoteEditor() {
+    setNoteEditorOpen(false)
+    setNoteDraft('')
+  }
+
+  async function saveNote(dateStr) {
+    if (!dateStr) return
+    const trimmed = noteDraft.trim()
+    if (!trimmed) { await removeNote(dateStr); return }
+    setSavingNote(true)
+    setError('')
+    try {
+      const row = await upsertCalendarNote({ clientId: user.id, dateStr, text: trimmed, authorId: user.id })
+      setCalendarNotes((prev) => ({ ...prev, [dateStr]: row }))
+      setNoteEditorOpen(false)
+    } catch (e) {
+      setError(e.message || "Impossible d'enregistrer l'annotation")
+    } finally {
+      setSavingNote(false)
+    }
+  }
+
+  async function removeNote(dateStr) {
+    if (!dateStr) return
+    setSavingNote(true)
+    setError('')
+    try {
+      await deleteCalendarNote({ clientId: user.id, dateStr })
+      setCalendarNotes((prev) => {
+        const next = { ...prev }
+        delete next[dateStr]
+        return next
+      })
+      setNoteDraft('')
+      setNoteEditorOpen(false)
+    } catch (e) {
+      setError(e.message || "Impossible de supprimer l'annotation")
+    } finally {
+      setSavingNote(false)
+    }
   }
 
   async function logPerformance(exercise) {
@@ -484,12 +581,13 @@ export default function TrainingPage() {
                       const isSelected = dateStr === selectedCalDay
                       const hasWorkout = !!(workoutByJsDay[jsDay]?.length)
                       const hasLogs = hasLogsOnDate(day, logsByExerciseName)
+                      const hasNote = !!calendarNotes[dateStr]
                       const isPast = day < new Date(todayStr)
 
                       return (
                         <button key={dateStr} onClick={() => {
-                          setSelectedCalDay(isSelected ? null : dateStr)
-                          if (!isSelected && workoutByJsDay[jsDay]?.length) {
+                          selectCalDay(dateStr)
+                          if (dateStr !== selectedCalDay && workoutByJsDay[jsDay]?.length) {
                             openSession(workoutByJsDay[jsDay][0].id)
                           }
                         }}
@@ -499,7 +597,11 @@ export default function TrainingPage() {
                             background: isSelected ? '#2C64E5' : isToday ? '#EEF4FF' : 'transparent',
                             transition: 'all 0.15s',
                             fontFamily: "'DM Sans',sans-serif",
+                            position: 'relative',
                           }}>
+                          {hasNote && (
+                            <span style={{ position: 'absolute', top: 2, right: 4, fontSize: 9, lineHeight: 1 }} title="Annotation">📌</span>
+                          )}
                           <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: isSelected ? 'rgba(255,255,255,0.75)' : '#6B7A99' }}>
                             {DAY_LABELS_SHORT[jsDay]}
                           </span>
@@ -515,15 +617,66 @@ export default function TrainingPage() {
                     })}
                   </div>
 
-                  <div style={{ display: 'flex', gap: 14, padding: '0 16px 12px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: 14, padding: '0 16px 12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7A99' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#2C64E5' }} /> Séance programmée
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7A99' }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3A7A5A' }} /> Entraînement logué ✓
                     </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7A99' }}>
+                      📌 Annotation
+                    </div>
                   </div>
                 </div>
+
+                {/* ── ANNOTATION DU JOUR SÉLECTIONNÉ ── */}
+                {selectedCalDay && (
+                  <div style={{ background: 'white', borderRadius: 12, padding: '12px 14px', border: '1.5px solid #F0B848' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: noteEditorOpen || calendarNotes[selectedCalDay] ? 8 : 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#B8860B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        📌 Annotation
+                      </div>
+                      {!noteEditorOpen && (
+                        <button onClick={() => openNoteEditor(selectedCalDay)} style={{ background: 'transparent', border: 'none', color: '#2C64E5', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          {calendarNotes[selectedCalDay] ? '✏️ Modifier' : '+ Ajouter une note'}
+                        </button>
+                      )}
+                    </div>
+
+                    {noteEditorOpen ? (
+                      <div>
+                        <textarea
+                          autoFocus
+                          value={noteDraft}
+                          onChange={(e) => setNoteDraft(e.target.value)}
+                          placeholder="Ex: Semaine de deload, bilan mensuel, départ en vacances…"
+                          rows={3}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: 8, border: '1px solid #DCE5F3', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif", resize: 'vertical', marginBottom: 8 }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button onClick={() => saveNote(selectedCalDay)} disabled={savingNote} style={{ border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
+                            {savingNote ? '…' : '✓ Enregistrer'}
+                          </button>
+                          {calendarNotes[selectedCalDay] && (
+                            <button onClick={() => removeNote(selectedCalDay)} disabled={savingNote} style={{ border: '1px solid #E3B0B0', background: 'white', color: '#B42318', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
+                              🗑 Supprimer
+                            </button>
+                          )}
+                          <button onClick={closeNoteEditor} style={{ border: 'none', background: 'transparent', color: '#6B7A99', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      calendarNotes[selectedCalDay] && (
+                        <div style={{ fontSize: 13, color: '#0D1B4E', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                          {calendarNotes[selectedCalDay].note}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
 
                 {/* ── SÉANCES DU JOUR SÉLECTIONNÉ ── */}
                 {selectedCalDay && calDayWorkouts.length > 0 && (
