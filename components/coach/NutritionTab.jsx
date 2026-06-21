@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ci, inp, lbl, btn } from '../../lib/coachHelpers'
+import { ci, inp, lbl, btn } from '../../lib/coachShared'
 
 // Constantes
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
