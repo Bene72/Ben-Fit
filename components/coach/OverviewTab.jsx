@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, inp, lbl, ci } from '../../lib/coachHelpers'
+import { btn, inp, lbl, ci } from '../../lib/coachShared'
 
 export default function OverviewTab({ client, sessionsThisWeek, lastWeight, coachId, onUpdate }) {
   const [editing, setEditing] = useState(false)
