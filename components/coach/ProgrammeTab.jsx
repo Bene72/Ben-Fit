@@ -54,6 +54,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [activating, setActivating]         = useState(false)
   const [currentCycleName, setCurrentCycleName]   = useState('')
   const [savingCycleName, setSavingCycleName]     = useState(false)
+  const [renamingWorkout, setRenamingWorkout]     = useState(null)
+  const [renameValue, setRenameValue]             = useState('')
+  const [reordering, setReordering]               = useState(false)
 
   const displayedWorkouts = cycleMode === 'future' ? futureWorkouts : workouts
 
@@ -115,11 +118,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const { data: wData } = await supabase
       .from('workouts').select('*')
       .eq('client_id', clientId).eq('is_archived', false).eq('is_future', false)
+      .order('order_index', { ascending: true, nullsFirst: false })
       .order('day_of_week')
 
     const { data: fData } = await supabase
       .from('workouts').select('*')
       .eq('client_id', clientId).eq('is_archived', false).eq('is_future', true)
+      .order('order_index', { ascending: true, nullsFirst: false })
       .order('day_of_week')
 
     const [current, future] = await Promise.all([
@@ -286,7 +291,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const addWorkout = async () => {
     if (!newW.name.trim()) return
     const isFuture = cycleMode === 'future'
-    const { data } = await supabase.from('workouts').insert({ ...newW, client_id: clientId, is_future: isFuture }).select().single()
+    const list = isFuture ? futureWorkouts : workouts
+    const nextOrder = list.reduce((max, w) => Math.max(max, w.order_index ?? 0), 0) + 1
+    const { data } = await supabase.from('workouts').insert({ ...newW, client_id: clientId, is_future: isFuture, order_index: nextOrder }).select().single()
     if (data) {
       const setter = isFuture ? setFutureWorkouts : setWorkouts
       setter(prev => [...prev, { ...data, exercises: [] }])
@@ -309,6 +316,53 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
     setter(prev => prev.map(w => w.id === workoutId ? { ...w, day_of_week: +newDay } : w))
   }
+
+  // ── Réordonnancement libre des séances ─────────────────────
+  const moveWorkout = async (workoutId, direction) => {
+    const list   = cycleMode === 'future' ? futureWorkouts : workouts
+    const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
+    const idx = list.findIndex(w => w.id === workoutId)
+    const newIdx = idx + direction
+    if (idx === -1 || newIdx < 0 || newIdx >= list.length) return
+    const w1 = list[idx], w2 = list[newIdx]
+    // S'assurer que chaque séance a un order_index défini (repli sur sa position actuelle)
+    const order1 = w1.order_index ?? idx
+    const order2 = w2.order_index ?? newIdx
+    const newList = [...list]
+    newList[idx] = { ...w2, order_index: order1 }
+    newList[newIdx] = { ...w1, order_index: order2 }
+    setter(newList)
+    setReordering(true)
+    try {
+      await Promise.all([
+        supabase.from('workouts').update({ order_index: order2 }).eq('id', w1.id),
+        supabase.from('workouts').update({ order_index: order1 }).eq('id', w2.id),
+      ])
+    } catch (e) {
+      console.error('Erreur réordonnancement séance:', e)
+    }
+    setReordering(false)
+  }
+
+  // ── Renommage inline des séances (double-clic) ─────────────
+  const startRenameWorkout = (workoutId, currentName) => {
+    setRenamingWorkout(workoutId)
+    setRenameValue(currentName || '')
+  }
+
+  const confirmRenameWorkout = async (workoutId) => {
+    const trimmed = renameValue.trim()
+    setRenamingWorkout(null)
+    if (!trimmed) return
+    const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
+    const current = (cycleMode === 'future' ? futureWorkouts : workouts).find(w => w.id === workoutId)
+    if (current && current.name === trimmed) return
+    setter(prev => prev.map(w => w.id === workoutId ? { ...w, name: trimmed } : w))
+    const { error } = await supabase.from('workouts').update({ name: trimmed }).eq('id', workoutId)
+    if (error) console.error('Erreur renommage séance:', error.message)
+  }
+
+  const cancelRenameWorkout = () => setRenamingWorkout(null)
 
   // ── Cycle (actuel seulement) ───────────────────────────────
   const saveCurrentCycleName = async () => {
@@ -608,17 +662,46 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       )}
 
       {/* ── Liste des séances ── */}
-      {displayedWorkouts.map(workout => {
+      {displayedWorkouts.map((workout, wIdx) => {
         const isOpen = openWorkout === workout.id
         const isEdit = editMode === workout.id
+        const isRenaming = renamingWorkout === workout.id
         return (
           <div key={workout.id} style={{ marginBottom: 12, background: 'white', borderRadius: 14, border: `1.5px solid ${cycleMode === 'future' ? '#A0B8F0' : '#E0E6F0'}`, overflow: 'hidden', boxShadow: isOpen ? '0 4px 20px rgba(13,27,78,0.08)' : 'none' }}>
 
-            <div onClick={() => setOpenWorkout(isOpen ? null : workout.id)}
-              style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', background: isOpen ? (cycleMode === 'future' ? '#EEF4FF' : '#F0F4FF') : 'white', transition: 'background 0.15s' }}>
+            <div onClick={() => { if (!isRenaming) setOpenWorkout(isOpen ? null : workout.id) }}
+              style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: isRenaming ? 'default' : 'pointer', background: isOpen ? (cycleMode === 'future' ? '#EEF4FF' : '#F0F4FF') : 'white', transition: 'background 0.15s' }}>
+
+              {/* ── Flèches réordonnancement ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 10 }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => moveWorkout(workout.id, -1)} disabled={wIdx === 0 || reordering}
+                  title="Monter la séance"
+                  style={{ border: 'none', background: 'transparent', cursor: wIdx === 0 ? 'default' : 'pointer', color: wIdx === 0 ? '#D5DCEC' : '#6B7A99', fontSize: 12, padding: 2, lineHeight: 1 }}>▲</button>
+                <button onClick={() => moveWorkout(workout.id, 1)} disabled={wIdx === displayedWorkouts.length - 1 || reordering}
+                  title="Descendre la séance"
+                  style={{ border: 'none', background: 'transparent', cursor: wIdx === displayedWorkouts.length - 1 ? 'default' : 'pointer', color: wIdx === displayedWorkouts.length - 1 ? '#D5DCEC' : '#6B7A99', fontSize: 12, padding: 2, lineHeight: 1 }}>▼</button>
+              </div>
+
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0D1B4E', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {workout.name}
+                  {isRenaming ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onBlur={() => confirmRenameWorkout(workout.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); confirmRenameWorkout(workout.id) }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelRenameWorkout() }
+                      }}
+                      style={{ ...inp, padding: '4px 8px', fontSize: 15, fontWeight: 700, maxWidth: 280 }}
+                    />
+                  ) : (
+                    <span onDoubleClick={e => { e.stopPropagation(); startRenameWorkout(workout.id, workout.name) }} title="Double-clic pour renommer">
+                      {workout.name}
+                    </span>
+                  )}
                   {cycleMode === 'future' && <span style={{ fontSize: 10, background: '#4A6FD4', color: 'white', padding: '2px 7px', borderRadius: 20, fontWeight: 700 }}>FUTUR</span>}
                 </div>
                 <div style={{ fontSize: 12, color: '#6B7A99', marginTop: 2 }}>
