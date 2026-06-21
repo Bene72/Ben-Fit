@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachHelpers'
+import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
 
