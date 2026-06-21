@@ -22,7 +22,6 @@ export default async function handler(req, res) {
     const token = authHeader.replace('Bearer ', '')
     const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token)
     if (authErr || !caller) {
-      console.error('Erreur auth.getUser:', authErr)
       return res.status(401).json({ error: 'Session invalide' })
     }
 
@@ -33,16 +32,11 @@ export default async function handler(req, res) {
       .maybeSingle()
 
     if (profileLookupErr) {
-      console.error('Erreur lookup profil coach:', profileLookupErr, 'caller.id:', caller.id)
       return res.status(500).json({ error: `Impossible de vérifier le rôle coach: ${profileLookupErr.message}` })
     }
 
-    // 🔍 LOG DEBUG — à retirer après fix
-    console.log("DEBUG profil coach:", JSON.stringify(callerProfile), "| caller.id:", caller.id, "| caller.email:", caller.email)
-
     if (callerProfile?.role !== 'coach') {
-      console.error('Rôle insuffisant:', callerProfile?.role, 'pour user', caller.id, caller.email)
-      return res.status(403).json({ error: `Réservé aux coachs`, debug: { role: callerProfile?.role ?? 'PROFIL INTROUVABLE', userId: caller.id } })
+      return res.status(403).json({ error: 'Réservé aux coachs' })
     }
 
     // ── 2. Validation des champs ──────────────────────────────────────────
@@ -58,7 +52,7 @@ export default async function handler(req, res) {
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // pas besoin de confirmation email pour un compte créé par le coach
+      email_confirm: true,
     })
     if (createErr) {
       return res.status(400).json({ error: createErr.message })
