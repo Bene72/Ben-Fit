@@ -166,6 +166,18 @@ function getWeekDays(offset = 0) {
   })
 }
 
+/** Nombre maximum de semaines qu'on peut avancer dans le futur (limite : aujourd'hui + 2 mois) */
+function getMaxFutureWeekOffset() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const limit = new Date(today)
+  limit.setMonth(limit.getMonth() + 2)
+  const mondayToday = getMondayOf(today)
+  const mondayLimit = getMondayOf(limit)
+  const diffWeeks = Math.round((mondayLimit - mondayToday) / (7 * 24 * 60 * 60 * 1000))
+  return diffWeeks
+}
+
 /** Mappe day_of_week (1=Lun…7=Dim) vers getDay() JS (0=Dim…6=Sam) */
 function dowToJS(dow) {
   return dow === 7 ? 0 : dow
@@ -250,7 +262,6 @@ export default function TrainingPage() {
   const [calendarNotes, setCalendarNotes] = useState({}) // { 'YYYY-MM-DD': { id, note, ... } }
   const [noteDraft, setNoteDraft] = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const [noteEditorOpen, setNoteEditorOpen] = useState(false)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 980)
@@ -353,7 +364,8 @@ export default function TrainingPage() {
   const exerciseBlocks = useMemo(() => (currentWorkout ? buildExerciseGroups(currentWorkout.exercises) : []), [currentWorkout])
 
   // ── Calendrier calculé ─────────────────────────────────────
-  const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset])
+  const maxWeekOffset = useMemo(() => getMaxFutureWeekOffset(), [])
+  const weekDays = useMemo(() => getWeekDays(Math.min(weekOffset, maxWeekOffset)), [weekOffset, maxWeekOffset])
   const todayStr = useMemo(() => getTodayLocalString(), [])
 
   const workoutByJsDay = useMemo(() => {
@@ -393,9 +405,11 @@ export default function TrainingPage() {
   }
 
   function selectCalDay(dateStr) {
-    setSelectedCalDay((prev) => (prev === dateStr ? null : dateStr))
-    setNoteEditorOpen(false)
-    setNoteDraft('')
+    setSelectedCalDay((prev) => {
+      const next = prev === dateStr ? null : dateStr
+      setNoteDraft(next ? (calendarNotes[next]?.note || '') : '')
+      return next
+    })
   }
 
   function onLogInput(exerciseId, field, value) {
@@ -403,16 +417,6 @@ export default function TrainingPage() {
   }
 
   // ── Annotations calendrier ───────────────────────────────────
-  function openNoteEditor(dateStr) {
-    setNoteDraft(calendarNotes[dateStr]?.note || '')
-    setNoteEditorOpen(true)
-  }
-
-  function closeNoteEditor() {
-    setNoteEditorOpen(false)
-    setNoteDraft('')
-  }
-
   async function saveNote(dateStr) {
     if (!dateStr) return
     const trimmed = noteDraft.trim()
@@ -422,7 +426,8 @@ export default function TrainingPage() {
     try {
       const row = await upsertCalendarNote({ clientId: user.id, dateStr, text: trimmed, authorId: user.id })
       setCalendarNotes((prev) => ({ ...prev, [dateStr]: row }))
-      setNoteEditorOpen(false)
+      setSelectedCalDay(null)
+      setNoteDraft('')
     } catch (e) {
       setError(e.message || "Impossible d'enregistrer l'annotation")
     } finally {
@@ -442,7 +447,7 @@ export default function TrainingPage() {
         return next
       })
       setNoteDraft('')
-      setNoteEditorOpen(false)
+      setSelectedCalDay(null)
     } catch (e) {
       setError(e.message || "Impossible de supprimer l'annotation")
     } finally {
@@ -570,7 +575,8 @@ export default function TrainingPage() {
                       {weekOffset === 0 ? '📍 Cette semaine' : weekOffset === -1 ? 'Semaine passée' : weekOffset === 1 ? 'Semaine prochaine' : weekLabel(weekDays)}
                       <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 400, marginTop: 1 }}>{weekLabel(weekDays)}</div>
                     </div>
-                    <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+                    <button onClick={() => setWeekOffset(w => Math.min(w + 1, maxWeekOffset))} disabled={weekOffset >= maxWeekOffset}
+                      style={{ background: weekOffset >= maxWeekOffset ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)', border: 'none', color: weekOffset >= maxWeekOffset ? 'rgba(255,255,255,0.3)' : 'white', width: 30, height: 30, borderRadius: 8, cursor: weekOffset >= maxWeekOffset ? 'not-allowed' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '10px 8px 12px', gap: 4 }}>
@@ -633,48 +639,30 @@ export default function TrainingPage() {
                 {/* ── ANNOTATION DU JOUR SÉLECTIONNÉ ── */}
                 {selectedCalDay && (
                   <div style={{ background: 'white', borderRadius: 12, padding: '12px 14px', border: '1.5px solid #F0B848' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: noteEditorOpen || calendarNotes[selectedCalDay] ? 8 : 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#B8860B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        📌 Annotation
-                      </div>
-                      {!noteEditorOpen && (
-                        <button onClick={() => openNoteEditor(selectedCalDay)} style={{ background: 'transparent', border: 'none', color: '#2C64E5', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          {calendarNotes[selectedCalDay] ? '✏️ Modifier' : '+ Ajouter une note'}
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#B8860B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                      📌 Annotation — {new Date(selectedCalDay + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                    </div>
+                    <textarea
+                      autoFocus
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      placeholder="Ex: Semaine de deload, bilan mensuel, départ en vacances…"
+                      rows={3}
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: 8, border: '1px solid #DCE5F3', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif", resize: 'vertical', marginBottom: 8 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button onClick={() => saveNote(selectedCalDay)} disabled={savingNote} style={{ border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
+                        {savingNote ? '…' : '✓ Enregistrer'}
+                      </button>
+                      {calendarNotes[selectedCalDay] && (
+                        <button onClick={() => removeNote(selectedCalDay)} disabled={savingNote} style={{ border: '1px solid #E3B0B0', background: 'white', color: '#B42318', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
+                          🗑 Supprimer
                         </button>
                       )}
+                      <button onClick={() => selectCalDay(selectedCalDay)} style={{ border: 'none', background: 'transparent', color: '#6B7A99', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                        Fermer
+                      </button>
                     </div>
-
-                    {noteEditorOpen ? (
-                      <div>
-                        <textarea
-                          autoFocus
-                          value={noteDraft}
-                          onChange={(e) => setNoteDraft(e.target.value)}
-                          placeholder="Ex: Semaine de deload, bilan mensuel, départ en vacances…"
-                          rows={3}
-                          style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: 8, border: '1px solid #DCE5F3', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif", resize: 'vertical', marginBottom: 8 }}
-                        />
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button onClick={() => saveNote(selectedCalDay)} disabled={savingNote} style={{ border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
-                            {savingNote ? '…' : '✓ Enregistrer'}
-                          </button>
-                          {calendarNotes[selectedCalDay] && (
-                            <button onClick={() => removeNote(selectedCalDay)} disabled={savingNote} style={{ border: '1px solid #E3B0B0', background: 'white', color: '#B42318', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: savingNote ? 'not-allowed' : 'pointer' }}>
-                              🗑 Supprimer
-                            </button>
-                          )}
-                          <button onClick={closeNoteEditor} style={{ border: 'none', background: 'transparent', color: '#6B7A99', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                            Annuler
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      calendarNotes[selectedCalDay] && (
-                        <div style={{ fontSize: 13, color: '#0D1B4E', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                          {calendarNotes[selectedCalDay].note}
-                        </div>
-                      )
-                    )}
                   </div>
                 )}
 
