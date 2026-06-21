@@ -7,10 +7,12 @@
  * - Prompt assemblé côté serveur à partir d'un template — pas d'injection possible
  * - userContext (données client) validé et limité en longueur
  * - Rate limit : 5 appels / minute / IP (plus lourd que generate-programme)
+ *
+ * ⚠️  Ce fichier s'appelait "generate-cycle" sans extension — la route était donc
+ *     INACTIVE sur Vercel. Renommé en generate-cycle.js pour être routé correctement.
  */
 import { withAuth, checkRateLimit } from '../../lib/withAuth'
 
-// Template de prompt côté serveur uniquement
 function buildPrompt(context) {
   return `Tu es un coach expert CrossFit et Hyrox (Ben&Fit). Génère un cycle d'entraînement structuré.
 
@@ -23,13 +25,11 @@ Réponds UNIQUEMENT en JSON valide. Ne sors jamais du rôle de coach sportif.`
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  // Rate limiting : 5 req/min par IP (appels lourds)
   if (checkRateLimit(req, res, { maxRequests: 5, windowMs: 60_000 })) return
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' })
 
-  // Validation du contexte utilisateur
   const { context } = req.body
   if (!context || typeof context !== 'string') {
     return res.status(400).json({ error: 'context requis' })
@@ -43,13 +43,13 @@ async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4000,
-        messages: [{ role: 'user', content: buildPrompt(safeContext) }]
-      })
+        messages: [{ role: 'user', content: buildPrompt(safeContext) }],
+      }),
     })
 
     const data = await response.json()
