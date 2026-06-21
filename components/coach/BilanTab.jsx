@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { BILAN_ITEMS, getMondayOfWeek, getWeekLabel } from '../../lib/coachHelpers'
+import { BILAN_ITEMS, getMondayOfWeek, getWeekLabel } from '../../lib/coachShared'
 
 function BilanTab({ clientId, clientName, coachId }) {
   const [bilans, setBilans] = useState([])
