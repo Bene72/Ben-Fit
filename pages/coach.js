@@ -1,32 +1,448 @@
-// pages/coach.js
+// pages/coach.js  — Ben&Fit Dashboard avec données Supabase réelles
+'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import AppShell from '../components/ui/AppShell'
 
-export default function CoachPage() {
-  const router = useRouter()
-  const [user, setUser] = useState(null)
-  const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [isMobile, setIsMobile] = useState(false)
-  
-  // États pour la création
-  const [showCreate, setShowCreate] = useState(false)
+// ─── OFFRES ───────────────────────────────────────────────────────────────────
+
+const OFFERS = {
+  essentia_plus: {
+    id: 'essentia_plus',
+    name: 'Essentia Plus',
+    price: 249,
+    color: '#C8A95A',
+    badge: '⚡',
+    features: ['Suivi nutrition personnalisé', 'Programme training sur mesure', 'Bilan hebdomadaire', 'Messages illimités', 'Accès app Ben&Fit'],
+  },
+  tutto_bene: {
+    id: 'tutto_bene',
+    name: 'Tutto Bene',
+    price: 149,
+    color: '#4A6FD4',
+    badge: '🔥',
+    features: ['Programme training sur mesure', 'Bilan mensuel', 'Messages inclus', 'Accès app Ben&Fit'],
+  },
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+
+const S = {
+  navy:   '#0D1B4E',
+  gold:   '#C8A95A',
+  bg:     '#F0F2F8',
+  card:   '#FFFFFF',
+  border: '#E2E6F0',
+  muted:  '#6B7A99',
+  green:  '#3A8A5A',
+  red:    '#C45C3A',
+  blue:   '#2C64E5',
+}
+
+const font  = "'DM Sans', system-ui, sans-serif"
+const bebas = "'Bebas Neue', 'DM Sans', sans-serif"
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function complianceColor(v) {
+  if (v >= 80) return S.green
+  if (v >= 55) return '#C8A95A'
+  return S.red
+}
+
+function daysAgo(dateStr) {
+  if (!dateStr) return '—'
+  const diff = Math.floor((new Date() - new Date(dateStr)) / 86400000)
+  if (diff === 0) return "Aujourd'hui"
+  if (diff === 1) return 'Hier'
+  return `Il y a ${diff}j`
+}
+
+function buildCalendar(year, month) {
+  const first = new Date(year, month, 1).getDay()
+  const days  = new Date(year, month + 1, 0).getDate()
+  const start = first === 0 ? 6 : first - 1
+  return Array.from({ length: start + days }, (_, i) =>
+    i < start ? null : i - start + 1
+  )
+}
+
+// Transforme un profil Supabase en objet client dashboard
+function toClientModel(profile) {
+  const nameRaw = profile.full_name || profile.name || profile.email || 'Inconnu'
+  const initials = nameRaw.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'
+  return {
+    id:          profile.id,
+    name:        nameRaw,
+    avatar:      initials,
+    email:       profile.email || '',
+    offer:       profile.offer || 'tutto_bene',
+    status:      profile.status || 'actif',
+    since:       profile.created_at ? profile.created_at.split('T')[0] : '',
+    nextPayment: profile.next_payment || null,
+    balance:     profile.balance || 0,
+    weight:      profile.weight || null,
+    weightGoal:  profile.weight_goal || null,
+    compliance:  profile.compliance ?? 0,
+    lastBilan:   profile.last_bilan || null,
+    program:     profile.current_program || '—',
+    messages:    profile.unread_messages || 0,
+    objective:   profile.objective || '',
+    height:      profile.height || null,
+    // données brutes pour mise à jour
+    _raw: profile,
+  }
+}
+
+// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+
+function Avatar({ initials, size = 36, color = S.navy }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: bebas, fontSize: size * 0.38, letterSpacing: 1, flexShrink: 0 }}>
+      {initials}
+    </div>
+  )
+}
+
+function KpiCard({ icon, label, value, sub, accent = S.navy, onClick }) {
+  return (
+    <div onClick={onClick} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '16px 18px', cursor: onClick ? 'pointer' : 'default', flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
+      <div style={{ fontFamily: bebas, fontSize: 28, color: accent, letterSpacing: 1, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: S.muted, marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function Badge({ text, color, bg }) {
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg || `${color}18`, color: color, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+      {text}
+    </span>
+  )
+}
+
+function ProgressBar({ value, color, height = 5 }) {
+  return (
+    <div style={{ height, background: '#EEF0F8', borderRadius: 99, overflow: 'hidden', width: '100%' }}>
+      <div style={{ width: `${Math.min(100, value)}%`, height: '100%', background: color, borderRadius: 99 }} />
+    </div>
+  )
+}
+
+function NavBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{ width: 26, height: 26, border: `1px solid ${S.border}`, borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.navy }}>
+      {children}
+    </button>
+  )
+}
+
+// ─── MODAL CRÉATION CLIENT ────────────────────────────────────────────────────
+
+function CreateClientModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({ email: '', password: '', full_name: '', objective: '', height: '', current_program: '', offer: 'tutto_bene' })
   const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
-  const [form, setForm] = useState({ 
-    email: '', 
-    password: '', 
-    full_name: '', 
-    objective: '', 
-    height: '', 
-    current_program: '' 
+  const [error, setError] = useState('')
+
+  const inpC = { width: '100%', padding: '10px 12px', border: `1.5px solid ${S.border}`, borderRadius: 9, fontSize: 14, fontFamily: font, background: '#FAF9F7', outline: 'none', color: S.navy, boxSizing: 'border-box' }
+  const lblC = { display: 'block', fontSize: 11, letterSpacing: '0.8px', textTransform: 'uppercase', color: S.muted, marginBottom: 5, fontWeight: 700 }
+
+  const createClient = async () => {
+    setError('')
+    if (!form.email || !form.password) { setError('Email et mot de passe obligatoires.'); return }
+    if (form.password.length < 6) { setError('Mot de passe : 6 caractères minimum.'); return }
+    setCreating(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/create-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify(form),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Erreur lors de la création')
+      onCreated(toClientModel(result.profile))
+      onClose()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div onClick={(e) => e.target === e.currentTarget && !creating && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,78,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: '28px 32px', width: '100%', maxWidth: 480, boxShadow: '0 24px 60px rgba(13,27,78,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>+ NOUVEL ÉLÈVE</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div><label style={lblC}>Email *</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="eleve@exemple.com" style={inpC} /></div>
+          <div><label style={lblC}>Mot de passe provisoire *</label><input type="text" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} /></div>
+          <div><label style={lblC}>Prénom / Nom</label><input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Camille Dupont" style={inpC} /></div>
+
+          <div>
+            <label style={lblC}>Offre</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {Object.values(OFFERS).map(o => (
+                <button key={o.id} onClick={() => setForm(p => ({ ...p, offer: o.id }))}
+                  style={{ flex: 1, padding: '10px', border: `2px solid ${form.offer === o.id ? o.color : S.border}`, borderRadius: 10, background: form.offer === o.id ? `${o.color}12` : 'white', cursor: 'pointer', fontFamily: font }}>
+                  <div style={{ fontSize: 16, marginBottom: 2 }}>{o.badge}</div>
+                  <div style={{ fontWeight: 800, color: S.navy, fontSize: 13 }}>{o.name}</div>
+                  <div style={{ fontSize: 12, color: S.muted }}>{o.price} €/m</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div><label style={lblC}>Taille (cm)</label><input type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))} placeholder="170" style={inpC} /></div>
+            <div><label style={lblC}>Programme</label><input value={form.current_program} onChange={e => setForm(p => ({ ...p, current_program: e.target.value }))} placeholder="Phase 1" style={inpC} /></div>
+          </div>
+          <div><label style={lblC}>Objectif</label><input value={form.objective} onChange={e => setForm(p => ({ ...p, objective: e.target.value }))} placeholder="Prise de masse…" style={inpC} /></div>
+
+          {error && <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: 9, padding: '10px 12px', color: S.red, fontSize: 13 }}>{error}</div>}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+            <button onClick={createClient} disabled={creating} style={{ flex: 1, padding: '11px 20px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: font, opacity: creating ? 0.7 : 1 }}>
+              {creating ? 'Création…' : '✓ Créer le compte'}
+            </button>
+            <button onClick={() => !creating && onClose()} style={{ padding: '11px 20px', background: 'transparent', color: S.muted, border: `1.5px solid ${S.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: font }}>Annuler</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── MODAL MODIFICATION OFFRE ─────────────────────────────────────────────────
+
+function OfferModal({ client, onClose, onSave }) {
+  const [form, setForm] = useState({
+    offer: client.offer,
+    price: OFFERS[client.offer]?.price || 149,
+    startDate: client.since,
+    nextPayment: client.nextPayment || '',
+    note: '',
   })
 
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,78,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'white', borderRadius: 20, padding: '28px 32px', width: '100%', maxWidth: 500, boxShadow: '0 24px 60px rgba(13,27,78,0.2)' }}>
+        <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MODIFIER L'OFFRE — {client.name.toUpperCase()}</div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+          {Object.values(OFFERS).map((o) => (
+            <button key={o.id} onClick={() => setForm((p) => ({ ...p, offer: o.id, price: o.price }))}
+              style={{ flex: 1, padding: '12px 10px', border: `2px solid ${form.offer === o.id ? o.color : S.border}`, borderRadius: 12, background: form.offer === o.id ? `${o.color}12` : 'white', cursor: 'pointer', fontFamily: font }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{o.badge}</div>
+              <div style={{ fontWeight: 800, color: S.navy, fontSize: 14 }}>{o.name}</div>
+              <div style={{ fontSize: 13, color: S.muted }}>{o.price} €/mois</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          {[['Tarif mensuel (€)', 'price', 'number'], ['Début contrat', 'startDate', 'date'], ['Prochain paiement', 'nextPayment', 'date']].map(([lbl, key, type]) => (
+            <div key={key}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', display: 'block', marginBottom: 4 }}>{lbl}</label>
+              <input type={type} value={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: `1px solid ${S.border}`, borderRadius: 8, fontSize: 13, fontFamily: font, outline: 'none' }} />
+            </div>
+          ))}
+          <div style={{ gridColumn: '1/-1' }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', display: 'block', marginBottom: 4 }}>Note interne</label>
+            <textarea value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} rows={2} placeholder="Ex : tarif fidélité, promo…"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: `1px solid ${S.border}`, borderRadius: 8, fontSize: 13, fontFamily: font, outline: 'none', resize: 'vertical' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 13, fontFamily: font }}>Annuler</button>
+          <button onClick={() => { onSave(client.id, form); onClose() }}
+            style={{ padding: '9px 18px', border: 'none', borderRadius: 9, background: S.navy, color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: font }}>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── VUE DÉTAIL CLIENT ────────────────────────────────────────────────────────
+
+function ClientDetail({ client, onBack, onEditOffer, onNavigate }) {
+  const offer = OFFERS[client.offer] || OFFERS['tutto_bene']
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+        <button onClick={onBack} style={{ border: 'none', background: 'transparent', color: S.muted, cursor: 'pointer', fontSize: 20, padding: 0, display: 'flex' }}>←</button>
+        <Avatar initials={client.avatar} size={48} color={offer.color} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 1 }}>{client.name.toUpperCase()}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Badge text={offer.name} color={offer.color} />
+            <Badge text={client.status} color={client.status === 'actif' ? S.green : S.red} />
+            {client.messages > 0 && <Badge text={`${client.messages} msg`} color={S.blue} />}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onEditOffer} style={{ padding: '8px 16px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: S.navy, fontFamily: font }}>
+            ✏️ Modifier l'offre
+          </button>
+          <button onClick={() => onNavigate(client.id)} style={{ padding: '8px 16px', border: 'none', borderRadius: 9, background: S.navy, color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: font }}>
+            Voir profil complet →
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <KpiCard icon="⚖️" label="Poids actuel" value={client.weight ? `${client.weight} kg` : '—'} sub={client.weightGoal ? `Objectif : ${client.weightGoal} kg` : 'Non renseigné'} accent={S.navy} />
+        <KpiCard icon="📊" label="Compliance" value={`${client.compliance}%`} sub="7 derniers jours" accent={complianceColor(client.compliance)} />
+        <KpiCard icon="📋" label="Dernier bilan" value={daysAgo(client.lastBilan)} sub={client.lastBilan || 'Jamais'} accent={S.navy} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {/* Financier */}
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>FINANCIER</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+            {[['Tarif', `${offer.price} €/m`], ['Solde', `${client.balance} €`], ['Prochain', client.nextPayment ? new Date(client.nextPayment).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '—']].map(([lbl, val]) => (
+              <div key={lbl} style={{ textAlign: 'center', background: '#F8FAFF', borderRadius: 10, padding: '10px 6px' }}>
+                <div style={{ fontFamily: bebas, fontSize: 20, color: client.balance < 0 && lbl === 'Solde' ? S.red : S.navy }}>{val}</div>
+                <div style={{ fontSize: 10, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+          {client.balance < 0 && (
+            <div style={{ padding: '8px 12px', background: '#FEF2F2', borderRadius: 8, border: '1px solid #F3C4C4', fontSize: 12, color: S.red, fontWeight: 600 }}>
+              ⚠️ Retard de paiement : {Math.abs(client.balance)} €
+            </div>
+          )}
+        </div>
+
+        {/* Programme */}
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>PROGRAMME ACTIF</div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: S.navy, marginBottom: 8 }}>{client.program}</div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
+              <span style={{ color: S.muted }}>Compliance semaine</span>
+              <span style={{ fontWeight: 700, color: complianceColor(client.compliance) }}>{client.compliance}%</span>
+            </div>
+            <ProgressBar value={client.compliance} color={complianceColor(client.compliance)} height={7} />
+          </div>
+          {client.since && <div style={{ fontSize: 12, color: S.muted }}>Depuis le {new Date(client.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>}
+          {client.objective && <div style={{ fontSize: 12, color: S.muted, marginTop: 4 }}>🎯 {client.objective}</div>}
+        </div>
+
+        {/* Offre souscrite */}
+        <div style={{ background: `${offer.color}0E`, border: `1.5px solid ${offer.color}44`, borderRadius: 14, padding: '18px 20px', gridColumn: '1/-1' }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>OFFRE SOUSCRITE</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 22 }}>{offer.badge}</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: S.navy }}>{offer.name}</div>
+              <div style={{ fontFamily: bebas, fontSize: 20, color: offer.color }}>{offer.price} €<span style={{ fontSize: 12, fontWeight: 400, color: S.muted }}>/mois</span></div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 20px' }}>
+            {offer.features.map((f) => (
+              <div key={f} style={{ fontSize: 12, color: S.navy, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: offer.color, fontWeight: 800 }}>✓</span> {f}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── CALENDRIER ───────────────────────────────────────────────────────────────
+
+function CalendarPanel({ sessions }) {
+  const today = new Date()
+  const [month, setMonth] = useState(today.getMonth())
+  const [year,  setYear]  = useState(today.getFullYear())
+  const days = buildCalendar(year, month)
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+  const DAYS_FR   = ['L','M','M','J','V','S','D']
+
+  const sessionMap = {}
+  sessions.forEach((s) => { if (!sessionMap[s.date]) sessionMap[s.date] = []; sessionMap[s.date].push(s) })
+
+  const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  return (
+    <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontFamily: bebas, fontSize: 16, color: S.navy, letterSpacing: 2 }}>{MONTHS_FR[month].toUpperCase()} {year}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <NavBtn onClick={() => { if (month === 0) { setMonth(11); setYear((y) => y - 1) } else setMonth((m) => m - 1) }}>‹</NavBtn>
+          <NavBtn onClick={() => { if (month === 11) { setMonth(0);  setYear((y) => y + 1) } else setMonth((m) => m + 1) }}>›</NavBtn>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
+        {DAYS_FR.map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: S.muted, letterSpacing: '0.5px', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>)}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+        {days.map((d, i) => {
+          if (!d) return <div key={i} />
+          const ds  = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+          const ses = sessionMap[ds] || []
+          const isT = ds === todayStr
+          return (
+            <div key={i} style={{ borderRadius: 7, padding: '4px 2px', minHeight: 36, background: isT ? S.navy : 'transparent' }}>
+              <div style={{ textAlign: 'center', fontSize: 11, fontWeight: isT ? 700 : 500, color: isT ? 'white' : S.navy, marginBottom: 2 }}>{d}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                {ses.map((s, j) => <div key={j} title={`${s.client} — ${s.type}`} style={{ width: 6, height: 6, borderRadius: '50%', background: isT ? 'white' : s.color }} />)}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ borderTop: `1px solid ${S.border}`, marginTop: 14, paddingTop: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Prochains suivis</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {sessions.filter((s) => s.date >= todayStr).slice(0, 3).map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#F8FAFF', borderRadius: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy }}>{s.client}</div>
+              <Badge text={s.type} color={s.color} />
+              <div style={{ fontSize: 10, color: S.muted }}>{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div>
+            </div>
+          ))}
+          {sessions.filter((s) => s.date >= todayStr).length === 0 && (
+            <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '8px 0' }}>Aucun suivi à venir</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
+
+export default function CoachDashboard() {
+  const router = useRouter()
+  const [user,         setUser]         = useState(null)
+  const [clients,      setClients]      = useState([])
+  const [sessions,     setSessions]     = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState(null)
+  const [selected,     setSelected]     = useState(null)
+  const [editingOffer, setEditingOffer] = useState(null)
+  const [activeTab,    setActiveTab]    = useState('clients')
+  const [showCreate,   setShowCreate]   = useState(false)
+  const [isMobile,     setIsMobile]     = useState(false)
+
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
+    const check = () => setIsMobile(window.innerWidth < 980)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -39,367 +455,377 @@ export default function CoachPage() {
         const currentUser = data.session?.user
         if (!currentUser) { router.push('/login'); return }
         setUser(currentUser)
-        await loadClients(currentUser.id)
+        await loadData(currentUser.id)
       } catch (err) {
-        console.error('Erreur init:', err)
+        setError(err.message)
+      } finally {
         setLoading(false)
       }
     }
     init()
   }, [])
 
-  const loadClients = async (coachId) => {
+  const loadData = async (coachId) => {
     try {
-      setLoading(true)
-      setError(null)
-
-      const { data, error } = await supabase
+      // Charger les clients
+      const { data: profiles, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'client')
         .eq('coach_id', coachId)
 
-      if (error) {
-        console.warn('Erreur chargement clients:', error.message)
-        const { data: fallback, error: err2 } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('role', 'client')
+      if (profErr) {
+        // Fallback si coach_id non disponible
+        const { data: fallback, error: err2 } = await supabase.from('profiles').select('*').eq('role', 'client')
         if (err2) throw err2
-        setClients(fallback || [])
+        setClients((fallback || []).map(toClientModel))
       } else {
-        setClients(data || [])
+        setClients((profiles || []).map(toClientModel))
+      }
+
+      // Charger les sessions (workout_sessions) pour le calendrier
+      const { data: sess } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
+
+      if (sess && sess.length > 0) {
+        setSessions(sess.map(s => ({
+          date: s.date,
+          client: s.client_name || s.client_id,
+          type: s.type || 'Suivi',
+          color: S.gold,
+        })))
       }
     } catch (err) {
-      console.error('Erreur chargement clients:', err)
       setError(err.message)
-      setClients([])
-    } finally {
-      setLoading(false)
     }
   }
 
-  const navigateToClient = (clientId) => {
-    router.push(`/coach/${clientId}?tab=overview`)
-  }
+  // ── Métriques ──
+  const activeClients  = clients.filter(c => c.status === 'actif')
+  const mrr            = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
+  const avgCompliance  = Math.round(activeClients.reduce((s, c) => s + c.compliance, 0) / (activeClients.length || 1))
+  const pendingPayment = clients.filter(c => c.balance < 0).length
+  const pendingMsg     = clients.reduce((s, c) => s + c.messages, 0)
 
-  // ── Gestion de la création ──
-  const resetForm = () => {
-    setForm({ email: '', password: '', full_name: '', objective: '', height: '', current_program: '' })
-    setCreateError('')
-  }
-
-  const createClient = async () => {
-    setCreateError('')
-    if (!form.email || !form.password) {
-      setCreateError('Email et mot de passe sont obligatoires.')
-      return
-    }
-    if (form.password.length < 6) {
-      setCreateError('Le mot de passe doit faire au moins 6 caractères.')
-      return
-    }
-
-    setCreating(true)
+  const handleSaveOffer = async (clientId, form) => {
+    // Mise à jour locale immédiate
+    setClients(prev => prev.map(c =>
+      c.id === clientId ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment } : c
+    ))
+    // Persistance Supabase
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/create-client', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(form),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Erreur lors de la création')
-
-      setClients(prev => [result.profile, ...prev])
-      setShowCreate(false)
-      resetForm()
+      await supabase.from('profiles').update({
+        offer: form.offer,
+        next_payment: form.nextPayment || null,
+      }).eq('id', clientId)
     } catch (err) {
-      setCreateError(err.message)
-    } finally {
-      setCreating(false)
+      console.error('Erreur mise à jour offre:', err)
     }
   }
 
-  // Styles réutilisables
-  const inpC = { 
-    width: '100%', 
-    padding: '10px 12px', 
-    border: '1.5px solid #E8E4DC', 
-    borderRadius: 9, 
-    fontSize: 14, 
-    fontFamily: "'DM Sans',sans-serif", 
-    background: '#FAF9F7', 
-    outline: 'none', 
-    color: '#0D1B2A', 
-    boxSizing: 'border-box' 
-  }
-  const lblC = { 
-    display: 'block', 
-    fontSize: 11, 
-    letterSpacing: '0.8px', 
-    textTransform: 'uppercase', 
-    color: '#8A8070', 
-    marginBottom: 5, 
-    fontWeight: 700 
-  }
+  const selectedClient = selected ? clients.find(c => c.id === selected) : null
 
   if (loading) {
     return (
-      <AppShell title="Mes Élèves">
-        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8E4DC', borderTopColor: '#B8860B', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            <div style={{ fontSize: 13, color: '#8A8070', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: "'DM Sans',sans-serif" }}>Chargement</div>
-          </div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${S.border}`, borderTopColor: S.gold, animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{ fontSize: 13, color: S.muted, letterSpacing: '1px', textTransform: 'uppercase' }}>Chargement</div>
         </div>
-      </AppShell>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <AppShell title="Mes Élèves">
-        <div style={{
-          textAlign: 'center', padding: '60px', background: '#FFF5F5',
-          borderRadius: '16px', border: '1px solid #FECACA', maxWidth: '600px', margin: '0 auto'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: '#991B1B', marginBottom: '8px', fontFamily: "'Playfair Display',serif" }}>
-            Erreur de chargement
-          </div>
-          <div style={{ fontSize: '14px', color: '#6B7A99', marginBottom: '16px' }}>{error}</div>
-          <button onClick={() => user && loadClients(user.id)} style={{
-            padding: '10px 24px', background: '#0D1B2A', color: 'white',
-            border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px',
-            fontFamily: "'DM Sans',sans-serif", fontWeight: 700
-          }}>
-            🔄 Réessayer
-          </button>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
+        <div style={{ textAlign: 'center', padding: 40, background: 'white', borderRadius: 20, border: '1px solid #FECACA', maxWidth: 500 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+          <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>ERREUR DE CHARGEMENT</div>
+          <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>{error}</div>
+          <button onClick={() => user && loadData(user.id)} style={{ padding: '10px 24px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontFamily: font, fontWeight: 700 }}>🔄 Réessayer</button>
         </div>
-      </AppShell>
+      </div>
     )
   }
 
   return (
-    <AppShell title="Mes Élèves">
-      <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif", margin: '-24px -28px', padding: isMobile ? '20px 16px' : '24px 28px' }}>
+    <div style={{ minHeight: '100vh', background: S.bg, fontFamily: font, color: S.navy }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap');`}</style>
 
-        {/* ══ HERO ══ */}
-        <div style={{
-          background: '#0D1B2A', borderRadius: 20,
-          padding: isMobile ? '24px 18px' : '32px 36px',
-          marginBottom: 20, position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(184,134,11,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 12, letterSpacing: '2px', textTransform: 'uppercase', color: '#B8860B', fontWeight: 700, marginBottom: 8 }}>
-                ESPACE COACH
-              </div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 34, fontWeight: 800, color: 'white', lineHeight: 1.1, marginBottom: 6 }}>
-                👥 Mes Élèves
-              </div>
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 20 }}>
-                {clients.length} élève{clients.length > 1 ? 's' : ''} sous ton suivi
-              </div>
-              <button onClick={() => { setShowCreate(true); resetForm() }} style={{
-                padding: '11px 22px', background: '#B8860B', color: 'white',
-                border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-                boxShadow: '0 4px 16px rgba(184,134,11,0.35)',
-              }}>
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+
+        {/* ── SIDEBAR ── */}
+        {!isMobile && (
+          <div style={{ width: 220, background: S.navy, display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
+            <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontFamily: bebas, fontSize: 26, color: S.gold, letterSpacing: 3 }}>BEN&FIT</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>Dashboard Coach</div>
+            </div>
+
+            <nav style={{ padding: '16px 10px', flex: 1 }}>
+              {[
+                { id: 'clients',  icon: '👥', label: 'Clients' },
+                { id: 'offres',   icon: '📦', label: 'Offres' },
+                { id: 'calendar', icon: '📅', label: 'Calendrier' },
+                { id: 'finances', icon: '💳', label: 'Finances' },
+              ].map((item) => (
+                <button key={item.id} onClick={() => { setActiveTab(item.id); setSelected(null) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', background: activeTab === item.id ? 'rgba(200,169,90,0.15)' : 'transparent', color: activeTab === item.id ? S.gold : 'rgba(255,255,255,0.6)', fontFamily: font, fontSize: 13, fontWeight: activeTab === item.id ? 700 : 500, marginBottom: 2, transition: 'all 0.15s' }}>
+                  <span style={{ fontSize: 16 }}>{item.icon}</span>{item.label}
+                </button>
+              ))}
+
+              <button onClick={() => setShowCreate(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1px solid ${S.gold}44`, cursor: 'pointer', background: `${S.gold}15`, color: S.gold, fontFamily: font, fontSize: 13, fontWeight: 700, marginTop: 12 }}>
                 + Nouvel élève
               </button>
-            </div>
+            </nav>
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '14px 18px', minWidth: 100, backdropFilter: 'blur(10px)', textAlign: 'center' }}>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 800, color: '#B8860B' }}>{clients.length}</div>
-                <div style={{ fontSize: 10, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Total</div>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '14px 18px', minWidth: 100, backdropFilter: 'blur(10px)', textAlign: 'center' }}>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 800, color: '#3F7D58' }}>{clients.filter(c => c.current_program).length}</div>
-                <div style={{ fontSize: 10, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Avec programme</div>
+            <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Avatar initials={user?.email?.[0]?.toUpperCase() + (user?.email?.[1]?.toUpperCase() || '') || 'CO'} size={34} color={S.gold} />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>Coach</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>{user?.email}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ══ MODALE CRÉATION ══ */}
-        {showCreate && (
-          <div onClick={() => !creating && setShowCreate(false)} style={{
-            position: 'fixed', inset: 0, background: 'rgba(13,27,42,0.55)',
-            backdropFilter: 'blur(2px)', zIndex: 300, display: 'flex',
-            alignItems: 'center', justifyContent: 'center', padding: 16,
-          }}>
-            <div onClick={e => e.stopPropagation()} style={{
-              background: 'white', borderRadius: 18, padding: isMobile ? '22px 18px' : '28px 30px',
-              maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto',
-              boxShadow: '0 20px 60px rgba(13,27,42,0.3)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 800, color: '#0D1B2A' }}>
-                  + Nouvel élève
-                </div>
-                <button onClick={() => !creating && setShowCreate(false)} style={{
-                  background: '#F0EDE6', border: 'none', borderRadius: 8, width: 28, height: 28,
-                  cursor: 'pointer', fontSize: 14, color: '#8A8070',
-                }}>✕</button>
-              </div>
+        {/* ── MAIN ── */}
+        <div style={{ flex: 1, padding: isMobile ? '16px' : '28px', overflowY: 'auto' }}>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <label style={lblC}>Email *</label>
-                  <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="eleve@example.com" style={inpC} />
-                </div>
-                <div>
-                  <label style={lblC}>Mot de passe provisoire *</label>
-                  <input type="text" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} />
-                </div>
-                <div>
-                  <label style={lblC}>Prénom / Nom</label>
-                  <input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Camille Dupont" style={inpC} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={lblC}>Taille (cm)</label>
-                    <input type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))} placeholder="170" style={inpC} />
+          {/* Nav mobile */}
+          {isMobile && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
+              {[{ id: 'clients', icon: '👥' }, { id: 'offres', icon: '📦' }, { id: 'calendar', icon: '📅' }, { id: 'finances', icon: '💳' }].map(item => (
+                <button key={item.id} onClick={() => { setActiveTab(item.id); setSelected(null) }}
+                  style={{ padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', background: activeTab === item.id ? S.navy : S.card, color: activeTab === item.id ? S.gold : S.muted, fontFamily: font, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                  {item.icon}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* KPI Row */}
+          {!selectedClient && (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+              <KpiCard icon="👥" label="Clients actifs"       value={activeClients.length}  sub={`${clients.length} total`} />
+              <KpiCard icon="💰" label="MRR"                  value={`${mrr} €`}            sub="Revenus mensuels" accent={S.gold} />
+              <KpiCard icon="📊" label="Compliance moy."      value={`${avgCompliance}%`}   sub="7 derniers jours" accent={complianceColor(avgCompliance)} />
+              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}         sub="clients en retard" accent={pendingPayment > 0 ? S.red : S.green} />
+              {pendingMsg > 0 && <KpiCard icon="💬" label="Messages" value={pendingMsg} sub="non lus" accent={S.blue} />}
+            </div>
+          )}
+
+          {/* ── VUE DÉTAIL CLIENT ── */}
+          {(activeTab === 'clients' || activeTab === 'calendar') && selectedClient ? (
+            <ClientDetail
+              client={selectedClient}
+              onBack={() => setSelected(null)}
+              onEditOffer={() => setEditingOffer(selectedClient)}
+              onNavigate={(id) => router.push(`/coach/${id}?tab=overview`)}
+            />
+
+          /* ── VUE CLIENTS ── */
+          ) : activeTab === 'clients' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px', gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>MES CLIENTS ({clients.length})</div>
+                {clients.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 20, border: `2px dashed ${S.border}` }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>🏋️</div>
+                    <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>AUCUN ÉLÈVE</div>
+                    <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>Crée ton premier élève pour commencer.</div>
+                    <button onClick={() => setShowCreate(true)} style={{ padding: '10px 22px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>+ Nouvel élève</button>
                   </div>
-                  <div>
-                    <label style={lblC}>Programme</label>
-                    <input value={form.current_program} onChange={e => setForm(p => ({ ...p, current_program: e.target.value }))} placeholder="Phase 1" style={inpC} />
-                  </div>
-                </div>
-                <div>
-                  <label style={lblC}>Objectif</label>
-                  <input value={form.objective} onChange={e => setForm(p => ({ ...p, objective: e.target.value }))} placeholder="Prise de masse…" style={inpC} />
-                </div>
-
-                {createError && (
-                  <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: 9, padding: '10px 12px', color: '#C45C3A', fontSize: 13 }}>
-                    {createError}
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {clients.map((c) => {
+                      const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
+                      return (
+                        <div key={c.id} onClick={() => setSelected(c.id)}
+                          style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,27,78,0.1)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}>
+                          <Avatar initials={c.avatar} size={42} color={c.status === 'actif' ? offer.color : '#CCC'} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                              <div style={{ fontWeight: 800, fontSize: 14, color: S.navy }}>{c.name}</div>
+                              <Badge text={offer.name} color={offer.color} />
+                              {c.status !== 'actif' && <Badge text="inactif" color={S.red} />}
+                              {c.messages > 0 && <Badge text={`${c.messages} msg`} color={S.blue} />}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ flex: 1, maxWidth: 120 }}><ProgressBar value={c.compliance} color={complianceColor(c.compliance)} height={4} /></div>
+                              <span style={{ fontSize: 11, color: complianceColor(c.compliance), fontWeight: 700 }}>{c.compliance}%</span>
+                              <span style={{ fontSize: 11, color: S.muted }}>· {c.program}</span>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : S.navy }}>{c.balance === 0 ? '✓' : `${c.balance} €`}</div>
+                            <div style={{ fontSize: 10, color: S.muted }}>{daysAgo(c.lastBilan)}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
+              </div>
+              <CalendarPanel sessions={sessions} />
+            </div>
 
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                  <button onClick={createClient} disabled={creating} style={{
-                    flex: 1, padding: '11px 20px', background: '#0D1B2A', color: 'white',
-                    border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                    cursor: creating ? 'default' : 'pointer', fontFamily: "'DM Sans',sans-serif",
-                    opacity: creating ? 0.7 : 1,
-                  }}>
-                    {creating ? 'Création…' : '✓ Créer le compte'}
-                  </button>
-                  <button onClick={() => !creating && setShowCreate(false)} style={{
-                    padding: '11px 20px', background: 'transparent', color: '#8A8070',
-                    border: '1.5px solid #E8E4DC', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-                  }}>Annuler</button>
+          /* ── VUE OFFRES ── */
+          ) : activeTab === 'offres' ? (
+            <div>
+              <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MES OFFRES</div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 28 }}>
+                {Object.values(OFFERS).map((offer) => {
+                  const count = clients.filter(c => c.offer === offer.id && c.status === 'actif').length
+                  return (
+                    <div key={offer.id} style={{ background: S.card, border: `2px solid ${offer.color}44`, borderRadius: 18, padding: '24px 28px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 24, marginBottom: 6 }}>{offer.badge}</div>
+                          <div style={{ fontFamily: bebas, fontSize: 24, color: S.navy, letterSpacing: 2 }}>{offer.name.toUpperCase()}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontFamily: bebas, fontSize: 32, color: offer.color, letterSpacing: 1 }}>{offer.price} €</div>
+                          <div style={{ fontSize: 11, color: S.muted }}>par mois</div>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 16 }}>
+                        {offer.features.map(f => (
+                          <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: `1px solid ${S.border}`, fontSize: 13 }}>
+                            <span style={{ color: offer.color, fontWeight: 800 }}>✓</span>{f}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: `${offer.color}10`, borderRadius: 10 }}>
+                        <span style={{ fontSize: 12, color: S.muted }}>Clients actifs sur cette offre</span>
+                        <span style={{ fontFamily: bebas, fontSize: 22, color: offer.color }}>{count}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 12 }}>RÉPARTITION</div>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: '#F8FAFF', padding: '10px 18px', fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: `1px solid ${S.border}` }}>
+                  <span>Client</span><span>Offre</span><span>Tarif</span><span>Statut</span>
+                </div>
+                {clients.map(c => {
+                  const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
+                  return (
+                    <div key={c.id} onClick={() => { setSelected(c.id); setActiveTab('clients') }}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', padding: '12px 18px', borderBottom: `1px solid ${S.border}`, alignItems: 'center', cursor: 'pointer' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFF')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Avatar initials={c.avatar} size={28} color={offer.color} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                      </div>
+                      <Badge text={offer.name} color={offer.color} />
+                      <div style={{ fontFamily: bebas, fontSize: 16, color: S.navy }}>{offer.price} €</div>
+                      <Badge text={c.status} color={c.status === 'actif' ? S.green : S.red} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+          /* ── VUE CALENDRIER ── */
+          ) : activeTab === 'calendar' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 16 }}>
+              <CalendarPanel sessions={sessions} />
+              <div>
+                <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>TOUS LES SUIVIS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sessions.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', borderRadius: 14, border: `1px solid ${S.border}`, color: S.muted, fontSize: 13 }}>
+                      Aucune session enregistrée ce mois-ci.
+                    </div>
+                  ) : sessions.map((s, i) => (
+                    <div key={i} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 4, height: 36, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: S.navy }}>{s.client}</div>
+                        <Badge text={s.type} color={s.color} />
+                      </div>
+                      <div style={{ fontSize: 12, color: S.muted }}>{new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ══ GRID ÉLÈVES ══ */}
-        {clients.length === 0 ? (
-          <div style={{
-            textAlign: 'center', padding: '80px 20px', background: 'white',
-            borderRadius: '20px', border: '2px dashed #E8E4DC', color: '#8A8070'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏋️</div>
-            <div style={{ fontSize: '18px', fontWeight: '700', color: '#0D1B2A', marginBottom: '8px', fontFamily: "'Playfair Display',serif" }}>
-              Aucun élève pour le moment
-            </div>
-            <div style={{ fontSize: '14px', marginBottom: 16 }}>
-              Crée ton premier élève pour commencer.
-            </div>
-            <button onClick={() => { setShowCreate(true); resetForm() }} style={{
-              padding: '10px 22px', background: '#0D1B2A', color: 'white',
-              border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
-            }}>
-              + Nouvel élève
-            </button>
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '14px'
-          }}>
-            {clients.map(client => {
-              const displayName = client.full_name || client.name || client.email || 'Sans nom'
-              const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'
+          /* ── VUE FINANCES ── */
+          ) : activeTab === 'finances' ? (
+            <div>
+              <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>FINANCES</div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                <KpiCard icon="💰" label="MRR total"          value={`${mrr} €`}                                              sub="Clients actifs"    accent={S.gold} />
+                <KpiCard icon="✅" label="Paiements à jour"    value={clients.filter(c => c.balance === 0).length}              sub="clients"           accent={S.green} />
+                <KpiCard icon="⚠️" label="Retards"             value={clients.filter(c => c.balance < 0).length}               sub="clients"           accent={pendingPayment > 0 ? S.red : S.green} />
+                <KpiCard icon="📈" label="ARR estimé"          value={`${mrr * 12} €`}                                         sub="Revenus annuels"   accent={S.navy} />
+              </div>
 
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => navigateToClient(client.id)}
-                  style={{
-                    background: 'white', borderRadius: '16px', padding: '20px',
-                    border: '1px solid #EDE9E0', cursor: 'pointer', transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 8px rgba(13,27,42,0.04)',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.boxShadow = '0 10px 28px rgba(13,27,42,0.12)'
-                    e.currentTarget.style.borderColor = '#B8860B'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'none'
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(13,27,42,0.04)'
-                    e.currentTarget.style.borderColor = '#EDE9E0'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: client.current_program || client.objective ? 14 : 0 }}>
-                    <div style={{
-                      width: '48px', height: '48px', borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #0D1B2A, #1A2F4A)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '17px', fontWeight: '800', color: '#B8860B', flexShrink: 0,
-                      fontFamily: "'Playfair Display',serif",
-                    }}>
-                      {initials}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: '700', fontSize: '15px', color: '#0D1B2A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {displayName}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#A09880', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {client.email}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 16, color: '#C5D0F0', flexShrink: 0 }}>→</div>
-                  </div>
-
-                  {(client.current_program || client.objective) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 14, borderTop: '1px solid #F0EDE6' }}>
-                      {client.current_program && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                          <span style={{ color: '#A09880' }}>💪</span>
-                          <span style={{ color: '#0D1B2A', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.current_program}</span>
-                        </div>
-                      )}
-                      {client.objective && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                          <span style={{ color: '#A09880' }}>🎯</span>
-                          <span style={{ color: '#6B7A99', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.objective}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', background: '#F8FAFF', padding: '10px 18px', fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: `1px solid ${S.border}` }}>
+                  <span>Client</span><span>Offre</span><span>Tarif / mois</span><span>Solde</span><span>Prochain paiement</span>
                 </div>
-              )
-            })}
-          </div>
-        )}
+                {clients.map(c => {
+                  const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
+                  return (
+                    <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '13px 18px', borderBottom: `1px solid ${S.border}`, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Avatar initials={c.avatar} size={30} color={c.status === 'actif' ? offer.color : '#CCC'} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
+                          <Badge text={c.status} color={c.status === 'actif' ? S.green : S.red} />
+                        </div>
+                      </div>
+                      <Badge text={offer.name} color={offer.color} />
+                      <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy }}>{c.status === 'actif' ? `${offer.price} €` : '—'}</div>
+                      <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : S.green }}>{c.balance < 0 ? `${c.balance} €` : '✓'}</div>
+                      <div style={{ fontSize: 12, color: S.muted }}>{c.nextPayment ? new Date(c.nextPayment).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</div>
+                    </div>
+                  )
+                })}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '13px 18px', background: '#F8FAFF', borderTop: `2px solid ${S.border}` }}>
+                  <div style={{ fontWeight: 700, color: S.navy }}>Total</div>
+                  <div /><div style={{ fontFamily: bebas, fontSize: 20, color: S.gold }}>{mrr} €</div>
+                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.red }}>{clients.filter(c => c.balance < 0).reduce((s, c) => s + c.balance, 0)} €</div>
+                  <div />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+        </div>
       </div>
-    </AppShell>
+
+      {/* ── MODALS ── */}
+      {showCreate && (
+        <CreateClientModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(newClient) => setClients(prev => [newClient, ...prev])}
+        />
+      )}
+
+      {editingOffer && (
+        <OfferModal
+          client={editingOffer}
+          onClose={() => setEditingOffer(null)}
+          onSave={handleSaveOffer}
+        />
+      )}
+    </div>
   )
 }
