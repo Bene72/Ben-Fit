@@ -1,654 +1,630 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
-import AppShell from '../components/ui/AppShell'
-import { useToast } from '../lib/useToast'
+import { useState } from "react";
 
-export default function Dashboard() {
-  const { show, ToastComponent } = useToast()
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [measures, setMeasures] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editProfile, setEditProfile] = useState(false)
-  const [editWeight, setEditWeight] = useState(false)
-  const [profileForm, setProfileForm] = useState({})
-  const [weightForm, setWeightForm] = useState({ weight: '', waist: '', hips: '', chest: '', arm: '', thigh: '', calf: '', glutes: '', notes: '' })
-  const [deletingId, setDeletingId] = useState(null)
-  const [editingMeasure, setEditingMeasure] = useState(null)
-  const [bodyTab, setBodyTab] = useState('history')
-  const [chartField, setChartField] = useState('weight')
-  const [saving, setSaving] = useState(false)
-  const [showPwd, setShowPwd] = useState(false)
-  const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' })
-  const [pwdError, setPwdError] = useState('')
-  const [pwdDone, setPwdDone] = useState(false)
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [isMobile, setIsMobile] = useState(false)
+// ─── DATA ─────────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 980)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+const OFFERS = {
+  essentia_plus: {
+    id: "essentia_plus",
+    name: "Essentia Plus",
+    price: 249,
+    color: "#C8A95A",
+    badge: "⚡",
+    features: ["Suivi nutrition personnalisé", "Programme training sur mesure", "Bilan hebdomadaire", "Messages illimités", "Accès app Ben&Fit"],
+  },
+  tutto_bene: {
+    id: "tutto_bene",
+    name: "Tutto Bene",
+    price: 149,
+    color: "#4A6FD4",
+    badge: "🔥",
+    features: ["Programme training sur mesure", "Bilan mensuel", "Messages inclus", "Accès app Ben&Fit"],
+  },
+};
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { router.replace('/'); return }
-        setUser(user)
-        const { data: prof, error: profErr } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-        if (profErr) throw profErr
-        if (prof?.role === 'coach') { router.replace('/eleves'); return }
-        setProfile(prof)
-        setProfileForm({ full_name: prof?.full_name || '', current_program: prof?.current_program || '', objective: prof?.objective || '', height: prof?.height || '' })
-        const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(10)
-        setMeasures(m || [])
-        const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
-        const { data: s } = await supabase.from('workout_sessions').select('*').eq('client_id', user.id).gte('date', weekStart.toISOString().split('T')[0])
-        setSessions(s || [])
-      } catch (e) { show('Erreur de chargement : ' + e.message, 'error') }
-      finally { setLoading(false) }
-    }
-    load()
-  }, [])
+const CLIENTS = [
+  { id: 1, name: "Sophie Moreau", avatar: "SM", offer: "essentia_plus", status: "actif", since: "2025-09-01", nextPayment: "2026-07-01", balance: 0, weight: 62.4, weightGoal: 58, compliance: 87, lastBilan: "2026-06-16", program: "Hyrox — S4", messages: 2 },
+  { id: 2, name: "Thomas Rault", avatar: "TR", offer: "essentia_plus", status: "actif", since: "2025-11-15", nextPayment: "2026-07-15", balance: -249, weight: 84.1, weightGoal: 80, compliance: 72, lastBilan: "2026-06-09", program: "CrossFit — Force", messages: 0 },
+  { id: 3, name: "Léa Fontaine", avatar: "LF", offer: "tutto_bene", status: "actif", since: "2026-01-10", nextPayment: "2026-07-10", balance: 0, weight: 55.8, weightGoal: 54, compliance: 94, lastBilan: "2026-06-20", program: "Renfo — Cycle 2", messages: 1 },
+  { id: 4, name: "Maxime Aubert", avatar: "MA", offer: "tutto_bene", status: "inactif", since: "2025-06-01", nextPayment: null, balance: -149, weight: 90.2, weightGoal: 85, compliance: 31, lastBilan: "2026-04-12", program: "—", messages: 0 },
+  { id: 5, name: "Camille Vidal", avatar: "CV", offer: "essentia_plus", status: "actif", since: "2026-03-01", nextPayment: "2026-07-01", balance: 0, weight: 67.0, weightGoal: 63, compliance: 91, lastBilan: "2026-06-18", program: "Hyrox — Débutant", messages: 3 },
+];
 
-  const saveProfile = async () => {
-    setSaving(true)
-    try {
-      const { error } = await supabase.from('profiles').update(profileForm).eq('id', user.id)
-      if (error) throw error
-      setProfile(prev => ({ ...prev, ...profileForm }))
-      setEditProfile(false)
-      show('Profil mis à jour', 'success')
-    } catch (e) { show(e.message, 'error') }
-    finally { setSaving(false) }
-  }
+const SESSIONS_JUNE = [
+  { date: "2026-06-02", client: "Sophie Moreau", type: "Suivi", color: "#C8A95A" },
+  { date: "2026-06-04", client: "Thomas Rault", type: "Bilan", color: "#4A6FD4" },
+  { date: "2026-06-09", client: "Léa Fontaine", type: "Suivi", color: "#C8A95A" },
+  { date: "2026-06-11", client: "Sophie Moreau", type: "Bilan", color: "#4A6FD4" },
+  { date: "2026-06-16", client: "Camille Vidal", type: "Suivi", color: "#C8A95A" },
+  { date: "2026-06-18", client: "Thomas Rault", type: "Suivi", color: "#C8A95A" },
+  { date: "2026-06-23", client: "Léa Fontaine", type: "Bilan", color: "#4A6FD4" },
+  { date: "2026-06-25", client: "Sophie Moreau", type: "Suivi", color: "#C8A95A" },
+  { date: "2026-06-30", client: "Camille Vidal", type: "Bilan", color: "#4A6FD4" },
+];
 
-  const changePassword = async () => {
-    setPwdError('')
-    if (pwdForm.next.length < 6) { setPwdError('6 caractères minimum.'); return }
-    if (pwdForm.next !== pwdForm.confirm) { setPwdError('Les mots de passe ne correspondent pas.'); return }
-    try {
-      const { error } = await supabase.auth.updateUser({ password: pwdForm.next })
-      if (error) throw error
-      setPwdDone(true)
-      setPwdForm({ current: '', next: '', confirm: '' })
-      setTimeout(() => { setPwdDone(false); setShowPwd(false) }, 3000)
-      show('Mot de passe modifié', 'success')
-    } catch (e) { setPwdError(e.message) }
-  }
+// ─── STYLES ───────────────────────────────────────────────────────────────────
 
-  const saveWeight = async () => {
-    if (!weightForm.weight) return
-    setSaving(true)
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const { data, error } = await supabase.from('measures').insert({
-        client_id: user.id, date: today,
-        weight: +weightForm.weight, waist: +weightForm.waist || null,
-        hips: +weightForm.hips || null, chest: +weightForm.chest || null,
-        arm: +weightForm.arm || null, thigh: +weightForm.thigh || null,
-        calf: +weightForm.calf || null, glutes: +weightForm.glutes || null,
-        notes: weightForm.notes || null,
-      }).select().single()
-      if (error) throw error
-      setMeasures(prev => [data, ...prev])
-      setEditWeight(false)
-      setWeightForm({ weight: '', waist: '', hips: '', chest: '', arm: '', thigh: '', calf: '', glutes: '', notes: '' })
-      show('Mesure enregistrée', 'success')
-    } catch (e) { show(e.message, 'error') }
-    finally { setSaving(false) }
-  }
+const S = {
+  navy:   "#0D1B4E",
+  gold:   "#C8A95A",
+  bg:     "#F0F2F8",
+  card:   "#FFFFFF",
+  border: "#E2E6F0",
+  muted:  "#6B7A99",
+  green:  "#3A8A5A",
+  red:    "#C45C3A",
+  blue:   "#2C64E5",
+};
 
-  const deleteMeasure = async (id) => {
-    setDeletingId(id)
-    try {
-      const { error } = await supabase.from('measures').delete().eq('id', id)
-      if (error) throw error
-      setMeasures(prev => prev.filter(m => m.id !== id))
-      show('Mesure supprimée', 'success')
-    } catch (e) { show(e.message, 'error') }
-    finally { setDeletingId(null) }
-  }
+const font = "'DM Sans', system-ui, sans-serif";
+const bebas = "'Bebas Neue', 'DM Sans', sans-serif";
 
-  const updateMeasure = async () => {
-    if (!weightForm.weight || !editingMeasure) return
-    setSaving(true)
-    try {
-      const { data, error } = await supabase.from('measures').update({
-        weight: +weightForm.weight, waist: +weightForm.waist || null,
-        hips: +weightForm.hips || null, chest: +weightForm.chest || null,
-        arm: +weightForm.arm || null, thigh: +weightForm.thigh || null,
-        calf: +weightForm.calf || null, glutes: +weightForm.glutes || null,
-        notes: weightForm.notes || null,
-      }).eq('id', editingMeasure).select().single()
-      if (error) throw error
-      setMeasures(prev => prev.map(m => m.id === editingMeasure ? data : m))
-      setEditingMeasure(null); setEditWeight(false)
-      setWeightForm({ weight: '', waist: '', hips: '', chest: '', arm: '', thigh: '', calf: '', glutes: '', notes: '' })
-      show('Mesure mise à jour ✓', 'success')
-    } catch (e) { show(e.message, 'error') }
-    finally { setSaving(false) }
-  }
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-  const startEditMeasure = (m) => {
-    setEditingMeasure(m.id)
-    setWeightForm({ weight: m.weight ?? '', waist: m.waist ?? '', hips: m.hips ?? '', chest: m.chest ?? '', arm: m.arm ?? '', thigh: m.thigh ?? '', calf: m.calf ?? '', glutes: m.glutes ?? '', notes: m.notes ?? '' })
-    setEditWeight(true); setBodyTab('history')
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
-  }
-
-  const latestWeight = measures[0]?.weight
-  const prevWeight   = measures[1]?.weight
-  const weightDelta  = latestWeight && prevWeight ? (latestWeight - prevWeight).toFixed(1) : null
-  const today        = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  const adherence    = sessions.length > 0 ? Math.round((sessions.length / 5) * 100) : 0
-
-  if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#FAF9F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8E4DC', borderTopColor: '#B8860B', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <div style={{ fontSize: 13, color: '#8A8070', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: "'DM Sans',sans-serif" }}>Chargement</div>
-      </div>
-    </div>
-  )
-
-  return (
-    <>
-      <ToastComponent />
-      <AppShell
-        title="Aperçu"
-        userName={profile?.full_name?.split(' ')[0]}
-        cycleName={profile?.current_cycle_name}
-      >
-        <div style={{ background: '#FAF9F7', minHeight: '100vh', fontFamily: "'DM Sans',sans-serif" }}>
-
-          {/* ── TABS ── */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid #E8E4DC', overflowX: 'auto' }}>
-            {[
-              { id: 'dashboard',  label: 'Dashboard'      },
-              { id: 'body',       label: 'Mensurations'   },
-              { id: 'recipe',     label: 'Recette du chef'},
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                padding: isMobile ? '9px 14px' : '10px 20px',
-                border: 'none', borderRadius: '8px 8px 0 0',
-                fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
-                background: activeTab === tab.id ? '#0D1B2A' : 'transparent',
-                color: activeTab === tab.id ? 'white' : '#8A8070',
-                borderBottom: activeTab === tab.id ? '2px solid #0D1B2A' : '2px solid transparent',
-                marginBottom: -1, transition: 'all 0.15s',
-              }}>{tab.label}</button>
-            ))}
-          </div>
-
-          {activeTab === 'recipe' ? <RecipeOfTheDay /> : activeTab === 'body' ? (
-            <BodyTracker
-              measures={measures} weightForm={weightForm} setWeightForm={setWeightForm}
-              editWeight={editWeight} setEditWeight={setEditWeight}
-              saving={saving} saveWeight={saveWeight} deleteMeasure={deleteMeasure}
-              deletingId={deletingId} editingMeasure={editingMeasure}
-              setEditingMeasure={setEditingMeasure} updateMeasure={updateMeasure}
-              startEditMeasure={startEditMeasure} bodyTab={bodyTab} setBodyTab={setBodyTab}
-              chartField={chartField} setChartField={setChartField}
-            />
-          ) : (
-            <>
-              {/* ══ HERO ══ */}
-              <div style={{
-                background: '#0D1B2A', borderRadius: 20,
-                padding: isMobile ? '24px 18px' : '32px 36px',
-                marginBottom: 20, position: 'relative', overflow: 'hidden',
-              }}>
-                <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(184,134,11,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
-                <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 12, letterSpacing: '2px', textTransform: 'uppercase', color: '#B8860B', fontWeight: 700, marginBottom: 8 }}>{today}</div>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 34, fontWeight: 800, color: 'white', lineHeight: 1.1, marginBottom: 6 }}>
-                      Bonjour {profile?.full_name?.split(' ')[0] || 'Toi'} 👋
-                    </div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', marginBottom: 20 }}>
-                      {profile?.current_program || 'Aucun programme défini'}
-                    </div>
-                    {sessions.length > 0 && (
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>Séances cette semaine</span>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#B8860B' }}>{sessions.length}/5</span>
-                        </div>
-                        <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 99, overflow: 'hidden', width: isMobile ? '100%' : 280 }}>
-                          <div style={{ height: '100%', background: 'linear-gradient(90deg, #B8860B, #D4A017)', width: `${Math.min(100, adherence)}%`, borderRadius: 99, transition: 'width 0.6s ease' }} />
-                        </div>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button onClick={() => router.push('/training')} style={{ padding: '11px 22px', background: '#B8860B', color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", boxShadow: '0 4px 16px rgba(184,134,11,0.35)' }}>▶ Séance du jour</button>
-                      <button onClick={() => router.push('/messages')} style={{ padding: '11px 22px', background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>💬 Coach</button>
-                    </div>
-                  </div>
-                  {profile?.objective && (
-                    <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 20px', minWidth: 160, backdropFilter: 'blur(10px)' }}>
-                      <div style={{ fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>Objectif</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: 'white', lineHeight: 1.4 }}>🎯 {profile.objective}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ══ KPIs ══ */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #3F7D58' }}>
-                  <div style={kpiLabel}>Séances / semaine</div>
-                  <div style={kpiValue}>{sessions.length}<span style={{ fontSize: 16, color: '#A09880', fontWeight: 400 }}>/5</span></div>
-                  <div style={{ marginTop: 10, height: 5, background: '#EDE9E0', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: '#3F7D58', width: `${Math.min(100, (sessions.length / 5) * 100)}%`, borderRadius: 99 }} />
-                  </div>
-                  <div style={{ marginTop: 6, fontSize: 11, color: '#3F7D58', fontWeight: 700 }}>{adherence}% adherence</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #B8860B' }}>
-                  <div style={kpiLabel}>Poids actuel</div>
-                  <div style={kpiValue}>{latestWeight || '—'}<span style={{ fontSize: 16, color: '#A09880', fontWeight: 400 }}> kg</span></div>
-                  {weightDelta && (
-                    <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: parseFloat(weightDelta) < 0 ? '#3F7D58' : '#C45C3A' }}>
-                      {parseFloat(weightDelta) > 0 ? '▲' : '▼'} {Math.abs(weightDelta)} kg vs dernière mesure
-                    </div>
-                  )}
-                </div>
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #0D1B2A', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
-                  <div style={kpiLabel}>Programme</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2A', marginTop: 4, lineHeight: 1.3 }}>
-                    {profile?.current_program || '—'}
-                  </div>
-                </div>
-              </div>
-
-              {/* ══ CARDS ══ */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-                {profile?.coach_note && (
-                  <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px', gridColumn: isMobile ? '1' : '1 / -1' }}>
-                    <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: '#A09880', marginBottom: 10, fontWeight: 700 }}>📌 Message de ton coach</div>
-                    <p style={{ fontSize: 14, lineHeight: 1.7, color: '#0D1B2A', margin: 0, fontStyle: 'italic' }}>{profile.coach_note}</p>
-                  </div>
-                )}
-
-                {/* Suivi corporel */}
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px', cursor: 'pointer' }} onClick={() => setActiveTab('body')}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>📏 Suivi corporel</div>
-                    <span style={{ fontSize: 11, color: '#B8860B', fontWeight: 700 }}>Voir tout →</span>
-                  </div>
-                  {measures.length === 0 ? (
-                    <div style={{ color: '#A09880', fontSize: 13 }}>Aucune mesure. Clique pour en ajouter !</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {measures.slice(0, 3).map((m, i) => (
-                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #F0EDE6', fontSize: 13 }}>
-                          <span style={{ color: '#A09880', fontSize: 11, fontFamily: "'DM Mono',monospace" }}>{new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: '#C45C3A' }}>{m.weight} kg</span>
-                          <span style={{ fontSize: 11, color: '#A09880' }}>{[m.waist && `T:${m.waist}`, m.hips && `H:${m.hips}`].filter(Boolean).join(' ')}</span>
-                          {i === 0 && <span style={{ fontSize: 9, background: '#E8F0E8', color: '#3F7D58', padding: '2px 6px', borderRadius: 10, fontWeight: 700 }}>ACTUEL</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Profil */}
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>👤 Mon profil</div>
-                    <button onClick={() => setEditProfile(!editProfile)} style={btn3(editProfile ? '#0D1B2A' : '#0D1B2A', 'white')}>
-                      {editProfile ? '✕' : '✏️ Modifier'}
-                    </button>
-                  </div>
-                  {editProfile ? (
-                    <div>
-                      {[
-                        { label: 'Prénom / Nom',     key: 'full_name',        placeholder: 'Jean Dupont'            },
-                        { label: 'Programme actuel', key: 'current_program',  placeholder: 'Phase 2 · Hypertrophie' },
-                        { label: 'Objectif',         key: 'objective',        placeholder: 'Prise de masse…'        },
-                        { label: 'Taille (cm)',       key: 'height',           placeholder: '180'                    },
-                      ].map(f => (
-                        <div key={f.key} style={{ marginBottom: 10 }}>
-                          <label style={lbl3}>{f.label}</label>
-                          <input value={profileForm[f.key] || ''} onChange={e => setProfileForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={inp3} />
-                        </div>
-                      ))}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button onClick={saveProfile} disabled={saving} style={btn3('#0D1B2A', 'white')}>{saving ? 'Sauvegarde…' : '✓ Enregistrer'}</button>
-                        <button onClick={() => setEditProfile(false)} style={btn3('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { label: 'Nom',        value: profile?.full_name       },
-                        { label: 'Programme',  value: profile?.current_program },
-                        { label: 'Objectif',   value: profile?.objective       },
-                        { label: 'Taille',     value: profile?.height ? `${profile.height} cm` : null },
-                      ].map(f => f.value ? (
-                        <div key={f.label} style={{ display: 'flex', gap: 8, fontSize: 14 }}>
-                          <span style={{ color: '#A09880', width: 90, flexShrink: 0 }}>{f.label}</span>
-                          <span style={{ fontWeight: 500, color: '#0D1B2A' }}>{f.value}</span>
-                        </div>
-                      ) : null)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mot de passe */}
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>🔒 Mot de passe</div>
-                    <button onClick={() => { setShowPwd(!showPwd); setPwdError(''); setPwdDone(false) }} style={btn3(showPwd ? '#F0EDE6' : '#0D1B2A', showPwd ? '#8A8070' : 'white')}>
-                      {showPwd ? '✕ Fermer' : '✏️ Modifier'}
-                    </button>
-                  </div>
-                  {showPwd && (
-                    <div style={{ marginTop: 16 }}>
-                      {pwdDone ? (
-                        <div style={{ background: '#E8F0E8', border: '1px solid #A5C4A5', borderRadius: 8, padding: 12, color: '#3F7D58', fontSize: 14, textAlign: 'center' }}>✅ Mot de passe modifié !</div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {[
-                            { key: 'current', label: 'Ancien mot de passe',   placeholder: '••••••••'           },
-                            { key: 'next',    label: 'Nouveau mot de passe',   placeholder: '6 caractères minimum' },
-                            { key: 'confirm', label: 'Confirmer',              placeholder: '••••••••'           },
-                          ].map(f => (
-                            <div key={f.key}>
-                              <label style={lbl3}>{f.label}</label>
-                              <input type="password" value={pwdForm[f.key]} onChange={e => setPwdForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={inp3} />
-                            </div>
-                          ))}
-                          {pwdError && <div style={{ color: '#C45C3A', fontSize: 13, padding: '8px 12px', background: 'rgba(196,92,58,0.08)', borderRadius: 7 }}>{pwdError}</div>}
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={changePassword} style={btn3('#0D1B2A', 'white')}>✓ Enregistrer</button>
-                            <button onClick={() => { setShowPwd(false); setPwdError('') }} style={btn3('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </AppShell>
-    </>
-  )
+function complianceColor(v) {
+  if (v >= 80) return S.green;
+  if (v >= 55) return "#C8A95A";
+  return S.red;
 }
 
-// ── Styles locaux ──────────────────────────────────────────────────────────────
-const kpiLabel = { fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 6, fontWeight: 700 }
-const kpiValue = { fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, lineHeight: 1, color: '#0D1B2A' }
-const lbl3     = { display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 600 }
-const inp3     = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
-const btn3     = (bg, color, border) => ({ padding: '7px 14px', background: bg, color, border: border ? `1.5px solid ${border}` : 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
+function daysAgo(dateStr) {
+  if (!dateStr) return "—";
+  const diff = Math.floor((new Date() - new Date(dateStr)) / 86400000);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Hier";
+  return `Il y a ${diff}j`;
+}
 
-// ── Constantes mesures ────────────────────────────────────────────────────────
-const MEASURE_FIELDS = [
-  { key: 'weight', label: 'Poids',            unit: 'kg', icon: '⚖️', color: '#C45C3A', required: true },
-  { key: 'waist',  label: 'Tour de taille',   unit: 'cm', icon: '📏', color: '#4A6FD4' },
-  { key: 'hips',   label: 'Tour de hanches',  unit: 'cm', icon: '📏', color: '#8FA07A' },
-  { key: 'glutes', label: 'Tour de fesses',   unit: 'cm', icon: '📏', color: '#9B7BB8' },
-  { key: 'chest',  label: 'Tour de poitrine', unit: 'cm', icon: '📏', color: '#D4A017' },
-  { key: 'arm',    label: 'Tour de bras',     unit: 'cm', icon: '💪', color: '#2C8A6E' },
-  { key: 'thigh',  label: 'Tour de cuisse',   unit: 'cm', icon: '📏', color: '#C45C3A' },
-  { key: 'calf',   label: 'Tour de mollet',   unit: 'cm', icon: '📏', color: '#4A6FD4' },
-]
+function buildCalendar(year, month) {
+  const first = new Date(year, month, 1).getDay();
+  const days  = new Date(year, month + 1, 0).getDate();
+  const start = first === 0 ? 6 : first - 1;
+  return Array.from({ length: start + days }, (_, i) =>
+    i < start ? null : i - start + 1
+  );
+}
 
-function MiniChart({ measures, field }) {
-  const data      = [...measures].filter(m => m[field] != null).reverse().slice(-16)
-  const fieldMeta = MEASURE_FIELDS.find(f => f.key === field)
-  const color     = fieldMeta?.color || '#B8860B'
-  if (data.length < 2) return (
-    <div style={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#E8E4DC', gap: 8 }}>
-      <div style={{ fontSize: 32 }}>📉</div>
-      <div style={{ fontSize: 12, color: '#A09880' }}>Ajoute au moins 2 mesures pour voir la courbe</div>
+// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+
+function Avatar({ initials, size = 36, color = S.navy }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: color, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: bebas, fontSize: size * 0.38, letterSpacing: 1, flexShrink: 0 }}>
+      {initials}
     </div>
-  )
-  const vals = data.map(m => +m[field])
-  const min  = Math.min(...vals), max = Math.max(...vals)
-  const range = max - min || 1
-  const W = 400, H = 140, PX = 12, PY = 14
-  const pts      = data.map((m, i) => [PX + (i / (data.length - 1)) * (W - PX * 2), PY + ((max - +m[field]) / range) * (H - PY * 2 - 14)])
-  const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ')
-  const area     = `M${pts[0][0]},${H - 14} ` + pts.map(([x, y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length - 1][0]},${H - 14} Z`
-  const delta    = (vals[vals.length - 1] - vals[0]).toFixed(1)
-  const isPos    = parseFloat(delta) > 0
-  const dColor   = field === 'weight' ? (isPos ? '#C45C3A' : '#3F7D58') : (isPos ? '#B8860B' : '#C45C3A')
+  );
+}
+
+function KpiCard({ icon, label, value, sub, accent = S.navy, onClick }) {
+  return (
+    <div onClick={onClick} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "16px 18px", cursor: onClick ? "pointer" : "default", flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
+      <div style={{ fontFamily: bebas, fontSize: 28, color: accent, letterSpacing: 1, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: S.muted, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function Badge({ text, color, bg }) {
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: bg || `${color}18`, color: color, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+      {text}
+    </span>
+  );
+}
+
+function ProgressBar({ value, color, height = 5 }) {
+  return (
+    <div style={{ height, background: "#EEF0F8", borderRadius: 99, overflow: "hidden", width: "100%" }}>
+      <div style={{ width: `${Math.min(100, value)}%`, height: "100%", background: color, borderRadius: 99 }} />
+    </div>
+  );
+}
+
+// ─── MODAL OFFRE ──────────────────────────────────────────────────────────────
+
+function OfferModal({ client, onClose, onSave }) {
+  const [form, setForm] = useState({
+    offer: client.offer,
+    price: OFFERS[client.offer].price,
+    startDate: client.since,
+    nextPayment: client.nextPayment || "",
+    note: "",
+  });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(13,27,78,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "white", borderRadius: 20, padding: "28px 32px", width: "100%", maxWidth: 500, boxShadow: "0 24px 60px rgba(13,27,78,0.2)" }}>
+        <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MODIFIER L'OFFRE — {client.name.toUpperCase()}</div>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          {Object.values(OFFERS).map((o) => (
+            <button key={o.id} onClick={() => setForm((p) => ({ ...p, offer: o.id, price: o.price }))}
+              style={{ flex: 1, padding: "12px 10px", border: `2px solid ${form.offer === o.id ? o.color : S.border}`, borderRadius: 12, background: form.offer === o.id ? `${o.color}12` : "white", cursor: "pointer", fontFamily: font }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{o.badge}</div>
+              <div style={{ fontWeight: 800, color: S.navy, fontSize: 14 }}>{o.name}</div>
+              <div style={{ fontSize: 13, color: S.muted }}>{o.price} €/mois</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+          {[["Tarif mensuel (€)", "price", "number"], ["Début contrat", "startDate", "date"], ["Prochain paiement", "nextPayment", "date"]].map(([lbl, key, type]) => (
+            <div key={key} style={{ gridColumn: key === "note" ? "1/-1" : undefined }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: 4 }}>{lbl}</label>
+              <input type={type} value={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: 13, fontFamily: font, outline: "none" }} />
+            </div>
+          ))}
+          <div style={{ gridColumn: "1/-1" }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: 4 }}>Note interne</label>
+            <textarea value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} rows={2} placeholder="Ex : tarif fidélité, promo, accord verbal…"
+              style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: 13, fontFamily: font, outline: "none", resize: "vertical" }} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "9px 18px", border: `1px solid ${S.border}`, borderRadius: 9, background: "white", cursor: "pointer", fontSize: 13, fontFamily: font }}>Annuler</button>
+          <button onClick={() => { onSave(client.id, form); onClose(); }}
+            style={{ padding: "9px 18px", border: "none", borderRadius: 9, background: S.navy, color: "white", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: font }}>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── VUE DÉTAIL CLIENT ────────────────────────────────────────────────────────
+
+function ClientDetail({ client, onBack, onEditOffer }) {
+  const offer = OFFERS[client.offer];
+  const weightPct = client.weightGoal && client.weight
+    ? Math.max(0, Math.min(100, ((client.weight - client.weightGoal) / (client.weight - client.weightGoal + 4)) * 100))
+    : 0;
+
+  const weightHistory = [
+    { d: "Avr", v: client.weight + 2.4 }, { d: "Mai", v: client.weight + 1.1 },
+    { d: "Juin", v: client.weight },
+  ];
+  const maxW = Math.max(...weightHistory.map((h) => h.v));
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140, overflow: 'visible' }}>
-        <defs>
-          <linearGradient id={`g-${field}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor={color} stopOpacity="0.18" />
-            <stop offset="100%" stopColor={color} stopOpacity="0"    />
-          </linearGradient>
-        </defs>
-        {[0.25, 0.5, 0.75].map((t, i) => (
-          <line key={i} x1={PX} y1={PY + t * (H - PY * 2 - 14)} x2={W - PX} y2={PY + t * (H - PY * 2 - 14)} stroke="#EDE9E0" strokeWidth="1" strokeDasharray="3,3" />
-        ))}
-        <path d={area} fill={`url(#g-${field})`} />
-        <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 5 : 3.5} fill="white" stroke={color} strokeWidth="2.5" />)}
-        <text x={pts[0][0]}              y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
-        <text x={pts[pts.length-1][0]}   y={H - 1} textAnchor="middle" fontSize="9" fill="#A09880">{new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
-        <text x={W - PX + 3} y={PY + 3}        fontSize="9" fill={color}   fontWeight="700">{max}</text>
-        <text x={W - PX + 3} y={H - PY - 12}   fontSize="9" fill="#A09880">{min}</text>
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-        <div style={{ fontSize: 11, color: '#A09880' }}>{data.length} mesures · du {new Date(data[0].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
-        <div style={{ fontSize: 12, fontWeight: 800, color: dColor }}>{isPos ? '+' : ''}{delta} {fieldMeta?.unit} sur la période</div>
-      </div>
-    </div>
-  )
-}
-
-function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditWeight, saving, saveWeight, deleteMeasure, deletingId, editingMeasure, setEditingMeasure, updateMeasure, startEditMeasure, bodyTab, setBodyTab, chartField, setChartField }) {
-  const latest = measures[0] || {}
-  const inpB   = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 14, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
-  const btnB   = (bg, col, brd) => ({ padding: '9px 18px', background: bg, color: col, border: brd ? `1.5px solid ${brd}` : 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ background: '#0D1B2A', borderRadius: 16, padding: '22px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📏 Suivi corporel</div>
-          <div style={{ fontSize: 12, opacity: 0.55 }}>Poids · mensurations · évolution</div>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+        <button onClick={onBack} style={{ border: "none", background: "transparent", color: S.muted, cursor: "pointer", fontSize: 20, padding: 0, display: "flex" }}>←</button>
+        <Avatar initials={client.avatar} size={48} color={offer.color} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 1 }}>{client.name.toUpperCase()}</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Badge text={offer.name} color={offer.color} />
+            <Badge text={client.status} color={client.status === "actif" ? S.green : S.red} />
+            {client.messages > 0 && <Badge text={`${client.messages} msg`} color={S.blue} />}
+          </div>
         </div>
-        <button onClick={() => { if (editWeight) { setEditWeight(false); setEditingMeasure(null) } else setEditWeight(true) }} style={{ ...btnB(editWeight ? 'rgba(255,255,255,0.1)' : '#B8860B', 'white'), border: editWeight ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>
-          {editWeight ? '✕ Annuler' : '+ Nouvelle mesure'}
+        <button onClick={onEditOffer} style={{ padding: "8px 16px", border: `1px solid ${S.border}`, borderRadius: 9, background: "white", cursor: "pointer", fontSize: 12, fontWeight: 700, color: S.navy, fontFamily: font }}>
+          ✏️ Modifier l'offre
         </button>
       </div>
-      {editWeight && (
-        <div style={{ background: 'white', border: '1.5px solid #E8E4DC', borderRadius: 14, padding: '20px 18px' }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B2A', marginBottom: 16 }}>
-            {editingMeasure
-              ? <span>✏️ Modifier la mesure du <span style={{ color: '#B8860B' }}>{new Date(measures.find(m => m.id === editingMeasure)?.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span>
-              : <span>✏️ {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-            }
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 10 }}>
-            {MEASURE_FIELDS.map(f => (
-              <div key={f.key}>
-                <label style={{ display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 700 }}>{f.icon} {f.label} ({f.unit}){f.required ? ' *' : ''}</label>
-                <input type="number" step="0.1" value={weightForm[f.key] || ''} onChange={e => setWeightForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.required ? 'Obligatoire' : 'Optionnel'} style={inpB} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <KpiCard icon="⚖️" label="Poids actuel" value={`${client.weight} kg`} sub={`Objectif : ${client.weightGoal} kg`} accent={S.navy} />
+        <KpiCard icon="📊" label="Compliance" value={`${client.compliance}%`} sub="7 derniers jours" accent={complianceColor(client.compliance)} />
+        <KpiCard icon="📋" label="Dernier bilan" value={daysAgo(client.lastBilan)} sub={client.lastBilan} accent={S.navy} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {/* Financier */}
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "18px 20px" }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>FINANCIER</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+            {[["Tarif", `${offer.price} €/m`], ["Solde", `${client.balance} €`], ["Prochain", client.nextPayment ? new Date(client.nextPayment).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "—"]].map(([lbl, val]) => (
+              <div key={lbl} style={{ textAlign: "center", background: "#F8FAFF", borderRadius: 10, padding: "10px 6px" }}>
+                <div style={{ fontFamily: bebas, fontSize: 20, color: client.balance < 0 && lbl === "Solde" ? S.red : S.navy }}>{val}</div>
+                <div style={{ fontSize: 10, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px" }}>{lbl}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 700 }}>📝 Note</label>
-            <input value={weightForm.notes || ''} onChange={e => setWeightForm(p => ({ ...p, notes: e.target.value }))} placeholder="Ex: matin à jeun, après séance…" style={inpB} />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={editingMeasure ? updateMeasure : saveWeight} disabled={saving || !weightForm.weight} style={{ ...btnB(editingMeasure ? '#B8860B' : '#0D1B2A', 'white'), opacity: !weightForm.weight ? 0.45 : 1 }}>{saving ? 'Sauvegarde…' : editingMeasure ? '✓ Mettre à jour' : '✓ Enregistrer'}</button>
-            <button onClick={() => { setEditWeight(false); setEditingMeasure(null) }} style={btnB('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
-          </div>
-        </div>
-      )}
-      {measures.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-          {MEASURE_FIELDS.filter(f => latest[f.key] != null).map(f => {
-            const prev    = measures.find((m, i) => i > 0 && m[f.key] != null)
-            const delta   = prev ? (+latest[f.key] - +prev[f.key]).toFixed(1) : null
-            const positive = delta !== null && parseFloat(delta) > 0
-            const dColor  = f.key === 'weight' ? (positive ? '#C45C3A' : '#3F7D58') : (positive ? '#3F7D58' : '#C45C3A')
-            return (
-              <div key={f.key} onClick={() => { setBodyTab('curve'); setChartField(f.key) }}
-                style={{ background: 'white', border: `1.5px solid ${f.color}20`, borderTop: `3px solid ${f.color}`, borderRadius: 13, padding: '13px 10px', textAlign: 'center', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 4px 14px ${f.color}22`}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{f.icon}</div>
-                <div style={{ fontWeight: 900, fontSize: 22, color: f.color, lineHeight: 1 }}>{latest[f.key]}</div>
-                <div style={{ fontSize: 10, color: '#A09880', marginBottom: 3 }}>{f.unit}</div>
-                <div style={{ fontSize: 9, color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700, marginBottom: 5 }}>{f.label}</div>
-                {delta !== null && <div style={{ fontSize: 10, fontWeight: 800, color: parseFloat(delta) === 0 ? '#A09880' : dColor }}>{positive ? '+' : ''}{delta} {f.unit}</div>}
-              </div>
-            )
-          })}
-        </div>
-      )}
-      <div style={{ background: 'white', border: '1px solid #E8E4DC', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #EDE9E0' }}>
-          {[{ id: 'history', label: '📋 Historique' }, { id: 'curve', label: '📈 Courbe' }].map(t => (
-            <button key={t.id} onClick={() => setBodyTab(t.id)} style={{ flex: 1, padding: 13, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 13, background: bodyTab === t.id ? '#0D1B2A' : 'transparent', color: bodyTab === t.id ? 'white' : '#8A8070' }}>{t.label}</button>
-          ))}
-        </div>
-        <div style={{ padding: 18 }}>
-          {bodyTab === 'history' && (measures.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#A09880', padding: '30px 0', fontSize: 13 }}>Aucune mesure enregistrée</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 460, overflowY: 'auto' }}>
-              {measures.map((m, i) => (
-                <div key={m.id} style={{ background: i === 0 ? '#FAF9F7' : 'white', borderRadius: 11, padding: '12px 14px', border: i === 0 ? '1.5px solid #E8E4DC' : '1px solid #F0EDE6' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: '#A09880', fontFamily: "'DM Mono',monospace" }}>{new Date(m.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      {i === 0 && <span style={{ fontSize: 9, background: '#E8F0E8', color: '#3F7D58', padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>ACTUEL</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => startEditMeasure(m)} style={{ background: 'rgba(184,134,11,0.09)', border: 'none', color: '#B8860B', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✏️</button>
-                      <button onClick={() => deleteMeasure(m.id)} disabled={deletingId === m.id} style={{ background: 'rgba(196,92,58,0.09)', border: 'none', color: '#C45C3A', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{deletingId === m.id ? '…' : '×'}</button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px' }}>
-                    {MEASURE_FIELDS.filter(f => m[f.key] != null).map(f => (
-                      <div key={f.key} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#A09880' }}>{f.label}</span>
-                        <span style={{ fontWeight: 900, fontSize: 15, color: f.color }}>{m[f.key]}<span style={{ fontSize: 10, fontWeight: 400, color: '#A09880' }}> {f.unit}</span></span>
-                      </div>
-                    ))}
-                    {m.notes && <div style={{ width: '100%', fontSize: 11, color: '#A09880', marginTop: 3, fontStyle: 'italic' }}>💬 {m.notes}</div>}
-                  </div>
-                </div>
-              ))}
+          {client.balance < 0 && (
+            <div style={{ padding: "8px 12px", background: "#FEF2F2", borderRadius: 8, border: `1px solid #F3C4C4`, fontSize: 12, color: S.red, fontWeight: 600 }}>
+              ⚠️ Retard de paiement : {Math.abs(client.balance)} €
             </div>
-          ))}
-          {bodyTab === 'curve' && (
+          )}
+        </div>
+
+        {/* Programme */}
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "18px 20px" }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>PROGRAMME ACTIF</div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: S.navy, marginBottom: 8 }}>{client.program}</div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12 }}>
+              <span style={{ color: S.muted }}>Compliance semaine</span>
+              <span style={{ fontWeight: 700, color: complianceColor(client.compliance) }}>{client.compliance}%</span>
+            </div>
+            <ProgressBar value={client.compliance} color={complianceColor(client.compliance)} height={7} />
+          </div>
+          <div style={{ fontSize: 12, color: S.muted }}>Depuis le {new Date(client.since).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+
+        {/* Évolution poids */}
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "18px 20px" }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>ÉVOLUTION POIDS</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 60, marginBottom: 8 }}>
+            {weightHistory.map((h, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}>
+                <div style={{ fontSize: 9, color: S.muted }}>{h.v} kg</div>
+                <div style={{ width: "100%", background: i === weightHistory.length - 1 ? S.gold : "#C5CEEA", borderRadius: "4px 4px 0 0", height: `${(h.v / maxW) * 80}%` }} />
+                <div style={{ fontSize: 9, color: S.muted }}>{h.d}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: S.muted }}>Objectif : <strong style={{ color: S.navy }}>{client.weightGoal} kg</strong> · Écart : <strong style={{ color: complianceColor(client.compliance) }}>{(client.weight - client.weightGoal).toFixed(1)} kg</strong></div>
+        </div>
+
+        {/* Offre */}
+        <div style={{ background: `${offer.color}0E`, border: `1.5px solid ${offer.color}44`, borderRadius: 14, padding: "18px 20px" }}>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>OFFRE SOUSCRITE</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 22 }}>{offer.badge}</span>
             <div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-                {MEASURE_FIELDS.filter(f => measures.some(m => m[f.key] != null)).map(f => (
-                  <button key={f.key} onClick={() => setChartField(f.key)} style={{ padding: '5px 13px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, background: chartField === f.key ? f.color : '#F0EDE6', color: chartField === f.key ? 'white' : '#8A8070', transition: 'all 0.15s' }}>{f.icon} {f.label}</button>
+              <div style={{ fontWeight: 800, fontSize: 16, color: S.navy }}>{offer.name}</div>
+              <div style={{ fontFamily: bebas, fontSize: 20, color: offer.color }}>{offer.price} €<span style={{ fontSize: 12, fontWeight: 400, color: S.muted }}>/mois</span></div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {offer.features.map((f) => (
+              <div key={f} style={{ fontSize: 12, color: S.navy, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ color: offer.color, fontWeight: 800 }}>✓</span> {f}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CALENDRIER ───────────────────────────────────────────────────────────────
+
+function CalendarPanel({ sessions }) {
+  const today = new Date();
+  const [month, setMonth] = useState(today.getMonth());
+  const [year,  setYear]  = useState(today.getFullYear());
+  const days = buildCalendar(year, month);
+  const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const DAYS_FR   = ["L","M","M","J","V","S","D"];
+
+  const sessionMap = {};
+  sessions.forEach((s) => { if (!sessionMap[s.date]) sessionMap[s.date] = []; sessionMap[s.date].push(s); });
+
+  const todayStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  return (
+    <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "18px 20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontFamily: bebas, fontSize: 16, color: S.navy, letterSpacing: 2 }}>
+          {MONTHS_FR[month].toUpperCase()} {year}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <NavBtn onClick={() => { if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1); }}>‹</NavBtn>
+          <NavBtn onClick={() => { if (month === 11) { setMonth(0);  setYear((y) => y + 1); } else setMonth((m) => m + 1); }}>›</NavBtn>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
+        {DAYS_FR.map((d, i) => (
+          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: S.muted, letterSpacing: "0.5px", padding: "2px 0", textTransform: "uppercase" }}>{d}</div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+        {days.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const ds  = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const ses = sessionMap[ds] || [];
+          const isT = ds === todayStr;
+          return (
+            <div key={i} style={{ borderRadius: 7, padding: "4px 2px", minHeight: 36, background: isT ? S.navy : "transparent", position: "relative", cursor: ses.length ? "pointer" : "default" }}>
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: isT ? 700 : 500, color: isT ? "white" : S.navy, marginBottom: 2 }}>{d}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
+                {ses.map((s, j) => (
+                  <div key={j} title={`${s.client} — ${s.type}`} style={{ width: 6, height: 6, borderRadius: "50%", background: isT ? "white" : s.color }} />
                 ))}
               </div>
-              <div style={{ background: '#FAF9F7', borderRadius: 12, padding: '16px 14px' }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B2A', marginBottom: 12 }}>{MEASURE_FIELDS.find(f => f.key === chartField)?.icon} {MEASURE_FIELDS.find(f => f.key === chartField)?.label} <span style={{ fontSize: 11, color: '#A09880', fontWeight: 400 }}>({MEASURE_FIELDS.find(f => f.key === chartField)?.unit})</span></div>
-                <MiniChart measures={measures} field={chartField} />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Prochains rdv */}
+      <div style={{ borderTop: `1px solid ${S.border}`, marginTop: 14, paddingTop: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>Prochains suivis</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {sessions.filter((s) => s.date >= todayStr).slice(0, 3).map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "#F8FAFF", borderRadius: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy }}>{s.client}</div>
+              <Badge text={s.type} color={s.color} />
+              <div style={{ fontSize: 10, color: S.muted }}>{new Date(s.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{ width: 26, height: 26, border: `1px solid ${S.border}`, borderRadius: 6, background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", color: S.navy }}>
+      {children}
+    </button>
+  );
+}
+
+// ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
+
+export default function Dashboard() {
+  const [clients,      setClients]      = useState(CLIENTS);
+  const [selected,     setSelected]     = useState(null);
+  const [editingOffer, setEditingOffer] = useState(null);
+  const [activeTab,    setActiveTab]    = useState("clients");
+
+  const activeClients  = clients.filter((c) => c.status === "actif");
+  const mrr            = activeClients.reduce((s, c) => s + OFFERS[c.offer].price, 0);
+  const avgCompliance  = Math.round(activeClients.reduce((s, c) => s + c.compliance, 0) / (activeClients.length || 1));
+  const pendingPayment = clients.filter((c) => c.balance < 0).length;
+  const pendingMsg     = clients.reduce((s, c) => s + c.messages, 0);
+
+  const handleSaveOffer = (clientId, form) => {
+    setClients((prev) => prev.map((c) =>
+      c.id === clientId ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment } : c
+    ));
+  };
+
+  const selectedClient = selected ? clients.find((c) => c.id === selected) : null;
+
+  return (
+    <div style={{ minHeight: "100vh", background: S.bg, fontFamily: font, color: S.navy }}>
+
+      {/* ── SIDEBAR ── */}
+      <div style={{ display: "flex", minHeight: "100vh" }}>
+        <div style={{ width: 220, background: S.navy, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+          {/* Logo */}
+          <div style={{ padding: "24px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontFamily: bebas, fontSize: 26, color: S.gold, letterSpacing: 3 }}>BEN&FIT</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "1px", textTransform: "uppercase" }}>Dashboard Coach</div>
+          </div>
+
+          {/* Nav */}
+          <nav style={{ padding: "16px 10px", flex: 1 }}>
+            {[
+              { id: "clients",  icon: "👥", label: "Clients" },
+              { id: "offres",   icon: "📦", label: "Offres" },
+              { id: "calendar", icon: "📅", label: "Calendrier" },
+              { id: "finances", icon: "💳", label: "Finances" },
+            ].map((item) => (
+              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelected(null); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", background: activeTab === item.id ? "rgba(200,169,90,0.15)" : "transparent", color: activeTab === item.id ? S.gold : "rgba(255,255,255,0.6)", fontFamily: font, fontSize: 13, fontWeight: activeTab === item.id ? 700 : 500, marginBottom: 2, transition: "all 0.15s" }}>
+                <span style={{ fontSize: 16 }}>{item.icon}</span>{item.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Coach info */}
+          <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar initials="BN" size={34} color={S.gold} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>Bene</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>Coach Ben&Fit</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── MAIN ── */}
+        <div style={{ flex: 1, padding: "28px 28px", overflowY: "auto" }}>
+
+          {/* KPI Row — toujours visible */}
+          {!selectedClient && (
+            <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+              <KpiCard icon="👥" label="Clients actifs"      value={activeClients.length}   sub={`${clients.length} total`} />
+              <KpiCard icon="💰" label="MRR"                 value={`${mrr} €`}             sub="Revenus mensuels récurrents" accent={S.gold} />
+              <KpiCard icon="📊" label="Compliance moy."     value={`${avgCompliance}%`}    sub="7 derniers jours"           accent={complianceColor(avgCompliance)} />
+              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}         sub="clients en retard"          accent={pendingPayment > 0 ? S.red : S.green} />
+              {pendingMsg > 0 && <KpiCard icon="💬" label="Messages" value={pendingMsg} sub="non lus" accent={S.blue} />}
+            </div>
+          )}
+
+          {/* ── VUE CLIENTS ── */}
+          {(activeTab === "clients" || activeTab === "calendar") && selectedClient ? (
+            <ClientDetail
+              client={selectedClient}
+              onBack={() => setSelected(null)}
+              onEditOffer={() => setEditingOffer(selectedClient)}
+            />
+          ) : activeTab === "clients" ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16 }}>
+              <div>
+                <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>MES CLIENTS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {clients.map((c) => {
+                    const offer = OFFERS[c.offer];
+                    return (
+                      <div key={c.id} onClick={() => setSelected(c.id)} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "box-shadow 0.15s" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(13,27,78,0.1)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}>
+                        <Avatar initials={c.avatar} size={42} color={c.status === "actif" ? offer.color : "#CCC"} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: S.navy }}>{c.name}</div>
+                            <Badge text={offer.name} color={offer.color} />
+                            {c.status !== "actif" && <Badge text="inactif" color={S.red} />}
+                            {c.messages > 0 && <Badge text={`${c.messages} msg`} color={S.blue} />}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ flex: 1, maxWidth: 120 }}>
+                              <ProgressBar value={c.compliance} color={complianceColor(c.compliance)} height={4} />
+                            </div>
+                            <span style={{ fontSize: 11, color: complianceColor(c.compliance), fontWeight: 700 }}>{c.compliance}%</span>
+                            <span style={{ fontSize: 11, color: S.muted }}>· {c.program}</span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : S.navy }}>{c.balance === 0 ? "✓" : `${c.balance} €`}</div>
+                          <div style={{ fontSize: 10, color: S.muted }}>{daysAgo(c.lastBilan)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <CalendarPanel sessions={SESSIONS_JUNE} />
+            </div>
+          ) : null}
+
+          {/* ── VUE OFFRES ── */}
+          {activeTab === "offres" && (
+            <div>
+              <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MES OFFRES</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
+                {Object.values(OFFERS).map((offer) => {
+                  const count = clients.filter((c) => c.offer === offer.id && c.status === "actif").length;
+                  return (
+                    <div key={offer.id} style={{ background: S.card, border: `2px solid ${offer.color}44`, borderRadius: 18, padding: "24px 28px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 24, marginBottom: 6 }}>{offer.badge}</div>
+                          <div style={{ fontFamily: bebas, fontSize: 24, color: S.navy, letterSpacing: 2 }}>{offer.name.toUpperCase()}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontFamily: bebas, fontSize: 32, color: offer.color, letterSpacing: 1 }}>{offer.price} €</div>
+                          <div style={{ fontSize: 11, color: S.muted }}>par mois</div>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 16 }}>
+                        {offer.features.map((f) => (
+                          <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${S.border}`, fontSize: 13 }}>
+                            <span style={{ color: offer.color, fontWeight: 800 }}>✓</span>{f}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: `${offer.color}10`, borderRadius: 10 }}>
+                        <span style={{ fontSize: 12, color: S.muted }}>Clients actifs sur cette offre</span>
+                        <span style={{ fontFamily: bebas, fontSize: 22, color: offer.color }}>{count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Table clients par offre */}
+              <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 12 }}>RÉPARTITION</div>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", background: "#F8FAFF", padding: "10px 18px", fontSize: 10, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", borderBottom: `1px solid ${S.border}` }}>
+                  <span>Client</span><span>Offre</span><span>Tarif</span><span>Statut</span>
+                </div>
+                {clients.map((c) => {
+                  const offer = OFFERS[c.offer];
+                  return (
+                    <div key={c.id} onClick={() => { setSelected(c.id); setActiveTab("clients"); }}
+                      style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "12px 18px", borderBottom: `1px solid ${S.border}`, alignItems: "center", cursor: "pointer" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#F8FAFF")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar initials={c.avatar} size={28} color={offer.color} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                      </div>
+                      <Badge text={offer.name} color={offer.color} />
+                      <div style={{ fontFamily: bebas, fontSize: 16, color: S.navy }}>{offer.price} €</div>
+                      <Badge text={c.status} color={c.status === "actif" ? S.green : S.red} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── VUE CALENDRIER ── */}
+          {activeTab === "calendar" && !selectedClient && (
+            <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16 }}>
+              <CalendarPanel sessions={SESSIONS_JUNE} />
+              <div>
+                <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>TOUS LES SUIVIS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {SESSIONS_JUNE.map((s, i) => (
+                    <div key={i} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 4, height: 36, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: S.navy }}>{s.client}</div>
+                        <Badge text={s.type} color={s.color} />
+                      </div>
+                      <div style={{ fontSize: 12, color: S.muted }}>{new Date(s.date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── VUE FINANCES ── */}
+          {activeTab === "finances" && (
+            <div>
+              <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>FINANCES</div>
+              <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+                <KpiCard icon="💰" label="MRR total"          value={`${mrr} €`}          sub="Clients actifs"          accent={S.gold} />
+                <KpiCard icon="✅" label="Paiements à jour"    value={clients.filter((c) => c.balance === 0).length}    sub="clients"                 accent={S.green} />
+                <KpiCard icon="⚠️" label="Retards"             value={clients.filter((c) => c.balance < 0).length}     sub="clients"                 accent={pendingPayment > 0 ? S.red : S.green} />
+                <KpiCard icon="📈" label="ARR estimé"          value={`${mrr * 12} €`}    sub="Revenus annuels"         accent={S.navy} />
+              </div>
+
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", background: "#F8FAFF", padding: "10px 18px", fontSize: 10, fontWeight: 700, color: S.muted, textTransform: "uppercase", letterSpacing: "0.8px", borderBottom: `1px solid ${S.border}` }}>
+                  <span>Client</span><span>Offre</span><span>Tarif / mois</span><span>Solde</span><span>Prochain paiement</span>
+                </div>
+                {clients.map((c) => {
+                  const offer = OFFERS[c.offer];
+                  return (
+                    <div key={c.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "13px 18px", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar initials={c.avatar} size={30} color={c.status === "actif" ? offer.color : "#CCC"} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
+                          <Badge text={c.status} color={c.status === "actif" ? S.green : S.red} />
+                        </div>
+                      </div>
+                      <Badge text={offer.name} color={offer.color} />
+                      <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy }}>{c.status === "actif" ? `${offer.price} €` : "—"}</div>
+                      <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : S.green }}>
+                        {c.balance < 0 ? `${c.balance} €` : "✓"}
+                      </div>
+                      <div style={{ fontSize: 12, color: S.muted }}>
+                        {c.nextPayment ? new Date(c.nextPayment).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—"}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "13px 18px", background: "#F8FAFF", borderTop: `2px solid ${S.border}` }}>
+                  <div style={{ fontWeight: 700, color: S.navy }}>Total</div>
+                  <div />
+                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.gold }}>{mrr} €</div>
+                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.red }}>{clients.filter((c) => c.balance < 0).reduce((s, c) => s + c.balance, 0)} €</div>
+                  <div />
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
-    </div>
-  )
-}
 
-const RECIPE = {
-  name: 'Muffins Pépites de Chocolat', category: 'Goûter', emoji: '🧁', prep_time: '10 min', cook_time: '20-25 min', servings: 8,
-  description: 'Des muffins moelleux et healthy, sans sucre raffiné, riches en protéines. Le goûter parfait pour les sportifs.',
-  image: '/muffins-choco.png',
-  ingredients: [{ qty: '125g', name: 'farine de blé semi-complète' }, { qty: '100g', name: 'compote de pomme sans sucre ajouté' }, { qty: '50g', name: 'fromage blanc 0%' }, { qty: '1', name: 'œuf entier' }, { qty: '35g', name: 'pépites de chocolat' }, { qty: '30g', name: "sirop d'agave" }, { qty: '10ml', name: 'huile de coco' }, { qty: '5g', name: 'levure chimique' }],
-  steps: ["Préchauffer le four à 180°C.", "Faire fondre l'huile de coco.", "Mélanger farine, compote, fromage blanc, œuf, sirop d'agave, huile et levure.", "Incorporer les pépites de chocolat.", "Remplir aux ¾ les moules à muffins.", "Enfourner 20-25 min jusqu'à dorure.", "Laisser tiédir avant de déguster."],
-  tips: "Conserver dans un récipient hermétique au frais. À consommer dans les 2 jours.",
-  macros: { calories: 139, proteines: 3.9, glucides: 21.7, lipides: 4.1 },
-}
-
-function RecipeOfTheDay() {
-  const r = RECIPE
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: "'DM Sans',sans-serif" }}>
-      <div style={{ borderRadius: 20, overflow: 'hidden', position: 'relative', boxShadow: '0 8px 32px rgba(13,27,42,0.18)' }}>
-        <img src={r.image} alt={r.name} style={{ width: '100%', height: 280, objectFit: 'cover', display: 'block' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,27,42,0.92) 0%, transparent 55%)' }} />
-        <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', gap: 8 }}>
-          <span style={{ background: 'rgba(255,255,255,0.95)', color: '#C45C3A', padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase' }}>{r.emoji} {r.category}</span>
-          <span style={{ background: 'rgba(0,0,0,0.45)', color: 'white', padding: '5px 12px', borderRadius: 20, fontSize: 11 }}>⏱ {r.prep_time} + {r.cook_time}</span>
-        </div>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 22px 20px' }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 800, color: 'white', lineHeight: 1.15, marginBottom: 6 }}>{r.name}</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, maxWidth: 480 }}>{r.description}</div>
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', color: '#A09880', fontWeight: 700, marginBottom: 12 }}>Valeurs nutritionnelles · par muffin</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-          {[
-            { label: 'Calories',  value: r.macros.calories,   unit: 'kcal', color: '#C45C3A', bg: '#FFF3EE', icon: '🔥' },
-            { label: 'Protéines', value: r.macros.proteines,  unit: 'g',    color: '#3F7D58', bg: '#EEF6EE', icon: '💪' },
-            { label: 'Glucides',  value: r.macros.glucides,   unit: 'g',    color: '#B8860B', bg: '#FFFBEE', icon: '⚡' },
-            { label: 'Lipides',   value: r.macros.lipides,    unit: 'g',    color: '#8A7060', bg: '#F9F5F0', icon: '🫒' },
-          ].map(m => (
-            <div key={m.label} style={{ background: m.bg, border: `1.5px solid ${m.color}22`, borderRadius: 14, padding: '16px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{m.icon}</div>
-              <div style={{ fontWeight: 900, fontSize: 22, color: m.color, lineHeight: 1 }}>{m.value}</div>
-              <div style={{ fontSize: 11, color: m.color, fontWeight: 600, opacity: 0.7, marginBottom: 4 }}>{m.unit}</div>
-              <div style={{ fontSize: 10, color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 600 }}>{m.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ background: 'white', border: '1.5px solid #EDE9E0', borderRadius: 16, padding: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <div style={{ width: 32, height: 32, background: '#0D1B2A', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛒</div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B2A' }}>Ingrédients</div>
-          </div>
-          {r.ingredients.map((ing, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < r.ingredients.length - 1 ? '1px solid #F0EDE6' : 'none' }}>
-              <span style={{ background: '#0D1B2A', color: 'white', minWidth: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontSize: 13, color: '#0D1B2A', lineHeight: 1.5 }}><strong style={{ color: '#B8860B', fontWeight: 800 }}>{ing.qty}</strong>&nbsp;{ing.name}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ background: 'white', border: '1.5px solid #EDE9E0', borderRadius: 16, padding: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <div style={{ width: 32, height: 32, background: '#C45C3A', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👨‍🍳</div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B2A' }}>Préparation</div>
-          </div>
-          {r.steps.map((step, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
-              <span style={{ background: '#C45C3A', color: 'white', minWidth: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontSize: 13, color: '#0D1B2A', lineHeight: 1.65 }}>{step}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ background: 'linear-gradient(135deg, #FFFBEE, #FFF5D0)', border: '1.5px solid #FFD97D', borderRadius: 14, padding: '18px 22px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-        <div style={{ fontSize: 28, flexShrink: 0 }}>💡</div>
-        <div>
-          <div style={{ fontWeight: 800, color: '#0D1B2A', fontSize: 14, marginBottom: 5 }}>Astuce conservation</div>
-          <div style={{ fontSize: 13, color: '#5A4A20', lineHeight: 1.65 }}>{r.tips}</div>
-        </div>
-      </div>
+      {/* ── MODAL OFFRE ── */}
+      {editingOffer && (
+        <OfferModal
+          client={editingOffer}
+          onClose={() => setEditingOffer(null)}
+          onSave={handleSaveOffer}
+        />
+      )}
     </div>
-  )
+  );
 }
