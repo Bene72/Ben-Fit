@@ -20,6 +20,17 @@ import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
 import FoodBlock  from '../nutrition/FoodBlock'
 import WeekTable  from '../nutrition/WeekTable'
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return mobile
+}
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 function NutritionTab({ clientId, clientName }) {
@@ -168,7 +179,7 @@ function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePla
 
       {editPlan ? (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 12 }}>
             {[['target_calories','🔥 Calories','2200'],['target_protein','🥩 Protéines (g)','160'],['target_carbs','🌾 Glucides (g)','220'],['target_fat','🥑 Lipides (g)','70']].map(([key, label, ph]) => (
               <div key={key}>
                 <label style={lbl}>{label}</label>
@@ -197,7 +208,7 @@ function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePla
                 ].map(({ label, color, keys }) => (
                   <div key={label} style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
                       {keys.map(([key, l, ph]) => (
                         <div key={key}>
                           <label style={lbl}>{l}</label>
@@ -221,7 +232,7 @@ function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePla
         </div>
       ) : plan ? (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: plan.cyclic_diet ? 14 : 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: plan.cyclic_diet ? 14 : 0 }}>
             {[['🔥', plan.target_calories, 'kcal / jour'],['🥩', plan.target_protein, 'g protéines'],['🌾', plan.target_carbs, 'g glucides'],['🥑', plan.target_fat, 'g lipides']].map(([icon, val, label]) => (
               <div key={label} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
@@ -267,7 +278,7 @@ function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePla
 function NutritionRing({ value, target, label, unit, color }) {
   const percent = target ? Math.min(100, (value / target) * 100) : 0
   const over    = percent >= 100
-  const R = 50, stroke = 8, nr = R - stroke * 2
+  const R = 42, stroke = 7, nr = R - stroke * 2
   const circ   = nr * 2 * Math.PI
   const offset = circ - (percent / 100) * circ
   return (
@@ -315,7 +326,7 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
       </div>
       {editing ? (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 14 }}>
             {macros.map((m) => (
               <div key={m.key}>
                 <label style={{ display: 'block', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#999', marginBottom: 4, fontWeight: 600 }}>{m.label}</label>
@@ -329,7 +340,7 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, justifyItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8, justifyItems: 'center' }}>
           {macros.map((m) => <NutritionRing key={m.key} value={log?.[m.key] || 0} target={m.target} label={m.label} unit={m.unit} color={m.color} />)}
         </div>
       )}
@@ -354,7 +365,7 @@ function NutritionScoreBlock({ log, plan }) {
   if (feedback.length === 0) feedback.push('✅ Objectifs atteints !')
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
       <div style={{ padding: '14px 18px', borderRadius: 12, background: '#F7F7F7', border: '1px solid #EAEAEA', display: 'flex', alignItems: 'center', gap: 14 }}>
         <div style={{ fontSize: 26, fontWeight: 800, color }}>{score}<span style={{ fontSize: 12, color: '#999', fontWeight: 400 }}>/100</span></div>
         <div>
