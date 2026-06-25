@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { sumItems } from '../../lib/nutritionUtils'
+import { ci as coachInputStyle } from '../../lib/coachShared'
 
 export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsChange }) {
   const isCoach  = mode === 'coach'
