@@ -570,8 +570,12 @@ export default function CoachDashboard() {
   const loadData = async (coachId) => {
     try {
       const { data: profiles, error: profErr } = await supabase.from('profiles').select('*').eq('role', 'client').eq('coach_id', coachId)
+      console.log('DEBUG profErr:', profErr)
+      console.log('DEBUG profiles[0]:', JSON.stringify(profiles?.[0]))
+      console.log('DEBUG archived:', profiles?.[0]?.archived, 'archived_at:', profiles?.[0]?.archived_at)
       if (profErr) {
         const { data: fallback, error: err2 } = await supabase.from('profiles').select('*').eq('role', 'client')
+        console.log('DEBUG fallback[0]:', JSON.stringify(fallback?.[0]))
         if (err2) throw err2
         setClients((fallback || []).map(toClientModel))
       } else {
