@@ -8,37 +8,32 @@ import { supabase } from '../lib/supabase'
 
 const OFFERS = {
   essentia_plus: {
-    id: 'essentia_plus',
-    name: 'Essentia Plus',
-    price: 249,
-    color: '#C8A95A',
-    badge: '⚡',
+    id: 'essentia_plus', name: 'Essentia Plus', price: 249, color: '#C8A95A', badge: '⚡',
     features: ['Suivi nutrition personnalisé', 'Programme training sur mesure', 'Bilan hebdomadaire', 'Messages illimités', 'Accès app Ben&Fit'],
   },
   tutto_bene: {
-    id: 'tutto_bene',
-    name: 'Tutto Bene',
-    price: 149,
-    color: '#4A6FD4',
-    badge: '🔥',
+    id: 'tutto_bene', name: 'Tutto Bene', price: 149, color: '#4A6FD4', badge: '🔥',
     features: ['Programme training sur mesure', 'Bilan mensuel', 'Messages inclus', 'Accès app Ben&Fit'],
   },
 }
 
+// ─── COULEURS POST-IT ─────────────────────────────────────────────────────────
+
+const NOTE_COLORS = [
+  { id: 'yellow', bg: '#FFF9C4', border: '#F9E64F' },
+  { id: 'blue',   bg: '#DBEAFE', border: '#93C5FD' },
+  { id: 'green',  bg: '#D1FAE5', border: '#6EE7B7' },
+  { id: 'pink',   bg: '#FCE7F3', border: '#F9A8D4' },
+  { id: 'orange', bg: '#FFEDD5', border: '#FED7AA' },
+]
+
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const S = {
-  navy:   '#0D1B4E',
-  gold:   '#C8A95A',
-  bg:     '#F0F2F8',
-  card:   '#FFFFFF',
-  border: '#E2E6F0',
-  muted:  '#6B7A99',
-  green:  '#3A8A5A',
-  red:    '#C45C3A',
-  blue:   '#2C64E5',
+  navy: '#0D1B4E', gold: '#C8A95A', bg: '#F0F2F8', card: '#FFFFFF',
+  border: '#E2E6F0', muted: '#6B7A99', green: '#3A8A5A', red: '#C45C3A',
+  blue: '#2C64E5', gray: '#8B95A8', purple: '#7B6FAD',
 }
-
 const font  = "'DM Sans', system-ui, sans-serif"
 const bebas = "'Bebas Neue', 'DM Sans', sans-serif"
 
@@ -62,43 +57,32 @@ function buildCalendar(year, month) {
   const first = new Date(year, month, 1).getDay()
   const days  = new Date(year, month + 1, 0).getDate()
   const start = first === 0 ? 6 : first - 1
-  return Array.from({ length: start + days }, (_, i) =>
-    i < start ? null : i - start + 1
-  )
+  return Array.from({ length: start + days }, (_, i) => i < start ? null : i - start + 1)
 }
 
-// Transforme un profil Supabase en objet client dashboard
 function toClientModel(profile) {
-  const nameRaw = profile.full_name || profile.name || profile.email || 'Inconnu'
+  const nameRaw  = profile.full_name || profile.name || profile.email || 'Inconnu'
   const initials = nameRaw.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'
   return {
-    id:          profile.id,
-    name:        nameRaw,
-    avatar:      initials,
-    email:       profile.email || '',
-    offer:       profile.offer || 'tutto_bene',
-    status:      profile.status || 'actif',
-    since:       profile.created_at ? profile.created_at.split('T')[0] : '',
-    nextPayment: profile.next_payment || null,
-    balance:     profile.balance || 0,
-    weight:      profile.weight || null,
-    weightGoal:  profile.weight_goal || null,
-    compliance:  profile.compliance ?? 0,
-    lastBilan:   profile.last_bilan || null,
-    program:     profile.current_program || '—',
-    messages:    profile.unread_messages || 0,
-    objective:   profile.objective || '',
-    height:      profile.height || null,
-    // données brutes pour mise à jour
+    id: profile.id, name: nameRaw, avatar: initials, email: profile.email || '',
+    offer: profile.offer || 'tutto_bene', status: profile.status || 'actif',
+    archived: profile.archived || false, archivedAt: profile.archived_at || null,
+    since: profile.created_at ? profile.created_at.split('T')[0] : '',
+    nextPayment: profile.next_payment || null, balance: profile.balance || 0,
+    weight: profile.weight || null, weightGoal: profile.weight_goal || null,
+    compliance: profile.compliance ?? 0, lastBilan: profile.last_bilan || null,
+    program: profile.current_program || '—', messages: profile.unread_messages || 0,
+    objective: profile.objective || '', height: profile.height || null,
+    notes: profile.coach_notes || [],
     _raw: profile,
   }
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+// ─── BASE COMPONENTS ──────────────────────────────────────────────────────────
 
-function Avatar({ initials, size = 36, color = S.navy }) {
+function Avatar({ initials, size = 36, color = S.navy, grayscale = false }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: bebas, fontSize: size * 0.38, letterSpacing: 1, flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: grayscale ? '#AAB0BF' : color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: bebas, fontSize: size * 0.38, letterSpacing: 1, flexShrink: 0, opacity: grayscale ? 0.75 : 1 }}>
       {initials}
     </div>
   )
@@ -117,7 +101,7 @@ function KpiCard({ icon, label, value, sub, accent = S.navy, onClick }) {
 
 function Badge({ text, color, bg }) {
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg || `${color}18`, color: color, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg || `${color}18`, color, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
       {text}
     </span>
   )
@@ -136,6 +120,96 @@ function NavBtn({ onClick, children }) {
     <button onClick={onClick} style={{ width: 26, height: 26, border: `1px solid ${S.border}`, borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.navy }}>
       {children}
     </button>
+  )
+}
+
+// ─── POST-IT PANEL ────────────────────────────────────────────────────────────
+
+function PostItPanel({ clientId, notes, onUpdate }) {
+  const [adding, setAdding] = useState(false)
+  const [text,   setText]   = useState('')
+  const [color,  setColor]  = useState('yellow')
+  const [saving, setSaving] = useState(false)
+
+  const addNote = async () => {
+    if (!text.trim()) return
+    setSaving(true)
+    const newNote = { id: Date.now(), text: text.trim(), color, createdAt: new Date().toISOString().split('T')[0] }
+    const updated = [...(notes || []), newNote]
+    try {
+      await supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId)
+      onUpdate(updated)
+      setText(''); setAdding(false)
+    } catch (e) { console.error(e) }
+    setSaving(false)
+  }
+
+  const deleteNote = async (id) => {
+    const updated = (notes || []).filter(n => n.id !== id)
+    await supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId)
+    onUpdate(updated)
+  }
+
+  const nc = NOTE_COLORS.find(c => c.id === color) || NOTE_COLORS[0]
+
+  return (
+    <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2 }}>📌 ANNOTATIONS</div>
+        {!adding && (
+          <button onClick={() => setAdding(true)} style={{ padding: '5px 12px', background: S.navy, color: 'white', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
+            + Ajouter
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <div style={{ marginBottom: 14, background: nc.bg, border: `1.5px solid ${nc.border}`, borderRadius: 10, padding: '12px 14px' }}>
+          <textarea
+            autoFocus value={text} onChange={e => setText(e.target.value)}
+            placeholder="Ex : vacances 10-24 juillet, allergie gluten, reprend après blessure…"
+            rows={3}
+            style={{ width: '100%', boxSizing: 'border-box', border: 'none', background: 'transparent', fontSize: 13, fontFamily: font, color: S.navy, resize: 'none', outline: 'none', marginBottom: 10, lineHeight: 1.5 }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {NOTE_COLORS.map(c => (
+                <button key={c.id} onClick={() => setColor(c.id)}
+                  style={{ width: 20, height: 20, borderRadius: '50%', background: c.bg, border: `2.5px solid ${color === c.id ? S.navy : c.border}`, cursor: 'pointer', padding: 0 }} />
+              ))}
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <button onClick={() => { setAdding(false); setText('') }} style={{ padding: '5px 12px', background: 'transparent', color: S.muted, border: `1px solid ${S.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer', fontFamily: font }}>Annuler</button>
+              <button onClick={addNote} disabled={saving || !text.trim()} style={{ padding: '5px 12px', background: S.navy, color: 'white', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font, opacity: !text.trim() ? 0.5 : 1 }}>
+                {saving ? '…' : '✓ Ajouter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(!notes || notes.length === 0) && !adding ? (
+        <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '16px 0', fontStyle: 'italic' }}>
+          Aucune annotation — ajoute des infos importantes ici (vacances, allergies, blessures…)
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(notes || []).map(note => {
+            const nc = NOTE_COLORS.find(c => c.id === note.color) || NOTE_COLORS[0]
+            return (
+              <div key={note.id} style={{ background: nc.bg, border: `1px solid ${nc.border}`, borderRadius: 10, padding: '10px 12px', position: 'relative' }}>
+                <div style={{ fontSize: 13, color: S.navy, lineHeight: 1.5, paddingRight: 24 }}>{note.text}</div>
+                <div style={{ fontSize: 10, color: S.muted, marginTop: 6 }}>📅 {note.createdAt}</div>
+                <button onClick={() => deleteNote(note.id)}
+                  style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, border: 'none', background: 'rgba(0,0,0,0.08)', borderRadius: '50%', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.muted }}>
+                  ×
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -165,11 +239,8 @@ function CreateClientModal({ onClose, onCreated }) {
       if (!res.ok) throw new Error(result.error || 'Erreur lors de la création')
       onCreated(toClientModel(result.profile))
       onClose()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setCreating(false)
-    }
+    } catch (err) { setError(err.message) }
+    finally { setCreating(false) }
   }
 
   return (
@@ -181,7 +252,6 @@ function CreateClientModal({ onClose, onCreated }) {
           <div><label style={lblC}>Email *</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="eleve@exemple.com" style={inpC} /></div>
           <div><label style={lblC}>Mot de passe provisoire *</label><input type="text" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} /></div>
           <div><label style={lblC}>Prénom / Nom</label><input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Camille Dupont" style={inpC} /></div>
-
           <div>
             <label style={lblC}>Offre</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -195,15 +265,12 @@ function CreateClientModal({ onClose, onCreated }) {
               ))}
             </div>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={lblC}>Taille (cm)</label><input type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))} placeholder="170" style={inpC} /></div>
             <div><label style={lblC}>Programme</label><input value={form.current_program} onChange={e => setForm(p => ({ ...p, current_program: e.target.value }))} placeholder="Phase 1" style={inpC} /></div>
           </div>
           <div><label style={lblC}>Objectif</label><input value={form.objective} onChange={e => setForm(p => ({ ...p, objective: e.target.value }))} placeholder="Prise de masse…" style={inpC} /></div>
-
           {error && <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: 9, padding: '10px 12px', color: S.red, fontSize: 13 }}>{error}</div>}
-
           <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             <button onClick={createClient} disabled={creating} style={{ flex: 1, padding: '11px 20px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: creating ? 'default' : 'pointer', fontFamily: font, opacity: creating ? 0.7 : 1 }}>
               {creating ? 'Création…' : '✓ Créer le compte'}
@@ -216,23 +283,15 @@ function CreateClientModal({ onClose, onCreated }) {
   )
 }
 
-// ─── MODAL MODIFICATION OFFRE ─────────────────────────────────────────────────
+// ─── MODAL OFFRE ──────────────────────────────────────────────────────────────
 
 function OfferModal({ client, onClose, onSave }) {
-  const [form, setForm] = useState({
-    offer: client.offer,
-    price: OFFERS[client.offer]?.price || 149,
-    startDate: client.since,
-    nextPayment: client.nextPayment || '',
-    note: '',
-  })
-
+  const [form, setForm] = useState({ offer: client.offer, price: OFFERS[client.offer]?.price || 149, startDate: client.since, nextPayment: client.nextPayment || '', note: '' })
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,78,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ background: 'white', borderRadius: 20, padding: '28px 32px', width: '100%', maxWidth: 500, boxShadow: '0 24px 60px rgba(13,27,78,0.2)' }}>
         <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MODIFIER L'OFFRE — {client.name.toUpperCase()}</div>
-
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {Object.values(OFFERS).map((o) => (
             <button key={o.id} onClick={() => setForm((p) => ({ ...p, offer: o.id, price: o.price }))}
@@ -243,7 +302,6 @@ function OfferModal({ client, onClose, onSave }) {
             </button>
           ))}
         </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           {[['Tarif mensuel (€)', 'price', 'number'], ['Début contrat', 'startDate', 'date'], ['Prochain paiement', 'nextPayment', 'date']].map(([lbl, key, type]) => (
             <div key={key}>
@@ -258,7 +316,6 @@ function OfferModal({ client, onClose, onSave }) {
               style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: `1px solid ${S.border}`, borderRadius: 8, fontSize: 13, fontFamily: font, outline: 'none', resize: 'vertical' }} />
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '9px 18px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 13, fontFamily: font }}>Annuler</button>
           <button onClick={() => { onSave(client.id, form); onClose() }}
@@ -269,41 +326,93 @@ function OfferModal({ client, onClose, onSave }) {
   )
 }
 
-// ─── VUE DÉTAIL CLIENT ────────────────────────────────────────────────────────
+// ─── MODAL ARCHIVAGE ──────────────────────────────────────────────────────────
 
-function ClientDetail({ client, onBack, onEditOffer, onNavigate }) {
-  const offer = OFFERS[client.offer] || OFFERS['tutto_bene']
-
+function ArchiveModal({ client, onClose, onConfirm }) {
+  const [loading, setLoading] = useState(false)
+  const confirm = async () => {
+    setLoading(true)
+    await onConfirm(client.id)
+    setLoading(false)
+    onClose()
+  }
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-        <button onClick={onBack} style={{ border: 'none', background: 'transparent', color: S.muted, cursor: 'pointer', fontSize: 20, padding: 0, display: 'flex' }}>←</button>
-        <Avatar initials={client.avatar} size={48} color={offer.color} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 1 }}>{client.name.toUpperCase()}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Badge text={offer.name} color={offer.color} />
-            <Badge text={client.status} color={client.status === 'actif' ? S.green : S.red} />
-            {client.messages > 0 && <Badge text={`${client.messages} msg`} color={S.blue} />}
-          </div>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,78,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: 'white', borderRadius: 20, padding: '28px 32px', width: '100%', maxWidth: 440, boxShadow: '0 24px 60px rgba(13,27,78,0.2)' }}>
+        <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 12 }}>📦 ARCHIVER {client.name.toUpperCase()}</div>
+        <div style={{ fontSize: 13, color: S.muted, lineHeight: 1.7, marginBottom: 24 }}>
+          Le profil de <strong>{client.name}</strong> sera déplacé dans l'onglet <strong>Anciens clients</strong>.<br />
+          Toutes ses données (programme, nutrition, bilans) sont <strong>conservées</strong>.<br />
+          Tu pourras le réactiver à tout moment.
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onEditOffer} style={{ padding: '8px 16px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: S.navy, fontFamily: font }}>
-            ✏️ Modifier l'offre
-          </button>
-          <button onClick={() => onNavigate(client.id)} style={{ padding: '8px 16px', border: 'none', borderRadius: 9, background: S.navy, color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: font }}>
-            Voir profil complet →
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 13, fontFamily: font }}>Annuler</button>
+          <button onClick={confirm} disabled={loading}
+            style={{ padding: '9px 20px', border: 'none', borderRadius: 9, background: S.purple, color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: font, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Archivage…' : '📦 Confirmer'}
           </button>
         </div>
       </div>
+    </div>
+  )
+}
 
+// ─── VUE DÉTAIL CLIENT ────────────────────────────────────────────────────────
+
+function ClientDetail({ client, onBack, onEditOffer, onNavigate, onArchive, onUnarchive, onNotesUpdate }) {
+  const offer = OFFERS[client.offer] || OFFERS['tutto_bene']
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
+        <button onClick={onBack} style={{ border: 'none', background: 'transparent', color: S.muted, cursor: 'pointer', fontSize: 20, padding: 0, display: 'flex' }}>←</button>
+        <Avatar initials={client.avatar} size={48} color={offer.color} grayscale={client.archived} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: bebas, fontSize: 22, color: client.archived ? S.muted : S.navy, letterSpacing: 1 }}>{client.name.toUpperCase()}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Badge text={offer.name} color={client.archived ? S.gray : offer.color} />
+            {client.archived
+              ? <Badge text="Archivé" color={S.purple} bg="#EDE9F8" />
+              : <Badge text={client.status} color={client.status === 'actif' ? S.green : S.red} />
+            }
+            {client.archivedAt && <span style={{ fontSize: 11, color: S.muted }}>le {new Date(client.archivedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
+            {client.messages > 0 && <Badge text={`${client.messages} msg`} color={S.blue} />}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {client.archived ? (
+            <button onClick={() => onUnarchive(client.id)}
+              style={{ padding: '8px 16px', border: 'none', borderRadius: 9, background: S.green, color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: font }}>
+              ♻️ Réactiver
+            </button>
+          ) : (
+            <>
+              <button onClick={() => onArchive(client)}
+                style={{ padding: '8px 16px', border: `1px solid #C4B8E8`, borderRadius: 9, background: '#F3F0FC', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: S.purple, fontFamily: font }}>
+                📦 Archiver
+              </button>
+              <button onClick={onEditOffer}
+                style={{ padding: '8px 16px', border: `1px solid ${S.border}`, borderRadius: 9, background: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: S.navy, fontFamily: font }}>
+                ✏️ Modifier l'offre
+              </button>
+              <button onClick={() => onNavigate(client.id)}
+                style={{ padding: '8px 16px', border: 'none', borderRadius: 9, background: S.navy, color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: font }}>
+                Voir profil complet →
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
         <KpiCard icon="⚖️" label="Poids actuel" value={client.weight ? `${client.weight} kg` : '—'} sub={client.weightGoal ? `Objectif : ${client.weightGoal} kg` : 'Non renseigné'} accent={S.navy} />
         <KpiCard icon="📊" label="Compliance" value={`${client.compliance}%`} sub="7 derniers jours" accent={complianceColor(client.compliance)} />
         <KpiCard icon="📋" label="Dernier bilan" value={daysAgo(client.lastBilan)} sub={client.lastBilan || 'Jamais'} accent={S.navy} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Financier */}
         <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
           <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>FINANCIER</div>
@@ -321,7 +430,6 @@ function ClientDetail({ client, onBack, onEditOffer, onNavigate }) {
             </div>
           )}
         </div>
-
         {/* Programme */}
         <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
           <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>PROGRAMME ACTIF</div>
@@ -336,8 +444,7 @@ function ClientDetail({ client, onBack, onEditOffer, onNavigate }) {
           {client.since && <div style={{ fontSize: 12, color: S.muted }}>Depuis le {new Date(client.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>}
           {client.objective && <div style={{ fontSize: 12, color: S.muted, marginTop: 4 }}>🎯 {client.objective}</div>}
         </div>
-
-        {/* Offre souscrite */}
+        {/* Offre */}
         <div style={{ background: `${offer.color}0E`, border: `1.5px solid ${offer.color}44`, borderRadius: 14, padding: '18px 20px', gridColumn: '1/-1' }}>
           <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>OFFRE SOUSCRITE</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -356,6 +463,9 @@ function ClientDetail({ client, onBack, onEditOffer, onNavigate }) {
           </div>
         </div>
       </div>
+
+      {/* Post-it */}
+      <PostItPanel clientId={client.id} notes={client.notes} onUpdate={(updated) => onNotesUpdate(client.id, updated)} />
     </div>
   )
 }
@@ -369,26 +479,21 @@ function CalendarPanel({ sessions }) {
   const days = buildCalendar(year, month)
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
   const DAYS_FR   = ['L','M','M','J','V','S','D']
-
   const sessionMap = {}
   sessions.forEach((s) => { if (!sessionMap[s.date]) sessionMap[s.date] = []; sessionMap[s.date].push(s) })
-
   const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-
   return (
     <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontFamily: bebas, fontSize: 16, color: S.navy, letterSpacing: 2 }}>{MONTHS_FR[month].toUpperCase()} {year}</div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <NavBtn onClick={() => { if (month === 0) { setMonth(11); setYear((y) => y - 1) } else setMonth((m) => m - 1) }}>‹</NavBtn>
-          <NavBtn onClick={() => { if (month === 11) { setMonth(0);  setYear((y) => y + 1) } else setMonth((m) => m + 1) }}>›</NavBtn>
+          <NavBtn onClick={() => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }}>‹</NavBtn>
+          <NavBtn onClick={() => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }}>›</NavBtn>
         </div>
       </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
         {DAYS_FR.map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: S.muted, letterSpacing: '0.5px', padding: '2px 0', textTransform: 'uppercase' }}>{d}</div>)}
       </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
         {days.map((d, i) => {
           if (!d) return <div key={i} />
@@ -405,11 +510,10 @@ function CalendarPanel({ sessions }) {
           )
         })}
       </div>
-
       <div style={{ borderTop: `1px solid ${S.border}`, marginTop: 14, paddingTop: 12 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Prochains suivis</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {sessions.filter((s) => s.date >= todayStr).slice(0, 3).map((s, i) => (
+          {sessions.filter(s => s.date >= todayStr).slice(0, 3).map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#F8FAFF', borderRadius: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
               <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy }}>{s.client}</div>
@@ -417,7 +521,7 @@ function CalendarPanel({ sessions }) {
               <div style={{ fontSize: 10, color: S.muted }}>{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div>
             </div>
           ))}
-          {sessions.filter((s) => s.date >= todayStr).length === 0 && (
+          {sessions.filter(s => s.date >= todayStr).length === 0 && (
             <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '8px 0' }}>Aucun suivi à venir</div>
           )}
         </div>
@@ -430,21 +534,22 @@ function CalendarPanel({ sessions }) {
 
 export default function CoachDashboard() {
   const router = useRouter()
-  const [user,         setUser]         = useState(null)
-  const [clients,      setClients]      = useState([])
-  const [sessions,     setSessions]     = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
-  const [selected,     setSelected]     = useState(null)
-  const [editingOffer, setEditingOffer] = useState(null)
-  const [activeTab,    setActiveTab]    = useState('clients')
-  const [showCreate,   setShowCreate]   = useState(false)
-  const [isMobile,     setIsMobile]     = useState(false)
+  const [user,            setUser]            = useState(null)
+  const [clients,         setClients]         = useState([])
+  const [sessions,        setSessions]        = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [error,           setError]           = useState(null)
+  const [selected,        setSelected]        = useState(null)
+  const [editingOffer,    setEditingOffer]    = useState(null)
+  const [archivingClient, setArchivingClient] = useState(null)
+  const [activeTab,       setActiveTab]       = useState('clients')
+  const [clientSubTab,    setClientSubTab]    = useState('actifs')
+  const [showCreate,      setShowCreate]      = useState(false)
+  const [isMobile,        setIsMobile]        = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 980)
-    check()
-    window.addEventListener('resize', check)
+    check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
 
@@ -456,106 +561,86 @@ export default function CoachDashboard() {
         if (!currentUser) { router.push('/login'); return }
         setUser(currentUser)
         await loadData(currentUser.id)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+      } catch (err) { setError(err.message) }
+      finally { setLoading(false) }
     }
     init()
   }, [])
 
   const loadData = async (coachId) => {
     try {
-      // Charger les clients
-      const { data: profiles, error: profErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'client')
-        .eq('coach_id', coachId)
-
+      const { data: profiles, error: profErr } = await supabase.from('profiles').select('*').eq('role', 'client').eq('coach_id', coachId)
       if (profErr) {
-        // Fallback si coach_id non disponible
         const { data: fallback, error: err2 } = await supabase.from('profiles').select('*').eq('role', 'client')
         if (err2) throw err2
         setClients((fallback || []).map(toClientModel))
       } else {
         setClients((profiles || []).map(toClientModel))
       }
-
-      // Charger les sessions (workout_sessions) pour le calendrier
-      const { data: sess } = await supabase
-        .from('workout_sessions')
-        .select('*')
+      const { data: sess } = await supabase.from('workout_sessions').select('*')
         .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-
       if (sess && sess.length > 0) {
-        setSessions(sess.map(s => ({
-          date: s.date,
-          client: s.client_name || s.client_id,
-          type: s.type || 'Suivi',
-          color: S.gold,
-        })))
+        setSessions(sess.map(s => ({ date: s.date, client: s.client_name || s.client_id, type: s.type || 'Suivi', color: S.gold })))
       }
-    } catch (err) {
-      setError(err.message)
-    }
+    } catch (err) { setError(err.message) }
   }
 
-  // ── Métriques ──
-  const activeClients  = clients.filter(c => c.status === 'actif')
-  const mrr            = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
-  const avgCompliance  = Math.round(activeClients.reduce((s, c) => s + c.compliance, 0) / (activeClients.length || 1))
-  const pendingPayment = clients.filter(c => c.balance < 0).length
-  const pendingMsg     = clients.reduce((s, c) => s + c.messages, 0)
+  const archiveClient = async (clientId) => {
+    const archivedAt = new Date().toISOString()
+    await supabase.from('profiles').update({ archived: true, archived_at: archivedAt }).eq('id', clientId)
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true, archivedAt } : c))
+    setSelected(null)
+  }
+
+  const unarchiveClient = async (clientId) => {
+    await supabase.from('profiles').update({ archived: false, archived_at: null }).eq('id', clientId)
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: false, archivedAt: null } : c))
+    setSelected(null); setClientSubTab('actifs')
+  }
+
+  const handleNotesUpdate = (clientId, updatedNotes) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, notes: updatedNotes } : c))
+  }
 
   const handleSaveOffer = async (clientId, form) => {
-    // Mise à jour locale immédiate
-    setClients(prev => prev.map(c =>
-      c.id === clientId ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment } : c
-    ))
-    // Persistance Supabase
-    try {
-      await supabase.from('profiles').update({
-        offer: form.offer,
-        next_payment: form.nextPayment || null,
-      }).eq('id', clientId)
-    } catch (err) {
-      console.error('Erreur mise à jour offre:', err)
-    }
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment } : c))
+    try { await supabase.from('profiles').update({ offer: form.offer, next_payment: form.nextPayment || null }).eq('id', clientId) }
+    catch (err) { console.error('Erreur mise à jour offre:', err) }
   }
 
-  const selectedClient = selected ? clients.find(c => c.id === selected) : null
+  const activeClients   = clients.filter(c => !c.archived && c.status === 'actif')
+  const archivedClients = clients.filter(c => c.archived)
+  const mrr             = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
+  const avgCompliance   = Math.round(activeClients.reduce((s, c) => s + c.compliance, 0) / (activeClients.length || 1))
+  const pendingPayment  = clients.filter(c => !c.archived && c.balance < 0).length
+  const pendingMsg      = clients.reduce((s, c) => s + c.messages, 0)
+  const selectedClient  = selected ? clients.find(c => c.id === selected) : null
+  const displayedClients = clientSubTab === 'archives' ? archivedClients : clients.filter(c => !c.archived)
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${S.border}`, borderTopColor: S.gold, animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          <div style={{ fontSize: 13, color: S.muted, letterSpacing: '1px', textTransform: 'uppercase' }}>Chargement</div>
-        </div>
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${S.border}`, borderTopColor: S.gold, animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ fontSize: 13, color: S.muted, letterSpacing: '1px', textTransform: 'uppercase' }}>Chargement</div>
       </div>
-    )
-  }
+    </div>
+  )
 
-  if (error) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
-        <div style={{ textAlign: 'center', padding: 40, background: 'white', borderRadius: 20, border: '1px solid #FECACA', maxWidth: 500 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-          <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>ERREUR DE CHARGEMENT</div>
-          <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>{error}</div>
-          <button onClick={() => user && loadData(user.id)} style={{ padding: '10px 24px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontFamily: font, fontWeight: 700 }}>🔄 Réessayer</button>
-        </div>
+  if (error) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
+      <div style={{ textAlign: 'center', padding: 40, background: 'white', borderRadius: 20, border: '1px solid #FECACA', maxWidth: 500 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+        <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>ERREUR DE CHARGEMENT</div>
+        <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>{error}</div>
+        <button onClick={() => user && loadData(user.id)} style={{ padding: '10px 24px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontFamily: font, fontWeight: 700 }}>🔄 Réessayer</button>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: S.bg, fontFamily: font, color: S.navy }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap');`}</style>
-
       <div style={{ display: 'flex', minHeight: '100vh' }}>
 
         {/* ── SIDEBAR ── */}
@@ -565,7 +650,6 @@ export default function CoachDashboard() {
               <div style={{ fontFamily: bebas, fontSize: 26, color: S.gold, letterSpacing: 3 }}>BEN&FIT</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>Dashboard Coach</div>
             </div>
-
             <nav style={{ padding: '16px 10px', flex: 1 }}>
               {[
                 { id: 'clients',  icon: '👥', label: 'Clients' },
@@ -578,13 +662,11 @@ export default function CoachDashboard() {
                   <span style={{ fontSize: 16 }}>{item.icon}</span>{item.label}
                 </button>
               ))}
-
               <button onClick={() => setShowCreate(true)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1px solid ${S.gold}44`, cursor: 'pointer', background: `${S.gold}15`, color: S.gold, fontFamily: font, fontSize: 13, fontWeight: 700, marginTop: 12 }}>
                 + Nouvel élève
               </button>
             </nav>
-
             <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Avatar initials={user?.email?.[0]?.toUpperCase() + (user?.email?.[1]?.toUpperCase() || '') || 'CO'} size={34} color={S.gold} />
@@ -615,10 +697,10 @@ export default function CoachDashboard() {
           {/* KPI Row */}
           {!selectedClient && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-              <KpiCard icon="👥" label="Clients actifs"       value={activeClients.length}  sub={`${clients.length} total`} />
-              <KpiCard icon="💰" label="MRR"                  value={`${mrr} €`}            sub="Revenus mensuels" accent={S.gold} />
-              <KpiCard icon="📊" label="Compliance moy."      value={`${avgCompliance}%`}   sub="7 derniers jours" accent={complianceColor(avgCompliance)} />
-              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}         sub="clients en retard" accent={pendingPayment > 0 ? S.red : S.green} />
+              <KpiCard icon="👥" label="Clients actifs"       value={activeClients.length}   sub={`${archivedClients.length} archivé(s)`} />
+              <KpiCard icon="💰" label="MRR"                  value={`${mrr} €`}             sub="Revenus mensuels" accent={S.gold} />
+              <KpiCard icon="📊" label="Compliance moy."      value={`${avgCompliance}%`}    sub="7 derniers jours" accent={complianceColor(avgCompliance)} />
+              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}          sub="clients en retard" accent={pendingPayment > 0 ? S.red : S.green} />
               {pendingMsg > 0 && <KpiCard icon="💬" label="Messages" value={pendingMsg} sub="non lus" accent={S.blue} />}
             </div>
           )}
@@ -630,45 +712,84 @@ export default function CoachDashboard() {
               onBack={() => setSelected(null)}
               onEditOffer={() => setEditingOffer(selectedClient)}
               onNavigate={(id) => router.push(`/coach/${id}?tab=overview`)}
+              onArchive={(c) => setArchivingClient(c)}
+              onUnarchive={unarchiveClient}
+              onNotesUpdate={handleNotesUpdate}
             />
 
           /* ── VUE CLIENTS ── */
           ) : activeTab === 'clients' ? (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px', gap: 16 }}>
               <div>
-                <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 14 }}>MES CLIENTS ({clients.length})</div>
-                {clients.length === 0 ? (
+                {/* Sous-onglets Actifs / Anciens clients */}
+                <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `2px solid ${S.border}` }}>
+                  {[
+                    { id: 'actifs',   label: `Actifs (${clients.filter(c => !c.archived).length})`,      color: S.navy },
+                    { id: 'archives', label: `Anciens clients (${archivedClients.length})`,               color: S.purple },
+                  ].map(tab => (
+                    <button key={tab.id} onClick={() => { setClientSubTab(tab.id); setSelected(null) }}
+                      style={{ padding: '8px 18px', border: 'none', background: 'transparent', fontFamily: font, fontSize: 13, fontWeight: clientSubTab === tab.id ? 700 : 500, cursor: 'pointer', color: clientSubTab === tab.id ? tab.color : S.muted, borderBottom: `2px solid ${clientSubTab === tab.id ? tab.color : 'transparent'}`, marginBottom: -2, transition: 'all 0.15s' }}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Bandeau info archives */}
+                {clientSubTab === 'archives' && archivedClients.length > 0 && (
+                  <div style={{ background: '#F3F0FC', border: `1px solid #C4B8E8`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: S.purple }}>
+                    📦 Ces clients sont archivés. Leurs données sont conservées. Clique sur un client pour le réactiver.
+                  </div>
+                )}
+
+                {displayedClients.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 20, border: `2px dashed ${S.border}` }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>🏋️</div>
-                    <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>AUCUN ÉLÈVE</div>
-                    <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>Crée ton premier élève pour commencer.</div>
-                    <button onClick={() => setShowCreate(true)} style={{ padding: '10px 22px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>+ Nouvel élève</button>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>{clientSubTab === 'archives' ? '📦' : '🏋️'}</div>
+                    <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>
+                      {clientSubTab === 'archives' ? 'AUCUN ANCIEN CLIENT' : 'AUCUN ÉLÈVE'}
+                    </div>
+                    <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>
+                      {clientSubTab === 'archives' ? 'Les clients archivés apparaîtront ici.' : 'Crée ton premier élève pour commencer.'}
+                    </div>
+                    {clientSubTab === 'actifs' && (
+                      <button onClick={() => setShowCreate(true)} style={{ padding: '10px 22px', background: S.navy, color: 'white', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>+ Nouvel élève</button>
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {clients.map((c) => {
-                      const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
+                    {displayedClients.map((c) => {
+                      const offer    = OFFERS[c.offer] || OFFERS['tutto_bene']
+                      const archived = c.archived
                       return (
                         <div key={c.id} onClick={() => setSelected(c.id)}
-                          style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
+                          style={{ background: archived ? '#F7F6FB' : S.card, border: `1px solid ${archived ? '#D8D2EE' : S.border}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s', opacity: archived ? 0.85 : 1 }}
                           onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,27,78,0.1)')}
                           onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}>
-                          <Avatar initials={c.avatar} size={42} color={c.status === 'actif' ? offer.color : '#CCC'} />
+                          <Avatar initials={c.avatar} size={42} color={offer.color} grayscale={archived} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                              <div style={{ fontWeight: 800, fontSize: 14, color: S.navy }}>{c.name}</div>
-                              <Badge text={offer.name} color={offer.color} />
-                              {c.status !== 'actif' && <Badge text="inactif" color={S.red} />}
+                              <div style={{ fontWeight: 800, fontSize: 14, color: archived ? S.muted : S.navy }}>{c.name}</div>
+                              <Badge text={offer.name} color={archived ? S.gray : offer.color} />
+                              {archived
+                                ? <Badge text="Archivé" color={S.purple} bg="#EDE9F8" />
+                                : c.status !== 'actif' && <Badge text="inactif" color={S.red} />
+                              }
                               {c.messages > 0 && <Badge text={`${c.messages} msg`} color={S.blue} />}
+                              {c.notes && c.notes.length > 0 && <span title={`${c.notes.length} annotation(s)`} style={{ fontSize: 12 }}>📌</span>}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ flex: 1, maxWidth: 120 }}><ProgressBar value={c.compliance} color={complianceColor(c.compliance)} height={4} /></div>
-                              <span style={{ fontSize: 11, color: complianceColor(c.compliance), fontWeight: 700 }}>{c.compliance}%</span>
-                              <span style={{ fontSize: 11, color: S.muted }}>· {c.program}</span>
-                            </div>
+                            {archived && c.archivedAt ? (
+                              <div style={{ fontSize: 11, color: S.purple }}>
+                                Archivé le {new Date(c.archivedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{ flex: 1, maxWidth: 120 }}><ProgressBar value={c.compliance} color={complianceColor(c.compliance)} height={4} /></div>
+                                <span style={{ fontSize: 11, color: complianceColor(c.compliance), fontWeight: 700 }}>{c.compliance}%</span>
+                                <span style={{ fontSize: 11, color: S.muted }}>· {c.program}</span>
+                              </div>
+                            )}
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : S.navy }}>{c.balance === 0 ? '✓' : `${c.balance} €`}</div>
+                            <div style={{ fontFamily: bebas, fontSize: 18, color: c.balance < 0 ? S.red : archived ? S.muted : S.navy }}>{c.balance === 0 ? (archived ? '—' : '✓') : `${c.balance} €`}</div>
                             <div style={{ fontSize: 10, color: S.muted }}>{daysAgo(c.lastBilan)}</div>
                           </div>
                         </div>
@@ -686,7 +807,7 @@ export default function CoachDashboard() {
               <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>MES OFFRES</div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 28 }}>
                 {Object.values(OFFERS).map((offer) => {
-                  const count = clients.filter(c => c.offer === offer.id && c.status === 'actif').length
+                  const count = clients.filter(c => !c.archived && c.offer === offer.id && c.status === 'actif').length
                   return (
                     <div key={offer.id} style={{ background: S.card, border: `2px solid ${offer.color}44`, borderRadius: 18, padding: '24px 28px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -714,13 +835,12 @@ export default function CoachDashboard() {
                   )
                 })}
               </div>
-
               <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 12 }}>RÉPARTITION</div>
               <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: '#F8FAFF', padding: '10px 18px', fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: `1px solid ${S.border}` }}>
                   <span>Client</span><span>Offre</span><span>Tarif</span><span>Statut</span>
                 </div>
-                {clients.map(c => {
+                {clients.filter(c => !c.archived).map(c => {
                   const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
                   return (
                     <div key={c.id} onClick={() => { setSelected(c.id); setActiveTab('clients') }}
@@ -770,17 +890,16 @@ export default function CoachDashboard() {
             <div>
               <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>FINANCES</div>
               <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                <KpiCard icon="💰" label="MRR total"          value={`${mrr} €`}                                              sub="Clients actifs"    accent={S.gold} />
-                <KpiCard icon="✅" label="Paiements à jour"    value={clients.filter(c => c.balance === 0).length}              sub="clients"           accent={S.green} />
-                <KpiCard icon="⚠️" label="Retards"             value={clients.filter(c => c.balance < 0).length}               sub="clients"           accent={pendingPayment > 0 ? S.red : S.green} />
-                <KpiCard icon="📈" label="ARR estimé"          value={`${mrr * 12} €`}                                         sub="Revenus annuels"   accent={S.navy} />
+                <KpiCard icon="💰" label="MRR total"          value={`${mrr} €`}                                                          sub="Clients actifs"  accent={S.gold} />
+                <KpiCard icon="✅" label="Paiements à jour"    value={clients.filter(c => !c.archived && c.balance === 0).length}          sub="clients"         accent={S.green} />
+                <KpiCard icon="⚠️" label="Retards"             value={clients.filter(c => !c.archived && c.balance < 0).length}           sub="clients"         accent={pendingPayment > 0 ? S.red : S.green} />
+                <KpiCard icon="📈" label="ARR estimé"          value={`${mrr * 12} €`}                                                    sub="Revenus annuels" accent={S.navy} />
               </div>
-
               <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', background: '#F8FAFF', padding: '10px 18px', fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', borderBottom: `1px solid ${S.border}` }}>
                   <span>Client</span><span>Offre</span><span>Tarif / mois</span><span>Solde</span><span>Prochain paiement</span>
                 </div>
-                {clients.map(c => {
+                {clients.filter(c => !c.archived).map(c => {
                   const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
                   return (
                     <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '13px 18px', borderBottom: `1px solid ${S.border}`, alignItems: 'center' }}>
@@ -801,7 +920,7 @@ export default function CoachDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', padding: '13px 18px', background: '#F8FAFF', borderTop: `2px solid ${S.border}` }}>
                   <div style={{ fontWeight: 700, color: S.navy }}>Total</div>
                   <div /><div style={{ fontFamily: bebas, fontSize: 20, color: S.gold }}>{mrr} €</div>
-                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.red }}>{clients.filter(c => c.balance < 0).reduce((s, c) => s + c.balance, 0)} €</div>
+                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.red }}>{clients.filter(c => !c.archived && c.balance < 0).reduce((s, c) => s + c.balance, 0)} €</div>
                   <div />
                 </div>
               </div>
@@ -813,18 +932,13 @@ export default function CoachDashboard() {
 
       {/* ── MODALS ── */}
       {showCreate && (
-        <CreateClientModal
-          onClose={() => setShowCreate(false)}
-          onCreated={(newClient) => setClients(prev => [newClient, ...prev])}
-        />
+        <CreateClientModal onClose={() => setShowCreate(false)} onCreated={(nc) => setClients(prev => [nc, ...prev])} />
       )}
-
       {editingOffer && (
-        <OfferModal
-          client={editingOffer}
-          onClose={() => setEditingOffer(null)}
-          onSave={handleSaveOffer}
-        />
+        <OfferModal client={editingOffer} onClose={() => setEditingOffer(null)} onSave={handleSaveOffer} />
+      )}
+      {archivingClient && (
+        <ArchiveModal client={archivingClient} onClose={() => setArchivingClient(null)} onConfirm={archiveClient} />
       )}
     </div>
   )
