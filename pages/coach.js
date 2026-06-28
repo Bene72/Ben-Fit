@@ -590,21 +590,38 @@ export default function CoachDashboard() {
   }
 
   const archiveClient = async (clientId) => {
-    const archivedAt = new Date().toISOString()
-    const { data, error } = await supabase.from('profiles').update({ archived: true, archived_at: archivedAt }).eq('id', clientId).select()
-    console.log('ARCHIVE data:', JSON.stringify(data), 'error:', JSON.stringify(error))
-    if (!error) {
+    try {
+      const res = await fetch('/api/archive-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, archived: true }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      const archivedAt = new Date().toISOString()
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true, archivedAt } : c))
       setSelected(null)
-    } else {
-      alert('Erreur archivage: ' + error.message)
+    } catch (err) {
+      console.error('Erreur archivage:', err)
+      alert('Erreur archivage: ' + err.message)
     }
   }
 
   const unarchiveClient = async (clientId) => {
-    await supabase.from('profiles').update({ archived: false, archived_at: null }).eq('id', clientId)
-    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: false, archivedAt: null } : c))
-    setSelected(null); setClientSubTab('actifs')
+    try {
+      const res = await fetch('/api/archive-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, archived: false }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: false, archivedAt: null } : c))
+      setSelected(null); setClientSubTab('actifs')
+    } catch (err) {
+      console.error('Erreur réactivation:', err)
+      alert('Erreur réactivation: ' + err.message)
+    }
   }
 
   const handleNotesUpdate = (clientId, updatedNotes) => {
