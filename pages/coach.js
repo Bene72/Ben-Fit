@@ -591,9 +591,14 @@ export default function CoachDashboard() {
 
   const archiveClient = async (clientId) => {
     const archivedAt = new Date().toISOString()
-    await supabase.from('profiles').update({ archived: true, archived_at: archivedAt }).eq('id', clientId)
-    setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true, archivedAt } : c))
-    setSelected(null)
+    const { data, error } = await supabase.from('profiles').update({ archived: true, archived_at: archivedAt }).eq('id', clientId).select()
+    console.log('ARCHIVE data:', JSON.stringify(data), 'error:', JSON.stringify(error))
+    if (!error) {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true, archivedAt } : c))
+      setSelected(null)
+    } else {
+      alert('Erreur archivage: ' + error.message)
+    }
   }
 
   const unarchiveClient = async (clientId) => {
