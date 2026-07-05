@@ -50,67 +50,71 @@ export default function WeekTable({ logs, plan, today, mode = 'client', onOpenDa
               <div style={{ fontSize: 11, color: '#999' }}>{weekLogs.filter((l) => l.calories > 0).length}/7 jours</div>
             </div>
 
-            {/* En-tête colonnes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr 1fr', background: '#F8FAFF', borderBottom: '1px solid #F0F0F0' }}>
-              {['Jour', 'Calories', 'Protéines', 'Glucides', 'Lipides'].map((h) => (
-                <div key={h} style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: '#999', fontWeight: 600, padding: '6px 12px' }}>{h}</div>
-              ))}
+            {/* Tableau scrollable horizontalement — évite que les colonnes (ex: Lipides) soient coupées sur mobile */}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 480 }}>
+                {/* En-tête colonnes */}
+                <div style={{ display: 'grid', gridTemplateColumns: '104px 1fr 1fr 1fr 1fr', background: '#F8FAFF', borderBottom: '1px solid #F0F0F0' }}>
+                  {['Jour', 'Calories', 'Protéines', 'Glucides', 'Lipides'].map((h) => (
+                    <div key={h} style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: '#999', fontWeight: 600, padding: '6px 10px', whiteSpace: 'nowrap' }}>{h}</div>
+                  ))}
+                </div>
+
+                {/* Lignes jours */}
+                {days.map(({ date, log, isToday, isFuture }) => {
+                  const isOpen  = isCoach && openDay === date
+                  const hasData = log && log.calories > 0
+                  const dayName = getDayName(date)
+
+                  return (
+                    <div
+                      key={date}
+                      onClick={() => handleDayClick(date, isFuture)}
+                      style={{ display: 'grid', gridTemplateColumns: '104px 1fr 1fr 1fr 1fr', borderBottom: '1px solid #F5F5F5', background: isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent', cursor: isFuture ? 'default' : 'pointer' }}
+                      onMouseEnter={(e) => { if (!isFuture) e.currentTarget.style.background = '#F0F4FF' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent' }}
+                    >
+                      <div style={{ padding: '9px 10px' }}>
+                        <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isFuture ? '#CCC' : '#0D1B4E', whiteSpace: 'nowrap' }}>
+                          {isToday ? '📍 ' : ''}{dayName}
+                        </div>
+                      </div>
+
+                      {MACROS.map((m) => {
+                        const val    = log?.[m.key] || 0
+                        const target = plan?.[m.target]
+                        const pct    = target && val ? Math.min(100, (val / target) * 100) : 0
+                        return (
+                          <div key={m.key} style={{ padding: '9px 10px' }}>
+                            {hasData && val > 0 ? (
+                              <>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: m.color, whiteSpace: 'nowrap' }}>
+                                  {val}<span style={{ fontSize: 9, color: '#BBB' }}> {m.unit}</span>
+                                </div>
+                                {target && (
+                                  <div style={{ marginTop: 2, height: 3, width: 60, background: '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', background: m.color, width: `${pct}%` }} />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span style={{ color: '#DDD', fontSize: 12 }}>—</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* Lignes jours */}
-            {days.map(({ date, log, isToday, isFuture }) => {
-              const isOpen   = isCoach && openDay === date
-              const hasData  = log && log.calories > 0
-              const dayName  = getDayName(date)
-
-              return (
-                <div key={date}>
-                  <div
-                    onClick={() => handleDayClick(date, isFuture)}
-                    style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr 1fr', borderBottom: '1px solid #F5F5F5', background: isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent', cursor: isFuture ? 'default' : 'pointer' }}
-                    onMouseEnter={(e) => { if (!isFuture) e.currentTarget.style.background = '#F0F4FF' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = isToday ? '#FAFBFF' : isOpen ? '#F5F7FF' : 'transparent' }}
-                  >
-                    <div style={{ padding: '9px 12px' }}>
-                      <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isFuture ? '#CCC' : '#0D1B4E' }}>
-                        {isToday ? '📍 ' : ''}{dayName}
-                      </div>
-                    </div>
-
-                    {MACROS.map((m) => {
-                      const val    = log?.[m.key] || 0
-                      const target = plan?.[m.target]
-                      const pct    = target && val ? Math.min(100, (val / target) * 100) : 0
-                      return (
-                        <div key={m.key} style={{ padding: '9px 12px' }}>
-                          {hasData && val > 0 ? (
-                            <>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: m.color }}>
-                                {val}<span style={{ fontSize: 9, color: '#BBB' }}> {m.unit}</span>
-                              </div>
-                              {target && (
-                                <div style={{ marginTop: 2, height: 3, width: 60, background: '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', background: m.color, width: `${pct}%` }} />
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <span style={{ color: '#DDD', fontSize: 12 }}>—</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Détail inline (coach uniquement) */}
-                  {isOpen && renderDayDetail && (
-                    <div style={{ padding: '14px 16px', background: '#F5F8FF', borderBottom: '2px solid #E8ECFA' }}>
-                      {renderDayDetail(date, log)}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {/* Détail inline (coach uniquement) — en dehors de la zone scrollable, toujours pleine largeur */}
+            {isCoach && renderDayDetail && days.some((d) => d.date === openDay) && (
+              <div style={{ padding: '14px 16px', background: '#F5F8FF', borderTop: '2px solid #E8ECFA' }}>
+                {renderDayDetail(openDay, days.find((d) => d.date === openDay)?.log)}
+              </div>
+            )}
           </div>
         )
       })}
