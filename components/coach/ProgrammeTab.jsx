@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import ExercisePicker from './ExercisePicker'
+import { Toast, useToast } from '../Toast'
 
 // ── Toggle Actuel / Futur ──────────────────────────────────────
 function CycleToggle({ mode, onChange }) {
@@ -29,6 +30,7 @@ function CycleToggle({ mode, onChange }) {
 }
 
 export default function ProgrammeTab({ clientId, clientName, coachId }) {
+  const { toast, showToast }                = useToast()
   const [cycleMode, setCycleMode]           = useState('current')
   const [workouts, setWorkouts]             = useState([])
   const [futureWorkouts, setFutureWorkouts] = useState([])
@@ -155,7 +157,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // ── Activation du cycle futur ──────────────────────────────
   const activateFutureCycle = async () => {
-    if (!futureWorkouts.length) { alert('Aucune séance dans le cycle futur.'); return }
+    if (!futureWorkouts.length) { showToast('Aucune séance dans le cycle futur.', 'error'); return }
     if (!confirm('Activer le cycle futur ?\n\nLe cycle actuel sera archivé et le cycle futur deviendra actif pour le client.')) return
     setActivating(true)
     try {
@@ -169,8 +171,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         .eq('client_id', clientId).eq('is_future', true)
       await reloadWorkouts()
       setCycleMode('current')
-      alert('✅ Cycle futur activé ! Le client voit maintenant son nouveau programme.')
-    } catch (e) { alert('Erreur : ' + e.message) }
+      showToast('Cycle futur activé ! Le client voit maintenant son nouveau programme.', 'success')
+    } catch (e) { showToast('Erreur : ' + e.message, 'error') }
     setActivating(false)
   }
 
@@ -215,7 +217,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       group_type: groupType || 'Normal', group_id: gid,
     }
     const { data, error } = await supabase.from('exercises').insert(payload).select().single()
-    if (error) { console.error('Erreur insertion:', error); alert('Erreur: ' + error.message); return }
+    if (error) { console.error('Erreur insertion:', error); showToast('Erreur : ' + error.message, 'error'); return }
     if (data) {
       if (imageUrl) supabase.from('exercises').update({ image_url: imageUrl }).eq('id', data.id)
       const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
@@ -372,11 +374,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     await supabase.from('workouts').update({ cycle_name: currentCycleName.trim() })
       .eq('client_id', clientId).eq('is_archived', false).eq('is_future', false)
     setSavingCycleName(false)
-    alert('Nom du cycle sauvegardé !')
+    showToast('Nom du cycle sauvegardé !', 'success')
   }
 
   const archiveCycle = async () => {
-    if (!cycleName.trim()) { alert("Donne un nom à ce cycle avant de l'archiver"); return }
+    if (!cycleName.trim()) { showToast("Donne un nom à ce cycle avant de l'archiver", 'error'); return }
     if (!confirm('Archiver ce cycle ? Les séances seront archivées et le programme sera vide.')) return
     setArchiving(true)
     try {
@@ -384,7 +386,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         .update({ is_archived: true, cycle_name: cycleName.trim(), archived_at: new Date().toISOString() })
         .eq('client_id', clientId).eq('is_archived', false).eq('is_future', false)
       setWorkouts([]); setCycleName(''); setCurrentCycleName('')
-    } catch (e) { alert('Erreur: ' + e.message) }
+    } catch (e) { showToast('Erreur : ' + e.message, 'error') }
     setArchiving(false)
   }
 
@@ -433,7 +435,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setDuplicating(true)
     try {
       const sourceWorkouts = cycleMode === 'future' ? futureWorkouts : workouts
-      if (!sourceWorkouts?.length) { alert('Aucune séance à dupliquer.'); setDuplicating(false); return }
+      if (!sourceWorkouts?.length) { showToast('Aucune séance à dupliquer.', 'error'); setDuplicating(false); return }
       let totalExInserted = 0
       for (const workout of sourceWorkouts) {
         const { data: exData } = await supabase.from('exercises').select('*').eq('workout_id', workout.id).order('order_index')
@@ -481,8 +483,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       }
       setShowDuplicate(false); setDuplicateTarget('')
       if (targetClientId === clientId) await reloadWorkouts()
-      alert(`Programme dupliqué ! (${sourceWorkouts.length} séances · ${totalExInserted} exercices)`)
-    } catch (e) { alert('Erreur : ' + e.message) }
+      showToast(`Programme dupliqué ! (${sourceWorkouts.length} séances · ${totalExInserted} exercices)`, 'success')
+    } catch (e) { showToast('Erreur : ' + e.message, 'error') }
     setDuplicating(false)
   }
 
@@ -526,13 +528,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         await fetchImageFiles()
         files = exerciseImageFiles
       }
-      if (!files.length) { alert('⚠️ Aucune image trouvée dans la bibliothèque'); setImageSyncing(false); return }
+      if (!files.length) { showToast('Aucune image trouvée dans la bibliothèque', 'error'); setImageSyncing(false); return }
       const normalizedFiles = files.map(fname => ({
         normalized: fname.toLowerCase().replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim(),
         url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
       }))
       const toSync = displayedWorkouts.flatMap(workout => (workout.exercises || []).filter(ex => forceAll || !ex.image_url))
-      if (!toSync.length) { alert('✅ Toutes les images sont déjà synchronisées'); setImageSyncing(false); return }
+      if (!toSync.length) { showToast('Toutes les images sont déjà synchronisées', 'info'); setImageSyncing(false); return }
       for (const ex of toSync) {
         const exNorm = ex.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
         let match = normalizedFiles.find(f => f.normalized === exNorm)
@@ -544,8 +546,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         if (match) await supabase.from('exercises').update({ image_url: match.url }).eq('id', ex.id)
       }
       await reloadWorkouts()
-      alert('✅ Images synchronisées !')
-    } catch (e) { alert('Erreur sync images: ' + e.message) }
+      showToast('Images synchronisées !', 'success')
+    } catch (e) { showToast('Erreur sync images : ' + e.message, 'error') }
     setImageSyncing(false)
   }
 
@@ -581,7 +583,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       }).join('')
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#F5F7FF;color:#0D1B4E;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#0D1B4E;margin:0 0 4px;">${clientName || 'Programme'}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#6B7A99;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
       const win = window.open('', '_blank'); win.document.write(html); win.document.close(); win.print()
-    } catch (e) { alert('Erreur export PDF: ' + e.message) }
+    } catch (e) { showToast('Erreur export PDF : ' + e.message, 'error') }
     setExporting(false)
   }
 
@@ -594,6 +596,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 0 80px' }}>
+      {toast && <Toast toast={toast} />}
 
       {/* ── Toggle + bouton Activer ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
