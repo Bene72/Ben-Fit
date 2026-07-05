@@ -29,9 +29,122 @@ import FoodBlock   from '../components/nutrition/FoodBlock'
 import WeekTable   from '../components/nutrition/WeekTable'
 
 const NUTRITION_TABS = [
-  { label: "Aujourd'hui", value: 'today' },
-  { label: 'Semaine',     value: 'week'  },
+  { label: "Aujourd'hui", value: 'today'   },
+  { label: 'Semaine',     value: 'week'    },
+  { label: 'Historique',  value: 'history' },
 ]
+
+// ─── Champs macro suivis dans l'historique / la courbe ───────────────────────
+const NUTRI_FIELDS = [
+  { key: 'calories', label: 'Calories',  unit: 'kcal', icon: '🔥', color: '#C45C3A' },
+  { key: 'protein',  label: 'Protéines', unit: 'g',    icon: '🥩', color: '#2C8A6E' },
+  { key: 'carbs',    label: 'Glucides',  unit: 'g',    icon: '🌾', color: '#B8860B' },
+  { key: 'fat',      label: 'Lipides',   unit: 'g',    icon: '🥑', color: '#4A6FD4' },
+]
+
+// ─── Courbe d'évolution d'une macro dans le temps (même logique que le poids) ─
+function NutritionMiniChart({ logs, field }) {
+  const data      = [...logs].filter(l => l[field] != null && l[field] !== 0).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-30)
+  const fieldMeta = NUTRI_FIELDS.find(f => f.key === field)
+  const color     = fieldMeta?.color || '#2C64E5'
+  if (data.length < 2) return (
+    <div style={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#DCE5F3', gap: 8 }}>
+      <div style={{ fontSize: 32 }}>📉</div>
+      <div style={{ fontSize: 12, color: '#6B7A99' }}>Ajoute au moins 2 jours de suivi pour voir la courbe</div>
+    </div>
+  )
+  const vals  = data.map(l => +l[field])
+  const min   = Math.min(...vals), max = Math.max(...vals)
+  const range = max - min || 1
+  const W = 400, H = 140, PX = 12, PY = 14
+  const pts      = data.map((l, i) => [PX + (i / (data.length - 1)) * (W - PX * 2), PY + ((max - +l[field]) / range) * (H - PY * 2 - 14)])
+  const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ')
+  const area     = `M${pts[0][0]},${H - 14} ` + pts.map(([x, y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length - 1][0]},${H - 14} Z`
+  const delta    = (vals[vals.length - 1] - vals[0]).toFixed(0)
+  const isPos    = parseFloat(delta) > 0
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140, overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={`ng-${field}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={color} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={color} stopOpacity="0"    />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((t, i) => (
+          <line key={i} x1={PX} y1={PY + t * (H - PY * 2 - 14)} x2={W - PX} y2={PY + t * (H - PY * 2 - 14)} stroke="#EAF0F8" strokeWidth="1" strokeDasharray="3,3" />
+        ))}
+        <path d={area} fill={`url(#ng-${field})`} />
+        <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 5 : 3.5} fill="white" stroke={color} strokeWidth="2.5" />)}
+        <text x={pts[0][0]}            y={H - 1} textAnchor="middle" fontSize="9" fill="#6B7A99">{new Date(data[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={pts[pts.length-1][0]} y={H - 1} textAnchor="middle" fontSize="9" fill="#6B7A99">{new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={W - PX + 3} y={PY + 3}      fontSize="9" fill={color}   fontWeight="700">{max}</text>
+        <text x={W - PX + 3} y={H - PY - 12} fontSize="9" fill="#6B7A99">{min}</text>
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: '#6B7A99' }}>{data.length} jours · du {new Date(data[0].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: isPos ? '#C45C3A' : '#2C8A6E' }}>{isPos ? '+' : ''}{delta} {fieldMeta?.unit} sur la période</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Historique complet (liste par date + sélecteur de courbe) ───────────────
+function NutritionHistory({ logs, isMobile, onOpenDay }) {
+  const [subTab, setSubTab] = useState('list')
+  const [field,  setField]  = useState('calories')
+  const sorted = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date))
+  return (
+    <SurfaceCard padded>
+      <SectionHead title="Historique" caption="Toutes les valeurs de diète enregistrées, avec la date, et leur évolution en courbe." />
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid #EAF0F8' }}>
+        {[{ id: 'list', label: '📋 Liste' }, { id: 'curve', label: '📈 Courbe' }].map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: '8px 16px', border: 'none', background: 'transparent', fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: subTab === t.id ? 700 : 500, cursor: 'pointer', color: subTab === t.id ? '#2C64E5' : '#6B7A99', borderBottom: `2px solid ${subTab === t.id ? '#2C64E5' : 'transparent'}`, marginBottom: -1 }}>{t.label}</button>
+        ))}
+      </div>
+
+      {subTab === 'list' ? (
+        sorted.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#6B7A99', padding: '30px 0', fontSize: 13 }}>Aucune valeur de diète enregistrée pour le moment.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 460, overflowY: 'auto' }}>
+            {sorted.map((l, i) => (
+              <div key={l.id || l.date} onClick={() => onOpenDay && onOpenDay(l.date)}
+                style={{ background: i === 0 ? '#F8FBFF' : 'white', borderRadius: 11, padding: '12px 14px', border: i === 0 ? '1.5px solid #DCE5F3' : '1px solid #EEF2F8', cursor: onOpenDay ? 'pointer' : 'default' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: '#6B7A99', fontFamily: "'DM Mono',monospace" }}>{new Date(l.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  {i === 0 && <span style={{ fontSize: 9, background: '#E8F0E8', color: '#2C8A6E', padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>DERNIER</span>}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px' }}>
+                  {NUTRI_FIELDS.filter(f => l[f.key] != null).map(f => (
+                    <div key={f.key} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                      <span style={{ fontSize: 10, color: '#6B7A99' }}>{f.icon} {f.label}</span>
+                      <span style={{ fontWeight: 900, fontSize: 15, color: f.color }}>{l[f.key]}<span style={{ fontSize: 10, fontWeight: 400, color: '#6B7A99' }}> {f.unit}</span></span>
+                    </div>
+                  ))}
+                  {(l.note || l.comment) && <div style={{ width: '100%', fontSize: 11, color: '#6B7A99', marginTop: 3, fontStyle: 'italic' }}>💬 {l.note || l.comment}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            {NUTRI_FIELDS.filter(f => logs.some(l => l[f.key] != null)).map(f => (
+              <button key={f.key} onClick={() => setField(f.key)} style={{ padding: '5px 13px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 700, background: field === f.key ? f.color : '#EAF0F8', color: field === f.key ? 'white' : '#6B7A99' }}>{f.icon} {f.label}</button>
+            ))}
+          </div>
+          <div style={{ background: '#F8FBFF', borderRadius: 12, padding: '16px 14px' }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', marginBottom: 12 }}>{NUTRI_FIELDS.find(f => f.key === field)?.icon} {NUTRI_FIELDS.find(f => f.key === field)?.label} <span style={{ fontSize: 11, color: '#6B7A99', fontWeight: 400 }}>({NUTRI_FIELDS.find(f => f.key === field)?.unit})</span></div>
+            <NutritionMiniChart logs={logs} field={field} />
+          </div>
+        </div>
+      )}
+    </SurfaceCard>
+  )
+}
 
 export default function NutritionPage() {
   const router = useRouter()
@@ -72,7 +185,7 @@ export default function NutritionPage() {
 
         const [{ data: planData, error: planErr }, { data: logsData, error: logsErr }, { data: profileData }] = await Promise.all([
           supabase.from('nutrition_plans').select('*').eq('client_id', currentUser.id).order('created_at', { ascending: false }).limit(1),
-          supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', currentUser.id).order('date', { ascending: false }).limit(84),
+          supabase.from('nutrition_logs').select('*, nutrition_log_meals(*)').eq('client_id', currentUser.id).order('date', { ascending: false }).limit(200),
           supabase.from('profiles').select('full_name, current_cycle_name').eq('id', currentUser.id).single(),
         ])
 
@@ -241,10 +354,16 @@ export default function NutritionPage() {
                 </div>
               </SurfaceCard>
             </>
-          ) : (
+          ) : activeTab === 'week' ? (
             /* Vue semaine partagée */
             <WeekTable
               logs={logs} plan={plan} today={todayString()} mode="client"
+              onOpenDay={(date) => { setSelectedDate(date); setActiveTab('today') }}
+            />
+          ) : (
+            /* Historique complet + courbe d'évolution */
+            <NutritionHistory
+              logs={logs} isMobile={isMobile}
               onOpenDay={(date) => { setSelectedDate(date); setActiveTab('today') }}
             />
           )}
