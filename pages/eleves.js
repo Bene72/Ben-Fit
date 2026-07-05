@@ -246,7 +246,7 @@ export default function ElevesPage() {
                 </div>
                 <div>
                   <label style={lblC}>Mot de passe provisoire *</label>
-                  <input type="text" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} />
+                  <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} />
                 </div>
                 <div>
                   <label style={lblC}>Prénom / Nom</label>
