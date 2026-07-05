@@ -2,6 +2,14 @@
  * /api/exercise-images
  * Liste les images d'exercices depuis le Storage Supabase
  * Route publique — les fichiers sont déjà publics dans le bucket
+ *
+ * SÉCURITÉ :
+ * - Le Storage listing nécessite la service role key (le bucket n'expose
+ *   pas l'API de listing aux clients anon, c'est normal et voulu).
+ * - En revanche, la lecture de `exercise_image_library` est une simple
+ *   lecture de données publiques (noms de fichiers) : on utilise la clé
+ *   ANON pour respecter le RLS, plutôt que bypasser systématiquement
+ *   avec la service role.
  */
 import { checkRateLimit } from '../../lib/withAuth'
 
@@ -9,14 +17,17 @@ async function handler(req, res) {
   if (checkRateLimit(req, res, { maxRequests: 30, windowMs: 60_000 })) return
 
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const ANON_KEY      = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   try {
     const { createClient } = await import('@supabase/supabase-js')
 
+    // ── 1. Storage listing : nécessite la service role (API Storage admin) ──
     if (SERVICE_KEY) {
-      const admin = createClient(SUPABASE_URL, SERVICE_KEY)
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
       const { data: storageData } = await admin
         .storage.from('exercise-images')
         .list('', { limit: 500, sortBy: { column: 'name', order: 'asc' } })
@@ -30,9 +41,10 @@ async function handler(req, res) {
       }
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_KEY || ANON_KEY)
+    // ── 2. Fallback table : lecture publique via la clé ANON (respecte RLS) ──
+    const supabasePublic = createClient(SUPABASE_URL, ANON_KEY)
 
-    const { data: libData } = await supabase
+    const { data: libData } = await supabasePublic
       .from('exercise_image_library')
       .select('filename')
       .order('filename')
