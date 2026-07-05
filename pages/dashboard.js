@@ -47,7 +47,7 @@ export default function Dashboard() {
         if (prof?.role === 'coach') { router.replace('/eleves'); return }
         setProfile(prof)
         setProfileForm({ full_name: prof?.full_name || '', current_program: prof?.current_program || '', objective: prof?.objective || '', height: prof?.height || '' })
-        const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(10)
+        const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(200)
         setMeasures(m || [])
         const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
         const { data: s } = await supabase.from('workout_sessions').select('*').eq('client_id', user.id).gte('date', weekStart.toISOString().split('T')[0])
