@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { Toast, useToast } from '../components/Toast'
 
 // ─── OFFRES ───────────────────────────────────────────────────────────────────
 
@@ -250,7 +251,7 @@ function CreateClientModal({ onClose, onCreated }) {
         <div style={{ fontFamily: bebas, fontSize: 22, color: S.navy, letterSpacing: 2, marginBottom: 20 }}>+ NOUVEL ÉLÈVE</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div><label style={lblC}>Email *</label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="eleve@exemple.com" style={inpC} /></div>
-          <div><label style={lblC}>Mot de passe provisoire *</label><input type="text" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} /></div>
+          <div><label style={lblC}>Mot de passe provisoire *</label><input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="6 caractères minimum" style={inpC} /></div>
           <div><label style={lblC}>Prénom / Nom</label><input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Camille Dupont" style={inpC} /></div>
           <div>
             <label style={lblC}>Offre</label>
@@ -534,6 +535,7 @@ function CalendarPanel({ sessions }) {
 
 export default function CoachDashboard() {
   const router = useRouter()
+  const { toast, showToast } = useToast()
   const [user,            setUser]            = useState(null)
   const [clients,         setClients]         = useState([])
   const [sessions,        setSessions]        = useState([])
@@ -570,12 +572,8 @@ export default function CoachDashboard() {
   const loadData = async (coachId) => {
     try {
       const { data: profiles, error: profErr } = await supabase.from('profiles').select('*').eq('role', 'client').eq('coach_id', coachId)
-      console.log('DEBUG profErr:', profErr)
-      console.log('DEBUG profiles[0]:', JSON.stringify(profiles?.[0]))
-      console.log('DEBUG archived:', profiles?.[0]?.archived, 'archived_at:', profiles?.[0]?.archived_at)
       if (profErr) {
         const { data: fallback, error: err2 } = await supabase.from('profiles').select('*').eq('role', 'client')
-        console.log('DEBUG fallback[0]:', JSON.stringify(fallback?.[0]))
         if (err2) throw err2
         setClients((fallback || []).map(toClientModel))
       } else {
@@ -591,9 +589,10 @@ export default function CoachDashboard() {
 
   const archiveClient = async (clientId) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/archive-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ client_id: clientId, archived: true }),
       })
       const result = await res.json()
@@ -601,26 +600,29 @@ export default function CoachDashboard() {
       const archivedAt = new Date().toISOString()
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: true, archivedAt } : c))
       setSelected(null)
+      showToast('Client archivé', 'success')
     } catch (err) {
       console.error('Erreur archivage:', err)
-      alert('Erreur archivage: ' + err.message)
+      showToast('Erreur archivage : ' + err.message, 'error')
     }
   }
 
   const unarchiveClient = async (clientId) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/archive-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ client_id: clientId, archived: false }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, archived: false, archivedAt: null } : c))
       setSelected(null); setClientSubTab('actifs')
+      showToast('Client réactivé', 'success')
     } catch (err) {
       console.error('Erreur réactivation:', err)
-      alert('Erreur réactivation: ' + err.message)
+      showToast('Erreur réactivation : ' + err.message, 'error')
     }
   }
 
@@ -667,6 +669,7 @@ export default function CoachDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: S.bg, fontFamily: font, color: S.navy }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap');`}</style>
+      {toast && <Toast toast={toast} />}
       <div style={{ display: 'flex', minHeight: '100vh' }}>
 
         {/* ── SIDEBAR ── */}
