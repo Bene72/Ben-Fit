@@ -361,7 +361,138 @@ function ArchiveModal({ client, onClose, onConfirm }) {
 
 // ─── VUE DÉTAIL CLIENT ────────────────────────────────────────────────────────
 
-function ClientDetail({ client, onBack, onEditOffer, onNavigate, onArchive, onUnarchive, onNotesUpdate }) {
+// ─── SUIVI POIDS / MENSURATIONS & DIÈTE (vue coach) ───────────────────────────
+
+const COACH_MEASURE_FIELDS = [
+  { key: 'weight', label: 'Poids',            unit: 'kg', icon: '⚖️', color: S.red,    required: true },
+  { key: 'waist',  label: 'Tour de taille',   unit: 'cm', icon: '📏', color: S.blue },
+  { key: 'hips',   label: 'Tour de hanches',  unit: 'cm', icon: '📏', color: S.green },
+  { key: 'glutes', label: 'Tour de fesses',   unit: 'cm', icon: '📏', color: S.purple },
+  { key: 'chest',  label: 'Tour de poitrine', unit: 'cm', icon: '📏', color: S.gold },
+  { key: 'arm',    label: 'Tour de bras',     unit: 'cm', icon: '💪', color: S.green },
+  { key: 'thigh',  label: 'Tour de cuisse',   unit: 'cm', icon: '📏', color: S.red },
+  { key: 'calf',   label: 'Tour de mollet',   unit: 'cm', icon: '📏', color: S.blue },
+]
+
+const COACH_NUTRI_FIELDS = [
+  { key: 'calories', label: 'Calories',  unit: 'kcal', icon: '🔥', color: S.red },
+  { key: 'protein',  label: 'Protéines', unit: 'g',    icon: '🥩', color: S.green },
+  { key: 'carbs',    label: 'Glucides',  unit: 'g',    icon: '🌾', color: S.gold },
+  { key: 'fat',      label: 'Lipides',   unit: 'g',    icon: '🥑', color: S.blue },
+]
+
+function CoachMiniChart({ entries, field, fieldsMeta }) {
+  const data = [...entries].filter(e => e[field] != null && e[field] !== 0).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-30)
+  const meta = fieldsMeta.find(f => f.key === field)
+  const color = meta?.color || S.blue
+  if (data.length < 2) return (
+    <div style={{ height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: S.border, gap: 8 }}>
+      <div style={{ fontSize: 32 }}>📉</div>
+      <div style={{ fontSize: 12, color: S.muted }}>Pas assez de données pour tracer une courbe (2 valeurs minimum)</div>
+    </div>
+  )
+  const vals  = data.map(e => +e[field])
+  const min   = Math.min(...vals), max = Math.max(...vals)
+  const range = max - min || 1
+  const W = 400, H = 140, PX = 12, PY = 14
+  const pts      = data.map((e, i) => [PX + (i / (data.length - 1)) * (W - PX * 2), PY + ((max - +e[field]) / range) * (H - PY * 2 - 14)])
+  const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ')
+  const area     = `M${pts[0][0]},${H - 14} ` + pts.map(([x, y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length - 1][0]},${H - 14} Z`
+  const delta    = (vals[vals.length - 1] - vals[0]).toFixed(field === 'weight' || field === 'waist' || field === 'hips' || field === 'chest' || field === 'arm' || field === 'thigh' || field === 'calf' || field === 'glutes' ? 1 : 0)
+  const isPos    = parseFloat(delta) > 0
+  const dColor   = field === 'weight' ? (isPos ? S.red : S.green) : (isPos ? S.gold : S.red)
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 140, overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={`cg-${field}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={color} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={color} stopOpacity="0"    />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((t, i) => (
+          <line key={i} x1={PX} y1={PY + t * (H - PY * 2 - 14)} x2={W - PX} y2={PY + t * (H - PY * 2 - 14)} stroke={S.border} strokeWidth="1" strokeDasharray="3,3" />
+        ))}
+        <path d={area} fill={`url(#cg-${field})`} />
+        <polyline points={polyline} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 5 : 3.5} fill="white" stroke={color} strokeWidth="2.5" />)}
+        <text x={pts[0][0]}            y={H - 1} textAnchor="middle" fontSize="9" fill={S.muted}>{new Date(data[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={pts[pts.length-1][0]} y={H - 1} textAnchor="middle" fontSize="9" fill={S.muted}>{new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</text>
+        <text x={W - PX + 3} y={PY + 3}      fontSize="9" fill={color}  fontWeight="700">{max}</text>
+        <text x={W - PX + 3} y={H - PY - 12} fontSize="9" fill={S.muted}>{min}</text>
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: S.muted }}>{data.length} valeurs · du {new Date(data[0].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {new Date(data[data.length-1].date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: dColor }}>{isPos ? '+' : ''}{delta} {meta?.unit} sur la période</div>
+      </div>
+    </div>
+  )
+}
+
+function TrackerPanel({ title, icon, subtitle, entries, fields, defaultField, emptyLabel }) {
+  const [subTab, setSubTab] = useState('list')
+  const [field,  setField]  = useState(defaultField)
+  const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date))
+  const availableFields = fields.filter(f => entries.some(e => e[f.key] != null))
+  return (
+    <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '18px 20px', gridColumn: '1/-1' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2, marginBottom: 4 }}>{icon} {title}</div>
+          <div style={{ fontSize: 12, color: S.muted }}>{subtitle}</div>
+        </div>
+      </div>
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: 'center', color: S.muted, padding: '24px 0', fontSize: 13 }}>{emptyLabel}</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 2, marginBottom: 14, borderBottom: `1px solid ${S.border}` }}>
+            {[{ id: 'list', label: '📋 Historique' }, { id: 'curve', label: '📈 Courbe' }].map(t => (
+              <button key={t.id} onClick={() => setSubTab(t.id)} style={{ padding: '7px 14px', border: 'none', background: 'transparent', fontFamily: font, fontSize: 12, fontWeight: subTab === t.id ? 700 : 500, cursor: 'pointer', color: subTab === t.id ? S.navy : S.muted, borderBottom: `2px solid ${subTab === t.id ? S.gold : 'transparent'}`, marginBottom: -1 }}>{t.label}</button>
+            ))}
+          </div>
+          {subTab === 'list' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+              {sorted.map((e, i) => (
+                <div key={e.id || e.date} style={{ background: i === 0 ? '#F8FAFF' : 'white', borderRadius: 11, padding: '10px 13px', border: i === 0 ? `1.5px solid ${S.border}` : `1px solid ${S.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: S.muted, fontFamily: "'DM Mono',monospace" }}>{new Date(e.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    {i === 0 && <span style={{ fontSize: 9, background: '#E8F0E8', color: S.green, padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>DERNIER</span>}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px' }}>
+                    {fields.filter(f => e[f.key] != null).map(f => (
+                      <div key={f.key} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontSize: 10, color: S.muted }}>{f.icon} {f.label}</span>
+                        <span style={{ fontWeight: 900, fontSize: 14, color: f.color }}>{e[f.key]}<span style={{ fontSize: 10, fontWeight: 400, color: S.muted }}> {f.unit}</span></span>
+                      </div>
+                    ))}
+                    {(e.notes || e.note || e.comment) && <div style={{ width: '100%', fontSize: 11, color: S.muted, marginTop: 3, fontStyle: 'italic' }}>💬 {e.notes || e.note || e.comment}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {availableFields.map(f => (
+                  <button key={f.key} onClick={() => setField(f.key)} style={{ padding: '5px 13px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: font, fontSize: 12, fontWeight: 700, background: field === f.key ? f.color : '#F0F2F8', color: field === f.key ? 'white' : S.muted }}>{f.icon} {f.label}</button>
+                ))}
+              </div>
+              <div style={{ background: '#F8FAFF', borderRadius: 12, padding: '16px 14px' }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: S.navy, marginBottom: 12 }}>
+                  {fields.find(f => f.key === field)?.icon} {fields.find(f => f.key === field)?.label} <span style={{ fontSize: 11, color: S.muted, fontWeight: 400 }}>({fields.find(f => f.key === field)?.unit})</span>
+                </div>
+                <CoachMiniChart entries={entries} field={field} fieldsMeta={fields} />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ClientDetail({ client, onBack, onEditOffer, onNavigate, onArchive, onUnarchive, onNotesUpdate, measures = [], nutritionLogs = [], historyLoading = false }) {
   const offer = OFFERS[client.offer] || OFFERS['tutto_bene']
   return (
     <div>
@@ -465,6 +596,28 @@ function ClientDetail({ client, onBack, onEditOffer, onNavigate, onArchive, onUn
         </div>
       </div>
 
+      {/* Suivi poids / mensurations & diète */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 12 }}>
+        {historyLoading ? (
+          <div style={{ textAlign: 'center', color: S.muted, padding: '20px 0', fontSize: 13 }}>Chargement de l'historique…</div>
+        ) : (
+          <>
+            <TrackerPanel
+              title="Suivi poids & mensurations" icon="⚖️"
+              subtitle="Historique des valeurs entrées par le client, avec date, et courbe d'évolution."
+              entries={measures} fields={COACH_MEASURE_FIELDS} defaultField="weight"
+              emptyLabel="Aucune mesure enregistrée par ce client pour le moment."
+            />
+            <TrackerPanel
+              title="Suivi diète" icon="🥗"
+              subtitle="Historique des macros renseignées par le client, avec date, et courbe d'évolution."
+              entries={nutritionLogs} fields={COACH_NUTRI_FIELDS} defaultField="calories"
+              emptyLabel="Aucune valeur de diète enregistrée par ce client pour le moment."
+            />
+          </>
+        )}
+      </div>
+
       {/* Post-it */}
       <PostItPanel clientId={client.id} notes={client.notes} onUpdate={(updated) => onNotesUpdate(client.id, updated)} />
     </div>
@@ -548,6 +701,9 @@ export default function CoachDashboard() {
   const [clientSubTab,    setClientSubTab]    = useState('actifs')
   const [showCreate,      setShowCreate]      = useState(false)
   const [isMobile,        setIsMobile]        = useState(false)
+  const [clientMeasures,  setClientMeasures]  = useState([])
+  const [clientNutrition, setClientNutrition] = useState([])
+  const [historyLoading,  setHistoryLoading]  = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 980)
@@ -586,6 +742,27 @@ export default function CoachDashboard() {
       }
     } catch (err) { setError(err.message) }
   }
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!selected) { setClientMeasures([]); setClientNutrition([]); return }
+      setHistoryLoading(true)
+      try {
+        const [{ data: m }, { data: n }] = await Promise.all([
+          supabase.from('measures').select('*').eq('client_id', selected).order('date', { ascending: false }).limit(200),
+          supabase.from('nutrition_logs').select('*').eq('client_id', selected).order('date', { ascending: false }).limit(200),
+        ])
+        setClientMeasures(m || [])
+        setClientNutrition(n || [])
+      } catch (err) {
+        console.error('Erreur chargement historique client:', err)
+        setClientMeasures([]); setClientNutrition([])
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+    loadHistory()
+  }, [selected])
 
   const archiveClient = async (clientId) => {
     try {
@@ -744,6 +921,9 @@ export default function CoachDashboard() {
               onArchive={(c) => setArchivingClient(c)}
               onUnarchive={unarchiveClient}
               onNotesUpdate={handleNotesUpdate}
+              measures={clientMeasures}
+              nutritionLogs={clientNutrition}
+              historyLoading={historyLoading}
             />
 
           /* ── VUE CLIENTS ── */
