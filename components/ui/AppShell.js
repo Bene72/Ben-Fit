@@ -242,10 +242,21 @@ const COACH_NAV = [
   { href: '/coach/programmes/template', icon: '📋', label: 'Biblio' },
 ];
 
+// Nav client : juste les icônes, en bas — plus fluide sur mobile qu'un tiroir latéral
+const CLIENT_NAV = [
+  { href: '/dashboard', icon: '📊', label: 'Aperçu' },
+  { href: '/training',  icon: '💪', label: 'Programme' },
+  { href: '/nutrition', icon: '🍽️', label: 'Nutrition' },
+  { href: '/bilan',     icon: '📈', label: 'Bilan' },
+  { href: '/messages',  icon: '💬', label: 'Messages' },
+  { href: '/gestion',   icon: '⚙️', label: 'Gestion' },
+];
+
 function BottomNav({ isCoach }) {
-  const router  = useRouter();
-  
-  if (!isCoach) return null;
+  const router = useRouter();
+  const items  = isCoach ? COACH_NAV : CLIENT_NAV;
+  // Client : icônes seules, pas de texte, plus proche de l'ancienne barre mobile
+  const showLabels = isCoach;
 
   return (
     <nav style={{
@@ -253,7 +264,7 @@ function BottomNav({ isCoach }) {
       bottom:         0,
       left:           0,
       right:          0,
-      height:         62,
+      height:         showLabels ? 62 : 58,
       background:     T.navy,
       borderTop:      `1px solid ${T.border}`,
       display:        'flex',
@@ -262,11 +273,12 @@ function BottomNav({ isCoach }) {
       overflowX:      'auto',
       overflowY:      'hidden',
       scrollbarWidth: 'none',
+      paddingBottom:  'env(safe-area-inset-bottom, 0px)',
     }}>
-      {COACH_NAV.map(item => {
+      {items.map(item => {
         const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
         return (
-          <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 56px', minWidth: 48 }}>
+          <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 48px', minWidth: 48 }}>
             <div style={{
               display:        'flex',
               flexDirection:  'column',
@@ -280,10 +292,12 @@ function BottomNav({ isCoach }) {
               transition:     'color 0.15s, border-color 0.15s',
               background:     isActive ? 'rgba(44,100,229,0.12)' : 'transparent',
             }}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
-                {item.label}
-              </span>
+              <span style={{ fontSize: showLabels ? 18 : 22, lineHeight: 1 }}>{item.icon}</span>
+              {showLabels && (
+                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
+                  {item.label}
+                </span>
+              )}
             </div>
           </Link>
         );
