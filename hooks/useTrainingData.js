@@ -99,7 +99,7 @@ export function useTrainingData() {
           archivedRes,
         ] = await Promise.all([
           supabase.from('workouts').select('*, exercises(*)')
-            .eq('client_id', currentUser.id).eq('is_archived', false)
+            .eq('client_id', currentUser.id).eq('is_archived', false).eq('is_future', false)
             .order('day_of_week', { ascending: true }),
           loadLogsForClient(currentUser.id),
           loadCalendarNotes(currentUser.id),
