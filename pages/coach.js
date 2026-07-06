@@ -727,14 +727,12 @@ export default function CoachDashboard() {
 
   const loadData = async (coachId) => {
     try {
+      // SÉCURITÉ : pas de fallback "tous les clients" si ce filtre échoue.
+      // Un échec ici doit rester une erreur visible, jamais un élargissement
+      // de la lecture à des clients d'un autre coach.
       const { data: profiles, error: profErr } = await supabase.from('profiles').select('*').eq('role', 'client').eq('coach_id', coachId)
-      if (profErr) {
-        const { data: fallback, error: err2 } = await supabase.from('profiles').select('*').eq('role', 'client')
-        if (err2) throw err2
-        setClients((fallback || []).map(toClientModel))
-      } else {
-        setClients((profiles || []).map(toClientModel))
-      }
+      if (profErr) throw profErr
+      setClients((profiles || []).map(toClientModel))
       const { data: sess } = await supabase.from('workout_sessions').select('*')
         .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
       if (sess && sess.length > 0) {
