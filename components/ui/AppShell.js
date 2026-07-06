@@ -153,11 +153,11 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
               <div style={{ padding: '4px 22px 6px', fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700, marginTop: 4 }}>
                 Gestion Coach
               </div>
-              {/* ✅ URLs corrigées avec /coach */}
+              {/* URLs vérifiées : seules les pages qui existent réellement sont listées.
+                  /coach/saison, /coach/programmes/template et /gestion n'existent pas
+                  dans ce dépôt (menaient à des 404) — retirées de la navigation. */}
               <NavItem href="/coach" icon="👥" collapsed={collapsed}>Élèves</NavItem>
               <NavItem href="/coach/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
-              <NavItem href="/coach/saison" icon="📅" collapsed={collapsed}>Saison / Cycles</NavItem>
-              <NavItem href="/coach/programmes/template" icon="📋" collapsed={collapsed}>Bibliothèque</NavItem>
 
               {/* Séparateur */}
               <div style={{ borderTop: `1px solid ${T.border}`, margin: '12px 16px 8px' }} />
@@ -169,7 +169,6 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
               <NavItem href="/nutrition" icon="🍽️" collapsed={collapsed}>Nutrition</NavItem>
               <NavItem href="/bilan"     icon="📈" collapsed={collapsed}>Bilan</NavItem>
               <NavItem href="/messages"  icon="💬" collapsed={collapsed}>Messages</NavItem>
-              <NavItem href="/gestion"   icon="⚙️" collapsed={collapsed}>Gestion</NavItem>
             </>
           )}
         </nav>
@@ -234,12 +233,10 @@ function UserFooter({ user, collapsed }) {
 }
 
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
-// ✅ URLs corrigées avec /coach
+// Nav coach : uniquement les pages qui existent réellement (voir plus haut).
 const COACH_NAV = [
   { href: '/coach', icon: '👥', label: 'Élèves' },
   { href: '/coach/activite', icon: '📋', label: 'Activité' },
-  { href: '/coach/saison', icon: '📅', label: 'Saison' },
-  { href: '/coach/programmes/template', icon: '📋', label: 'Biblio' },
 ];
 
 // Nav client : juste les icônes, en bas — plus fluide sur mobile qu'un tiroir latéral
@@ -249,7 +246,6 @@ const CLIENT_NAV = [
   { href: '/nutrition', icon: '🍽️', label: 'Nutrition' },
   { href: '/bilan',     icon: '📈', label: 'Bilan' },
   { href: '/messages',  icon: '💬', label: 'Messages' },
-  { href: '/gestion',   icon: '⚙️', label: 'Gestion' },
 ];
 
 function BottomNav({ isCoach }) {
