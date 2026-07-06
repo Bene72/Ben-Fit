@@ -2,7 +2,7 @@
 // Route serveur uniquement — utilise la service_role key, jamais exposée au front.
 import { createClient } from '@supabase/supabase-js'
 import { withAuth, checkRateLimit } from '../../lib/withAuth'
-import { validate, isEmail, isNonEmptyString, isOptionalString, isNumberInRange } from '../../lib/validate'
+import { validate, isEmail, isNonEmptyString, isOptionalString, isNumberInRange, isOneOf } from '../../lib/validate'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,10 +15,13 @@ async function handler(req, res) {
     return res.status(405).json({ error: 'Méthode non autorisée' })
   }
 
-  if (checkRateLimit(req, res, { maxRequests: 15, windowMs: 60_000 })) return
+  if (await checkRateLimit(req, res, { maxRequests: 15, windowMs: 60_000 })) return
 
   try {
     // ── 1. Validation des champs (withAuth + requireCoach a déjà vérifié l'auth) ─
+    // Doit rester synchronisé avec les clés définies dans OFFERS (pages/coach.js).
+    const ALLOWED_OFFERS = ['essentia_plus', 'tutto_bene']
+
     const { valid, errors, data } = validate(req.body, {
       email:            isEmail,
       password:         isNonEmptyString(72),     // 72 = limite bcrypt standard
@@ -26,6 +29,7 @@ async function handler(req, res) {
       objective:        isOptionalString(500),
       height:           v => v ? isNumberInRange(50, 280)(v) : { ok: true, value: null },
       current_program:  isOptionalString(120),
+      offer:            v => (v === undefined || v === null || v === '') ? { ok: true, value: 'tutto_bene' } : isOneOf(ALLOWED_OFFERS)(v),
     })
 
     if (!valid) {
@@ -36,7 +40,7 @@ async function handler(req, res) {
       return res.status(400).json({ error: '6 caractères minimum pour le mot de passe' })
     }
 
-    const { email, password, full_name, objective, height, current_program } = data
+    const { email, password, full_name, objective, height, current_program, offer } = data
 
     // ── 2. Création du compte Auth ────────────────────────────────────────
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
@@ -60,6 +64,7 @@ async function handler(req, res) {
         objective: objective || null,
         height: height || null,
         current_program: current_program || null,
+        offer,
       })
       .select()
       .maybeSingle()
@@ -72,8 +77,9 @@ async function handler(req, res) {
 
     return res.status(200).json({ success: true, profile })
   } catch (err) {
+    // Le détail reste dans les logs serveur (Vercel) — jamais renvoyé au client.
     console.error('Erreur create-client:', err)
-    return res.status(500).json({ error: err.message || 'Erreur serveur' })
+    return res.status(500).json({ error: 'Erreur serveur' })
   }
 }
 
