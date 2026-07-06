@@ -48,7 +48,10 @@ export default function Dashboard() {
         setProfile(prof)
         setProfileForm({ full_name: prof?.full_name || '', current_program: prof?.current_program || '', objective: prof?.objective || '', height: prof?.height || '' })
         const { data: m } = await supabase.from('measures').select('*').eq('client_id', user.id).order('date', { ascending: false }).limit(200)
-        setMeasures(m || [])
+        // Le schéma stocke les mensurations en *_cm (waist_cm, chest_cm...).
+        // On les remappe ici vers les clés courtes utilisées par l'UI existante
+        // (m.waist, m.hips...) pour ne pas devoir réécrire tout l'affichage.
+        setMeasures((m || []).map(fromDbMeasure))
         const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
         const { data: s } = await supabase.from('workout_sessions').select('*').eq('client_id', user.id).gte('date', weekStart.toISOString().split('T')[0])
         setSessions(s || [])
@@ -91,14 +94,14 @@ export default function Dashboard() {
       const today = new Date().toISOString().split('T')[0]
       const { data, error } = await supabase.from('measures').insert({
         client_id: user.id, date: today,
-        weight: +weightForm.weight, waist: +weightForm.waist || null,
-        hips: +weightForm.hips || null, chest: +weightForm.chest || null,
-        arm: +weightForm.arm || null, thigh: +weightForm.thigh || null,
-        calf: +weightForm.calf || null, glutes: +weightForm.glutes || null,
+        weight: +weightForm.weight, waist_cm: +weightForm.waist || null,
+        hips_cm: +weightForm.hips || null, chest_cm: +weightForm.chest || null,
+        arm_cm: +weightForm.arm || null, thigh_cm: +weightForm.thigh || null,
+        calf_cm: +weightForm.calf || null, glutes_cm: +weightForm.glutes || null,
         notes: weightForm.notes || null,
       }).select().single()
       if (error) throw error
-      setMeasures(prev => [data, ...prev])
+      setMeasures(prev => [fromDbMeasure(data), ...prev])
       setEditWeight(false)
       setWeightForm({ weight: '', waist: '', hips: '', chest: '', arm: '', thigh: '', calf: '', glutes: '', notes: '' })
       show('Mesure enregistrée', 'success')
@@ -122,14 +125,14 @@ export default function Dashboard() {
     setSaving(true)
     try {
       const { data, error } = await supabase.from('measures').update({
-        weight: +weightForm.weight, waist: +weightForm.waist || null,
-        hips: +weightForm.hips || null, chest: +weightForm.chest || null,
-        arm: +weightForm.arm || null, thigh: +weightForm.thigh || null,
-        calf: +weightForm.calf || null, glutes: +weightForm.glutes || null,
+        weight: +weightForm.weight, waist_cm: +weightForm.waist || null,
+        hips_cm: +weightForm.hips || null, chest_cm: +weightForm.chest || null,
+        arm_cm: +weightForm.arm || null, thigh_cm: +weightForm.thigh || null,
+        calf_cm: +weightForm.calf || null, glutes_cm: +weightForm.glutes || null,
         notes: weightForm.notes || null,
       }).eq('id', editingMeasure).select().single()
       if (error) throw error
-      setMeasures(prev => prev.map(m => m.id === editingMeasure ? data : m))
+      setMeasures(prev => prev.map(m => m.id === editingMeasure ? fromDbMeasure(data) : m))
       setEditingMeasure(null); setEditWeight(false)
       setWeightForm({ weight: '', waist: '', hips: '', chest: '', arm: '', thigh: '', calf: '', glutes: '', notes: '' })
       show('Mesure mise à jour ✓', 'success')
@@ -182,9 +185,9 @@ export default function Dashboard() {
                 border: 'none', borderRadius: '8px 8px 0 0',
                 fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: 'pointer',
                 fontFamily: "'DM Sans',sans-serif", whiteSpace: 'nowrap',
-                background: activeTab === tab.id ? '#0D1B2A' : 'transparent',
+                background: activeTab === tab.id ? '#0D1B4E' : 'transparent',
                 color: activeTab === tab.id ? 'white' : '#8A8070',
-                borderBottom: activeTab === tab.id ? '2px solid #0D1B2A' : '2px solid transparent',
+                borderBottom: activeTab === tab.id ? '2px solid #0D1B4E' : '2px solid transparent',
                 marginBottom: -1, transition: 'all 0.15s',
               }}>{tab.label}</button>
             ))}
@@ -204,7 +207,7 @@ export default function Dashboard() {
             <>
               {/* ══ HERO ══ */}
               <div style={{
-                background: '#0D1B2A', borderRadius: 20,
+                background: '#0D1B4E', borderRadius: 20,
                 padding: isMobile ? '24px 18px' : '32px 36px',
                 marginBottom: 20, position: 'relative', overflow: 'hidden',
               }}>
@@ -262,9 +265,9 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #0D1B2A', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+                <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '20px 22px', borderTop: '3px solid #0D1B4E', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
                   <div style={kpiLabel}>Programme</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2A', marginTop: 4, lineHeight: 1.3 }}>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: '#0D1B4E', marginTop: 4, lineHeight: 1.3 }}>
                     {profile?.current_program || '—'}
                   </div>
                 </div>
@@ -275,14 +278,14 @@ export default function Dashboard() {
                 {profile?.coach_note && (
                   <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px', gridColumn: isMobile ? '1' : '1 / -1' }}>
                     <div style={{ fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', color: '#A09880', marginBottom: 10, fontWeight: 700 }}>📌 Message de ton coach</div>
-                    <p style={{ fontSize: 14, lineHeight: 1.7, color: '#0D1B2A', margin: 0, fontStyle: 'italic' }}>{profile.coach_note}</p>
+                    <p style={{ fontSize: 14, lineHeight: 1.7, color: '#0D1B4E', margin: 0, fontStyle: 'italic' }}>{profile.coach_note}</p>
                   </div>
                 )}
 
                 {/* Suivi corporel */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px', cursor: 'pointer' }} onClick={() => setActiveTab('body')}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>📏 Suivi corporel</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>📏 Suivi corporel</div>
                     <span style={{ fontSize: 11, color: '#B8860B', fontWeight: 700 }}>Voir tout →</span>
                   </div>
                   {measures.length === 0 ? (
@@ -304,8 +307,8 @@ export default function Dashboard() {
                 {/* Profil */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>👤 Mon profil</div>
-                    <button onClick={() => setEditProfile(!editProfile)} style={btn3(editProfile ? '#0D1B2A' : '#0D1B2A', 'white')}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>👤 Mon profil</div>
+                    <button onClick={() => setEditProfile(!editProfile)} style={btn3(editProfile ? '#0D1B4E' : '#0D1B4E', 'white')}>
                       {editProfile ? '✕' : '✏️ Modifier'}
                     </button>
                   </div>
@@ -323,7 +326,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button onClick={saveProfile} disabled={saving} style={btn3('#0D1B2A', 'white')}>{saving ? 'Sauvegarde…' : '✓ Enregistrer'}</button>
+                        <button onClick={saveProfile} disabled={saving} style={btn3('#0D1B4E', 'white')}>{saving ? 'Sauvegarde…' : '✓ Enregistrer'}</button>
                         <button onClick={() => setEditProfile(false)} style={btn3('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
                       </div>
                     </div>
@@ -337,7 +340,7 @@ export default function Dashboard() {
                       ].map(f => f.value ? (
                         <div key={f.label} style={{ display: 'flex', gap: 8, fontSize: 14 }}>
                           <span style={{ color: '#A09880', width: 90, flexShrink: 0 }}>{f.label}</span>
-                          <span style={{ fontWeight: 500, color: '#0D1B2A' }}>{f.value}</span>
+                          <span style={{ fontWeight: 500, color: '#0D1B4E' }}>{f.value}</span>
                         </div>
                       ) : null)}
                     </div>
@@ -347,8 +350,8 @@ export default function Dashboard() {
                 {/* Mot de passe */}
                 <div style={{ background: 'white', border: '1px solid #EDE9E0', borderRadius: 16, padding: '18px 22px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B2A' }}>🔒 Mot de passe</div>
-                    <button onClick={() => { setShowPwd(!showPwd); setPwdError(''); setPwdDone(false) }} style={btn3(showPwd ? '#F0EDE6' : '#0D1B2A', showPwd ? '#8A8070' : 'white')}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>🔒 Mot de passe</div>
+                    <button onClick={() => { setShowPwd(!showPwd); setPwdError(''); setPwdDone(false) }} style={btn3(showPwd ? '#F0EDE6' : '#0D1B4E', showPwd ? '#8A8070' : 'white')}>
                       {showPwd ? '✕ Fermer' : '✏️ Modifier'}
                     </button>
                   </div>
@@ -370,7 +373,7 @@ export default function Dashboard() {
                           ))}
                           {pwdError && <div style={{ color: '#C45C3A', fontSize: 13, padding: '8px 12px', background: 'rgba(196,92,58,0.08)', borderRadius: 7 }}>{pwdError}</div>}
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={changePassword} style={btn3('#0D1B2A', 'white')}>✓ Enregistrer</button>
+                            <button onClick={changePassword} style={btn3('#0D1B4E', 'white')}>✓ Enregistrer</button>
                             <button onClick={() => { setShowPwd(false); setPwdError('') }} style={btn3('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
                           </div>
                         </div>
@@ -389,10 +392,30 @@ export default function Dashboard() {
 
 // ── Styles locaux ──────────────────────────────────────────────────────────────
 const kpiLabel = { fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 6, fontWeight: 700 }
-const kpiValue = { fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, lineHeight: 1, color: '#0D1B2A' }
+const kpiValue = { fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, lineHeight: 1, color: '#0D1B4E' }
 const lbl3     = { display: 'block', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#A09880', marginBottom: 4, fontWeight: 600 }
-const inp3     = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
+const inp3     = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B4E', boxSizing: 'border-box' }
 const btn3     = (bg, color, border) => ({ padding: '7px 14px', background: bg, color, border: border ? `1.5px solid ${border}` : 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
+
+// ── Mapping colonnes DB (*_cm) <-> clés UI courtes ────────────────────────────
+// Le schéma Supabase stocke les mensurations en waist_cm/chest_cm/hips_cm/
+// arm_cm/thigh_cm/calf_cm/glutes_cm. On les traduit ici en clés courtes
+// (waist, chest...) utilisées par le reste de ce composant, pour éviter
+// que les écritures soient silencieusement perdues sur des colonnes qui
+// n'existent pas côté base (cf. audit sécurité/qualité).
+export function fromDbMeasure(row) {
+  if (!row) return row
+  return {
+    ...row,
+    waist: row.waist_cm ?? row.waist ?? null,
+    chest: row.chest_cm ?? row.chest ?? null,
+    hips: row.hips_cm ?? row.hips ?? null,
+    arm: row.arm_cm ?? row.arm ?? null,
+    thigh: row.thigh_cm ?? row.thigh ?? null,
+    calf: row.calf_cm ?? row.calf ?? null,
+    glutes: row.glutes_cm ?? row.glutes ?? null,
+  }
+}
 
 // ── Constantes mesures ────────────────────────────────────────────────────────
 const MEASURE_FIELDS = [
@@ -456,11 +479,11 @@ function MiniChart({ measures, field }) {
 
 function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditWeight, saving, saveWeight, deleteMeasure, deletingId, editingMeasure, setEditingMeasure, updateMeasure, startEditMeasure, bodyTab, setBodyTab, chartField, setChartField }) {
   const latest = measures[0] || {}
-  const inpB   = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 14, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B2A', boxSizing: 'border-box' }
+  const inpB   = { width: '100%', padding: '9px 11px', border: '1.5px solid #E8E4DC', borderRadius: 8, fontSize: 14, fontFamily: "'DM Sans',sans-serif", background: '#FAF9F7', outline: 'none', color: '#0D1B4E', boxSizing: 'border-box' }
   const btnB   = (bg, col, brd) => ({ padding: '9px 18px', background: bg, color: col, border: brd ? `1.5px solid ${brd}` : 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ background: '#0D1B2A', borderRadius: 16, padding: '22px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: '#0D1B4E', borderRadius: 16, padding: '22px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>📏 Suivi corporel</div>
           <div style={{ fontSize: 12, opacity: 0.55 }}>Poids · mensurations · évolution</div>
@@ -471,7 +494,7 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
       </div>
       {editWeight && (
         <div style={{ background: 'white', border: '1.5px solid #E8E4DC', borderRadius: 14, padding: '20px 18px' }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B2A', marginBottom: 16 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', marginBottom: 16 }}>
             {editingMeasure
               ? <span>✏️ Modifier la mesure du <span style={{ color: '#B8860B' }}>{new Date(measures.find(m => m.id === editingMeasure)?.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></span>
               : <span>✏️ {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -490,7 +513,7 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
             <input value={weightForm.notes || ''} onChange={e => setWeightForm(p => ({ ...p, notes: e.target.value }))} placeholder="Ex: matin à jeun, après séance…" style={inpB} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={editingMeasure ? updateMeasure : saveWeight} disabled={saving || !weightForm.weight} style={{ ...btnB(editingMeasure ? '#B8860B' : '#0D1B2A', 'white'), opacity: !weightForm.weight ? 0.45 : 1 }}>{saving ? 'Sauvegarde…' : editingMeasure ? '✓ Mettre à jour' : '✓ Enregistrer'}</button>
+            <button onClick={editingMeasure ? updateMeasure : saveWeight} disabled={saving || !weightForm.weight} style={{ ...btnB(editingMeasure ? '#B8860B' : '#0D1B4E', 'white'), opacity: !weightForm.weight ? 0.45 : 1 }}>{saving ? 'Sauvegarde…' : editingMeasure ? '✓ Mettre à jour' : '✓ Enregistrer'}</button>
             <button onClick={() => { setEditWeight(false); setEditingMeasure(null) }} style={btnB('transparent', '#8A8070', '#E8E4DC')}>Annuler</button>
           </div>
         </div>
@@ -520,7 +543,7 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
       <div style={{ background: 'white', border: '1px solid #E8E4DC', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #EDE9E0' }}>
           {[{ id: 'history', label: '📋 Historique' }, { id: 'curve', label: '📈 Courbe' }].map(t => (
-            <button key={t.id} onClick={() => setBodyTab(t.id)} style={{ flex: 1, padding: 13, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 13, background: bodyTab === t.id ? '#0D1B2A' : 'transparent', color: bodyTab === t.id ? 'white' : '#8A8070' }}>{t.label}</button>
+            <button key={t.id} onClick={() => setBodyTab(t.id)} style={{ flex: 1, padding: 13, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 13, background: bodyTab === t.id ? '#0D1B4E' : 'transparent', color: bodyTab === t.id ? 'white' : '#8A8070' }}>{t.label}</button>
           ))}
         </div>
         <div style={{ padding: 18 }}>
@@ -561,7 +584,7 @@ function BodyTracker({ measures, weightForm, setWeightForm, editWeight, setEditW
                 ))}
               </div>
               <div style={{ background: '#FAF9F7', borderRadius: 12, padding: '16px 14px' }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B2A', marginBottom: 12 }}>{MEASURE_FIELDS.find(f => f.key === chartField)?.icon} {MEASURE_FIELDS.find(f => f.key === chartField)?.label} <span style={{ fontSize: 11, color: '#A09880', fontWeight: 400 }}>({MEASURE_FIELDS.find(f => f.key === chartField)?.unit})</span></div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: '#0D1B4E', marginBottom: 12 }}>{MEASURE_FIELDS.find(f => f.key === chartField)?.icon} {MEASURE_FIELDS.find(f => f.key === chartField)?.label} <span style={{ fontSize: 11, color: '#A09880', fontWeight: 400 }}>({MEASURE_FIELDS.find(f => f.key === chartField)?.unit})</span></div>
                 <MiniChart measures={measures} field={chartField} />
               </div>
             </div>
@@ -619,25 +642,25 @@ function RecipeOfTheDay() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ background: 'white', border: '1.5px solid #EDE9E0', borderRadius: 16, padding: 22 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <div style={{ width: 32, height: 32, background: '#0D1B2A', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛒</div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B2A' }}>Ingrédients</div>
+            <div style={{ width: 32, height: 32, background: '#0D1B4E', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛒</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B4E' }}>Ingrédients</div>
           </div>
           {r.ingredients.map((ing, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < r.ingredients.length - 1 ? '1px solid #F0EDE6' : 'none' }}>
-              <span style={{ background: '#0D1B2A', color: 'white', minWidth: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontSize: 13, color: '#0D1B2A', lineHeight: 1.5 }}><strong style={{ color: '#B8860B', fontWeight: 800 }}>{ing.qty}</strong>&nbsp;{ing.name}</span>
+              <span style={{ background: '#0D1B4E', color: 'white', minWidth: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontSize: 13, color: '#0D1B4E', lineHeight: 1.5 }}><strong style={{ color: '#B8860B', fontWeight: 800 }}>{ing.qty}</strong>&nbsp;{ing.name}</span>
             </div>
           ))}
         </div>
         <div style={{ background: 'white', border: '1.5px solid #EDE9E0', borderRadius: 16, padding: 22 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
             <div style={{ width: 32, height: 32, background: '#C45C3A', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👨‍🍳</div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B2A' }}>Préparation</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#0D1B4E' }}>Préparation</div>
           </div>
           {r.steps.map((step, i) => (
             <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
               <span style={{ background: '#C45C3A', color: 'white', minWidth: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontSize: 13, color: '#0D1B2A', lineHeight: 1.65 }}>{step}</span>
+              <span style={{ fontSize: 13, color: '#0D1B4E', lineHeight: 1.65 }}>{step}</span>
             </div>
           ))}
         </div>
@@ -645,7 +668,7 @@ function RecipeOfTheDay() {
       <div style={{ background: 'linear-gradient(135deg, #FFFBEE, #FFF5D0)', border: '1.5px solid #FFD97D', borderRadius: 14, padding: '18px 22px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ fontSize: 28, flexShrink: 0 }}>💡</div>
         <div>
-          <div style={{ fontWeight: 800, color: '#0D1B2A', fontSize: 14, marginBottom: 5 }}>Astuce conservation</div>
+          <div style={{ fontWeight: 800, color: '#0D1B4E', fontSize: 14, marginBottom: 5 }}>Astuce conservation</div>
           <div style={{ fontSize: 13, color: '#5A4A20', lineHeight: 1.65 }}>{r.tips}</div>
         </div>
       </div>
