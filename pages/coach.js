@@ -31,12 +31,13 @@ const NOTE_COLORS = [
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const S = {
-  navy: '#0D1B4E', gold: '#C8A95A', bg: '#F0F2F8', card: '#FFFFFF',
+  navy: '#0D1B4E', navyDeep: '#081230', gold: '#C8A95A', bg: '#F0F2F8', card: '#FFFFFF',
   border: '#E2E6F0', muted: '#6B7A99', green: '#3A8A5A', red: '#C45C3A',
   blue: '#2C64E5', gray: '#8B95A8', purple: '#7B6FAD',
 }
 const font  = "'DM Sans', system-ui, sans-serif"
 const bebas = "'Bebas Neue', 'DM Sans', sans-serif"
+const mono  = "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace"
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -91,9 +92,12 @@ function Avatar({ initials, size = 36, color = S.navy, grayscale = false }) {
 
 function KpiCard({ icon, label, value, sub, accent = S.navy, onClick }) {
   return (
-    <div onClick={onClick} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: '16px 18px', cursor: onClick ? 'pointer' : 'default', flex: 1, minWidth: 0 }}>
+    <div onClick={onClick}
+      onMouseEnter={(e) => { if (onClick) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(13,27,78,0.10)' } }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+      style={{ background: S.card, border: `1px solid ${S.border}`, borderTop: `2px solid ${accent}`, borderRadius: 14, padding: '16px 18px', cursor: onClick ? 'pointer' : 'default', flex: 1, minWidth: 0, transition: 'transform 0.15s, box-shadow 0.15s' }}>
       <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-      <div style={{ fontFamily: bebas, fontSize: 28, color: accent, letterSpacing: 1, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: mono, fontWeight: 700, fontSize: 26, color: accent, letterSpacing: 0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ fontSize: 11, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: 4 }}>{label}</div>
       {sub && <div style={{ fontSize: 11, color: S.muted, marginTop: 2 }}>{sub}</div>}
     </div>
@@ -626,6 +630,54 @@ function ClientDetail({ client, onBack, onEditOffer, onNavigate, onArchive, onUn
 
 // ─── CALENDRIER ───────────────────────────────────────────────────────────────
 
+// ─── SIGNAL — fil d'activité temps réel (élément signature du cockpit) ───────
+
+function timeAgo(dateStr) {
+  const diff = Math.floor((new Date() - new Date(dateStr)) / 60000) // minutes
+  if (diff < 1) return 'à l\'instant'
+  if (diff < 60) return `il y a ${diff} min`
+  const h = Math.floor(diff / 60)
+  if (h < 24) return `il y a ${h}h`
+  const d = Math.floor(h / 24)
+  return `il y a ${d}j`
+}
+
+const SIGNAL_ICON = { log: '💪', message: '💬', bilan: '📈', session: '✅' }
+
+function ActivityFeed({ items, loading, onSelect }) {
+  return (
+    <div style={{ background: S.navy, borderRadius: 16, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+      <div aria-hidden style={{ position: 'absolute', top: -60, right: -60, width: 160, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${S.gold}30, transparent 70%)` }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, position: 'relative' }}>
+        <span aria-hidden style={{ width: 7, height: 7, borderRadius: '50%', background: S.gold, boxShadow: `0 0 0 3px ${S.gold}30`, animation: 'signalPulse 2s ease-in-out infinite' }} />
+        <div style={{ fontFamily: bebas, fontSize: 14, color: 'white', letterSpacing: 2 }}>SIGNAL</div>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: mono, marginLeft: 'auto' }}>LIVE</div>
+      </div>
+      <style>{`@keyframes signalPulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>
+      {loading ? (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', padding: '8px 0' }}>Chargement…</div>
+      ) : items.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', padding: '8px 0' }}>Aucune activité récente.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, position: 'relative' }}>
+          {items.map((it, i) => (
+            <button key={i} onClick={() => onSelect(it.clientId)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', borderRadius: 8, width: '100%', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{SIGNAL_ICON[it.type] || '•'}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <b style={{ color: 'white' }}>{it.clientName}</b> {it.label}
+              </span>
+              <span style={{ fontSize: 10, color: S.gold, fontFamily: mono, flexShrink: 0, whiteSpace: 'nowrap' }}>{timeAgo(it.at)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CalendarPanel({ sessions }) {
   const today = new Date()
   const [month, setMonth] = useState(today.getMonth())
@@ -704,6 +756,10 @@ export default function CoachDashboard() {
   const [clientMeasures,  setClientMeasures]  = useState([])
   const [clientNutrition, setClientNutrition] = useState([])
   const [historyLoading,  setHistoryLoading]  = useState(false)
+  const [clientSearch,    setClientSearch]    = useState('')
+  const [clientSort,      setClientSort]      = useState('recent')
+  const [activity,        setActivity]        = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 980)
@@ -732,13 +788,40 @@ export default function CoachDashboard() {
       // de la lecture à des clients d'un autre coach.
       const { data: profiles, error: profErr } = await supabase.from('profiles').select('*').eq('role', 'client').eq('coach_id', coachId)
       if (profErr) throw profErr
-      setClients((profiles || []).map(toClientModel))
+      const clientModels = (profiles || []).map(toClientModel)
+      setClients(clientModels)
+      loadActivity(clientModels)
       const { data: sess } = await supabase.from('workout_sessions').select('*')
         .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
       if (sess && sess.length > 0) {
         setSessions(sess.map(s => ({ date: s.date, client: s.client_name || s.client_id, type: s.type || 'Suivi', color: S.gold })))
       }
     } catch (err) { setError(err.message) }
+  }
+
+  const loadActivity = async (clientList) => {
+    const ids = clientList.map(c => c.id)
+    if (ids.length === 0) { setActivity([]); setActivityLoading(false); return }
+    setActivityLoading(true)
+    try {
+      const nameOf = (id) => clientList.find(c => c.id === id)?.name || 'Client'
+      const [{ data: logs }, { data: msgs }, { data: bilansData }] = await Promise.all([
+        supabase.from('workout_logs').select('client_id, exercise_name, logged_at').in('client_id', ids).order('logged_at', { ascending: false }).limit(6),
+        supabase.from('messages').select('sender_id, receiver_id, created_at').in('sender_id', ids).order('created_at', { ascending: false }).limit(6),
+        supabase.from('bilans').select('client_id, week_start, created_at').in('client_id', ids).order('created_at', { ascending: false }).limit(6),
+      ])
+      const items = [
+        ...(logs || []).map(l => ({ type: 'log', clientId: l.client_id, clientName: nameOf(l.client_id), label: `a loggé ${l.exercise_name}`, at: l.logged_at })),
+        ...(msgs || []).map(m => ({ type: 'message', clientId: m.sender_id, clientName: nameOf(m.sender_id), label: 'a envoyé un message', at: m.created_at })),
+        ...(bilansData || []).map(b => ({ type: 'bilan', clientId: b.client_id, clientName: nameOf(b.client_id), label: 'a rempli son bilan', at: b.created_at || b.week_start })),
+      ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 8)
+      setActivity(items)
+    } catch (err) {
+      console.error('Erreur chargement activité:', err)
+      setActivity([])
+    } finally {
+      setActivityLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -818,7 +901,17 @@ export default function CoachDashboard() {
   const pendingPayment  = clients.filter(c => !c.archived && c.balance < 0).length
   const pendingMsg      = clients.reduce((s, c) => s + c.messages, 0)
   const selectedClient  = selected ? clients.find(c => c.id === selected) : null
-  const displayedClients = clientSubTab === 'archives' ? archivedClients : clients.filter(c => !c.archived)
+  const baseClients      = clientSubTab === 'archives' ? archivedClients : clients.filter(c => !c.archived)
+  const searchedClients  = clientSearch.trim()
+    ? baseClients.filter(c => c.name.toLowerCase().includes(clientSearch.trim().toLowerCase()))
+    : baseClients
+  const SORTERS = {
+    recent:     (a, b) => new Date(b.lastBilan || 0) - new Date(a.lastBilan || 0),
+    compliance: (a, b) => b.compliance - a.compliance,
+    name:       (a, b) => a.name.localeCompare(b.name),
+    balance:    (a, b) => a.balance - b.balance,
+  }
+  const displayedClients = [...searchedClients].sort(SORTERS[clientSort] || SORTERS.recent)
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: S.bg, fontFamily: font }}>
@@ -849,10 +942,13 @@ export default function CoachDashboard() {
 
         {/* ── SIDEBAR ── */}
         {!isMobile && (
-          <div style={{ width: 220, background: S.navy, display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
+          <div style={{ width: 220, background: `linear-gradient(180deg, ${S.navy}, ${S.navyDeep})`, display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
             <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontFamily: bebas, fontSize: 26, color: S.gold, letterSpacing: 3 }}>BEN&FIT</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>Dashboard Coach</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <div style={{ fontFamily: bebas, fontSize: 26, color: S.gold, letterSpacing: 3 }}>BEN&FIT</div>
+                <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: S.green, boxShadow: `0 0 0 3px ${S.green}30` }} />
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>Cockpit Coach</div>
             </div>
             <nav style={{ padding: '16px 10px', flex: 1 }}>
               {[
@@ -862,7 +958,8 @@ export default function CoachDashboard() {
                 { id: 'finances', icon: '💳', label: 'Finances' },
               ].map((item) => (
                 <button key={item.id} onClick={() => { setActiveTab(item.id); setSelected(null) }}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', background: activeTab === item.id ? 'rgba(200,169,90,0.15)' : 'transparent', color: activeTab === item.id ? S.gold : 'rgba(255,255,255,0.6)', fontFamily: font, fontSize: 13, fontWeight: activeTab === item.id ? 700 : 500, marginBottom: 2, transition: 'all 0.15s' }}>
+                  style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', background: activeTab === item.id ? 'rgba(200,169,90,0.15)' : 'transparent', color: activeTab === item.id ? S.gold : 'rgba(255,255,255,0.6)', fontFamily: font, fontSize: 13, fontWeight: activeTab === item.id ? 700 : 500, marginBottom: 2, transition: 'all 0.15s' }}>
+                  {activeTab === item.id && <span aria-hidden style={{ position: 'absolute', left: -10, top: '20%', bottom: '20%', width: 3, borderRadius: 2, background: S.gold }} />}
                   <span style={{ fontSize: 16 }}>{item.icon}</span>{item.label}
                 </button>
               ))}
@@ -898,14 +995,14 @@ export default function CoachDashboard() {
             </div>
           )}
 
-          {/* KPI Row */}
+          {/* KPI Row — chaque tuile est un hyperlien vers la vue concernée */}
           {!selectedClient && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-              <KpiCard icon="👥" label="Clients actifs"       value={activeClients.length}   sub={`${archivedClients.length} archivé(s)`} />
-              <KpiCard icon="💰" label="MRR"                  value={`${mrr} €`}             sub="Revenus mensuels" accent={S.gold} />
-              <KpiCard icon="📊" label="Compliance moy."      value={`${avgCompliance}%`}    sub="7 derniers jours" accent={complianceColor(avgCompliance)} />
-              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}          sub="clients en retard" accent={pendingPayment > 0 ? S.red : S.green} />
-              {pendingMsg > 0 && <KpiCard icon="💬" label="Messages" value={pendingMsg} sub="non lus" accent={S.blue} />}
+              <KpiCard icon="👥" label="Clients actifs"       value={activeClients.length}   sub={`${archivedClients.length} archivé(s)`} onClick={() => { setActiveTab('clients'); setClientSubTab('actifs') }} />
+              <KpiCard icon="💰" label="MRR"                  value={`${mrr} €`}             sub="Revenus mensuels" accent={S.gold} onClick={() => setActiveTab('finances')} />
+              <KpiCard icon="📊" label="Compliance moy."      value={`${avgCompliance}%`}    sub="7 derniers jours" accent={complianceColor(avgCompliance)} onClick={() => { setActiveTab('clients'); setClientSort('compliance') }} />
+              <KpiCard icon="⚠️" label="Paiements en attente" value={pendingPayment}          sub="clients en retard" accent={pendingPayment > 0 ? S.red : S.green} onClick={() => setActiveTab('finances')} />
+              {pendingMsg > 0 && <KpiCard icon="💬" label="Messages" value={pendingMsg} sub="non lus" accent={S.blue} onClick={() => setActiveTab('clients')} />}
             </div>
           )}
 
@@ -948,6 +1045,25 @@ export default function CoachDashboard() {
                   </div>
                 )}
 
+                {/* Barre de recherche + tri */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <input
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Rechercher un élève…"
+                    style={{ flex: 1, padding: '9px 14px', borderRadius: 10, border: `1px solid ${S.border}`, fontFamily: font, fontSize: 13, outline: 'none', background: S.card }}
+                  />
+                  <select
+                    value={clientSort}
+                    onChange={(e) => setClientSort(e.target.value)}
+                    style={{ padding: '9px 12px', borderRadius: 10, border: `1px solid ${S.border}`, fontFamily: font, fontSize: 12.5, color: S.navy, background: S.card, cursor: 'pointer' }}>
+                    <option value="recent">Trier : activité récente</option>
+                    <option value="compliance">Trier : compliance</option>
+                    <option value="name">Trier : nom (A→Z)</option>
+                    <option value="balance">Trier : solde</option>
+                  </select>
+                </div>
+
                 {displayedClients.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 20, border: `2px dashed ${S.border}` }}>
                     <div style={{ fontSize: 48, marginBottom: 12 }}>{clientSubTab === 'archives' ? '📦' : '🏋️'}</div>
@@ -968,9 +1084,9 @@ export default function CoachDashboard() {
                       const archived = c.archived
                       return (
                         <div key={c.id} onClick={() => setSelected(c.id)}
-                          style={{ background: archived ? '#F7F6FB' : S.card, border: `1px solid ${archived ? '#D8D2EE' : S.border}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s', opacity: archived ? 0.85 : 1 }}
-                          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,27,78,0.1)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}>
+                          style={{ background: archived ? '#F7F6FB' : S.card, border: `1px solid ${archived ? '#D8D2EE' : S.border}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s, transform 0.15s', opacity: archived ? 0.85 : 1 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,27,78,0.1)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)' }}>
                           <Avatar initials={c.avatar} size={42} color={offer.color} grayscale={archived} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
@@ -1005,7 +1121,10 @@ export default function CoachDashboard() {
                   </div>
                 )}
               </div>
-              <CalendarPanel sessions={sessions} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <ActivityFeed items={activity} loading={activityLoading} onSelect={(id) => { setSelected(id); setActiveTab('clients') }} />
+                <CalendarPanel sessions={sessions} />
+              </div>
             </div>
 
           /* ── VUE OFFRES ── */
