@@ -133,3 +133,36 @@
     min-width: unset;
   }
 }
+
+/* ── Confort tactile "premium" (espace client, tout device) ─────────────────
+   Scroll fluide type app native, pas de flash bleu au tap, cartes qui
+   réagissent légèrement au toucher. Respecte prefers-reduced-motion. */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card, .ui-card, .workout-card, .modal {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (max-width: 979px) {
+  .card:active, .ui-card:active, .workout-card:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
