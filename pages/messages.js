@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import Layout from '../components/Layout'
+import AppShell from '../components/ui/AppShell'
 
 export const dynamic = 'force-dynamic'
 export default function Messages() {
@@ -92,7 +92,7 @@ export default function Messages() {
   if (!user) return <LoadingScreen />
 
   return (
-    <Layout title="Messages" user={user}>
+    <AppShell title="Messages" subtitle="Discute directement avec ton coach.">
       <div style={{
         background: '#F0F4FF', border: '1px solid #C5D0F0',
         borderRadius: '14px', display: 'flex', flexDirection: 'column',
@@ -184,7 +184,7 @@ export default function Messages() {
           </button>
         </div>
       </div>
-    </Layout>
+    </AppShell>
   )
 }
 
