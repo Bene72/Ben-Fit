@@ -56,12 +56,12 @@ function GestionTab({ client, onDelete }) {
 
   return (
     <div style={{ maxWidth: '540px' }}>
-      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '20px', fontWeight: 800, color: '#0D1B2A', marginBottom: '24px' }}>
+      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '20px', fontWeight: 800, color: '#0D1B4E', marginBottom: '24px' }}>
         Gestion — {client.full_name?.toUpperCase()}
       </div>
 
       <div style={{ background: '#FFFBEE', border: '1px solid #FFD97D', borderRadius: '14px', padding: '24px', marginBottom: '16px' }}>
-        <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '6px', color: '#0D1B2A' }}>🔑 Réinitialisation du mot de passe</div>
+        <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '6px', color: '#0D1B4E' }}>🔑 Réinitialisation du mot de passe</div>
         <div style={{ fontSize: '13px', color: '#8A8070', marginBottom: '16px' }}>
           Envoie un email à <strong>{client.email}</strong> avec un lien pour choisir un nouveau mot de passe.
         </div>
@@ -70,7 +70,7 @@ function GestionTab({ client, onDelete }) {
             ✅ Email envoyé à {client.email}
           </div>
         ) : (
-          <button onClick={resetPassword} disabled={resetting} style={{ padding: '9px 20px', background: '#0D1B2A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+          <button onClick={resetPassword} disabled={resetting} style={{ padding: '9px 20px', background: '#0D1B4E', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
             {resetting ? 'Envoi…' : '📧 Envoyer le lien de réinitialisation'}
           </button>
         )}
