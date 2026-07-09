@@ -12,7 +12,7 @@ const VARIANTS = {
     boxShadow: 'var(--shadow-sm, 0 2px 8px rgba(13,27,42,0.05))',
   },
   hero: {
-    background: 'var(--navy, #0D1B2A)',
+    background: 'var(--navy, #0D1B4E)',
     border: 'none',
     borderRadius: 'var(--r-lg, 28px)',
     boxShadow: 'var(--shadow-hero, 0 24px 60px rgba(13,27,42,0.22))',
@@ -38,7 +38,7 @@ const VARIANTS = {
     boxShadow: 'none',
   },
   insight: {
-    background: 'var(--navy, #0D1B2A)',
+    background: 'var(--navy, #0D1B4E)',
     border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 'var(--r-md, 20px)',
     boxShadow: 'var(--shadow-lg, 0 20px 50px rgba(13,27,42,0.16))',
