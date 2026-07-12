@@ -6,7 +6,7 @@ function scoreColor(value) {
   const n = Number(value || 0)
   if (n >= 8) return '#4A6FD4'
   if (n >= 5) return '#8FA07A'
-  return '#C45C3A'
+  return 'var(--danger)'
 }
 
 function cardStyle() {
@@ -27,6 +27,38 @@ export default function AgentBilanPage() {
   const [bilans, setBilans] = useState([])
   const [generated, setGenerated] = useState('')
   const [copied, setCopied] = useState(false)
+  const [authorized, setAuthorized] = useState(false)
+
+  // SÉCURITÉ (10/07/2026) : cette page n'avait AUCUNE vérification
+  // d'authentification — ni session, ni rôle. Un visiteur non connecté
+  // pouvait ouvrir l'interface (la RLS bloquait déjà les vraies données,
+  // mais pas l'affichage de la page elle-même).
+  useEffect(() => {
+    let active = true
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession()
+      const currentUser = data.session?.user
+      if (!currentUser) {
+        router.push('/login')
+        return
+      }
+      const { data: prof, error: profErr } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single()
+      if (!active) return
+      if (profErr || prof?.role !== 'coach') {
+        router.push('/dashboard')
+        return
+      }
+      setAuthorized(true)
+    }
+    checkAuth()
+    return () => {
+      active = false
+    }
+  }, [router])
 
   useEffect(() => {
     if (!clientId) return
@@ -45,7 +77,7 @@ export default function AgentBilanPage() {
   }, [clientId])
 
   useEffect(() => {
-    if (!clientId) return
+    if (!clientId || !authorized) return
     let active = true
 
     async function loadBilans() {
@@ -74,7 +106,7 @@ export default function AgentBilanPage() {
     return () => {
       active = false
     }
-  }, [clientId])
+  }, [clientId, authorized])
 
   const latest = bilans[0] || null
 
@@ -106,14 +138,17 @@ export default function AgentBilanPage() {
   const draft = useMemo(() => {
     if (!latest) return ''
     const good = scoreItems.filter(([, v]) => Number(v) >= 7).map(([k]) => k.toLowerCase())
-    const medium = scoreItems.filter(([, v]) => Number(v) >= 4 && Number(v) < 7).map(([k]) => k.toLowerCase())
+    const medium = scoreItems
+      .filter(([, v]) => Number(v) >= 4 && Number(v) < 7)
+      .map(([k]) => k.toLowerCase())
     const low = scoreItems.filter(([, v]) => Number(v) < 4).map(([k]) => k.toLowerCase())
 
     const noteMap = Object.fromEntries(noteItems)
 
     function pickQuestion() {
       if (low.includes('moral') || low.includes('sommeil')) return 'Tu le vis comment toi ?'
-      if (low.includes('training') || low.includes('diète') || low.includes('neat')) return 'Tu es prêt à faire quoi concrètement ?'
+      if (low.includes('training') || low.includes('diète') || low.includes('neat'))
+        return 'Tu es prêt à faire quoi concrètement ?'
       return 'C’était physique ou mental ?'
     }
 
@@ -186,6 +221,20 @@ export default function AgentBilanPage() {
 
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 900 : false
 
+  // Tant que l'autorisation coach n'est pas confirmée, on n'affiche rien
+  // (pas même le squelette de la page) plutôt que de laisser deviner que
+  // cette interface existe.
+  if (!authorized) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(180deg, #05070E 0%, #090E1B 100%)',
+        }}
+      />
+    )
+  }
+
   return (
     <div
       style={{
@@ -215,7 +264,7 @@ export default function AgentBilanPage() {
                 width: isMobile ? 58 : 66,
                 height: isMobile ? 58 : 66,
                 borderRadius: 18,
-                background: 'linear-gradient(145deg, #6188FF 0%, #0D1B4E 100%)',
+                background: 'linear-gradient(145deg, #6188FF 0%, var(--navy) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -239,7 +288,13 @@ export default function AgentBilanPage() {
               >
                 AGENT BILAN
               </div>
-              <div style={{ color: 'rgba(255,255,255,0.52)', marginTop: 6, fontSize: isMobile ? 14 : 16 }}>
+              <div
+                style={{
+                  color: 'rgba(255,255,255,0.52)',
+                  marginTop: 6,
+                  fontSize: isMobile ? 14 : 16,
+                }}
+              >
                 Coach feedback · lecture intelligente du bilan
               </div>
             </div>
@@ -263,7 +318,15 @@ export default function AgentBilanPage() {
           </div>
         </div>
 
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            marginBottom: 16,
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
           <button
             type="button"
             onClick={() => router.back()}
@@ -287,7 +350,7 @@ export default function AgentBilanPage() {
               padding: '10px 14px',
               borderRadius: 12,
               border: 'none',
-              background: 'linear-gradient(135deg, #5F84FF 0%, #0D1B4E 100%)',
+              background: 'linear-gradient(135deg, #5F84FF 0%, var(--navy) 100%)',
               color: 'white',
               cursor: 'pointer',
               fontWeight: 700,
@@ -330,7 +393,9 @@ export default function AgentBilanPage() {
                   Dernier bilan
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.52)', marginBottom: 16 }}>
-                  {latest?.week_start ? `Semaine du ${latest.week_start}` : 'Aucun bilan disponible'}
+                  {latest?.week_start
+                    ? `Semaine du ${latest.week_start}`
+                    : 'Aucun bilan disponible'}
                 </div>
 
                 {latest ? (
@@ -369,7 +434,9 @@ export default function AgentBilanPage() {
                     ))}
                   </div>
                 ) : (
-                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>Aucun bilan trouvé pour ce client.</div>
+                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>
+                    Aucun bilan trouvé pour ce client.
+                  </div>
                 )}
               </div>
 
@@ -390,17 +457,28 @@ export default function AgentBilanPage() {
                           padding: 14,
                         }}
                       >
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#7EA0FF', marginBottom: 6 }}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: '#7EA0FF',
+                            marginBottom: 6,
+                          }}
+                        >
                           {label}
                         </div>
-                        <div style={{ lineHeight: 1.7, color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+                        <div
+                          style={{ lineHeight: 1.7, color: 'rgba(255,255,255,0.82)', fontSize: 14 }}
+                        >
                           {value}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>Pas de notes détaillées sur ce bilan.</div>
+                  <div style={{ color: 'rgba(255,255,255,0.56)' }}>
+                    Pas de notes détaillées sur ce bilan.
+                  </div>
                 )}
               </div>
             </div>
@@ -434,8 +512,16 @@ export default function AgentBilanPage() {
                 }}
               />
 
-              <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.44)', fontSize: 12, lineHeight: 1.6 }}>
-                Astuce : adapte la réponse si tu veux durcir le ton, rassurer davantage, ou donner une consigne très concrète pour la semaine.
+              <div
+                style={{
+                  marginTop: 12,
+                  color: 'rgba(255,255,255,0.44)',
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                }}
+              >
+                Astuce : adapte la réponse si tu veux durcir le ton, rassurer davantage, ou donner
+                une consigne très concrète pour la semaine.
               </div>
             </div>
           </div>
