@@ -32,7 +32,7 @@ async function handler(req, res) {
   }
 
   // ── 2. Rate limit ─────────────────────────────────────────────────────────
-  if (checkRateLimit(req, res, { maxRequests: 20, windowMs: 60_000 })) return
+  if (await checkRateLimit(req, res, { maxRequests: 20, windowMs: 60_000, routeKey: 'archive-client' })) return
 
   // ── 3. Validation du payload ──────────────────────────────────────────────
   const { client_id, archived } = req.body
