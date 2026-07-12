@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { apiFetch } from '../lib/api'
 
 function shellCardStyle() {
   return {
@@ -38,9 +39,39 @@ export default function AgentProgrammePage() {
   const [logCount, setLogCount] = useState(0)
   const [instructions, setInstructions] = useState('')
   const [result, setResult] = useState(null)
+  const [authorized, setAuthorized] = useState(false)
+
+  // SÉCURITÉ (10/07/2026) : cette page n'avait AUCUNE vérification
+  // d'authentification — ni session, ni rôle.
+  useEffect(() => {
+    let active = true
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession()
+      const currentUser = data.session?.user
+      if (!currentUser) {
+        router.push('/login')
+        return
+      }
+      const { data: prof, error: profErr } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single()
+      if (!active) return
+      if (profErr || prof?.role !== 'coach') {
+        router.push('/dashboard')
+        return
+      }
+      setAuthorized(true)
+    }
+    checkAuth()
+    return () => {
+      active = false
+    }
+  }, [router])
 
   useEffect(() => {
-    if (!clientId) return
+    if (!clientId || !authorized) return
     let active = true
 
     async function loadData() {
@@ -60,10 +91,7 @@ export default function AgentProgrammePage() {
             .eq('client_id', clientId)
             .order('week_start', { ascending: false })
             .limit(1),
-          supabase
-            .from('workout_logs')
-            .select('id')
-            .eq('client_id', clientId),
+          supabase.from('workout_logs').select('id').eq('client_id', clientId),
         ])
 
         if (profileError) throw profileError
@@ -86,7 +114,7 @@ export default function AgentProgrammePage() {
     return () => {
       active = false
     }
-  }, [clientId])
+  }, [clientId, authorized])
 
   const effectiveClientName = useMemo(() => {
     return clientName || profile?.full_name || 'Client'
@@ -107,9 +135,8 @@ export default function AgentProgrammePage() {
         instructions,
       }
 
-      const response = await fetch('/api/generate-programme', {
+      const response = await apiFetch('/api/generate-programme', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -124,6 +151,10 @@ export default function AgentProgrammePage() {
   }
 
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 920 : false
+
+  if (!authorized) {
+    return <div style={{ minHeight: '100vh', background: '#05070E' }} />
+  }
 
   return (
     <div
@@ -154,7 +185,7 @@ export default function AgentProgrammePage() {
                 width: isMobile ? 58 : 68,
                 height: isMobile ? 58 : 68,
                 borderRadius: 18,
-                background: 'linear-gradient(145deg, #5F84FF 0%, #0D1B4E 100%)',
+                background: 'linear-gradient(145deg, #5F84FF 0%, var(--navy) 100%)',
                 display: 'grid',
                 placeItems: 'center',
                 fontWeight: 800,
@@ -177,7 +208,13 @@ export default function AgentProgrammePage() {
               >
                 AGENT PROGRAMME
               </div>
-              <div style={{ color: 'rgba(255,255,255,0.46)', marginTop: 6, fontSize: isMobile ? 14 : 16 }}>
+              <div
+                style={{
+                  color: 'rgba(255,255,255,0.46)',
+                  marginTop: 6,
+                  fontSize: isMobile ? 14 : 16,
+                }}
+              >
                 Coach élite · Hypertrophie · Hybride
               </div>
             </div>
@@ -204,13 +241,23 @@ export default function AgentProgrammePage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+            gridTemplateColumns: isMobile
+              ? 'repeat(2, minmax(0, 1fr))'
+              : 'repeat(4, minmax(0, 1fr))',
             gap: 14,
             marginBottom: 18,
           }}
         >
           <div style={statCardStyle()}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', textTransform: 'uppercase', letterSpacing: '1.4px', marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.42)',
+                textTransform: 'uppercase',
+                letterSpacing: '1.4px',
+                marginBottom: 10,
+              }}
+            >
               Objectif
             </div>
             <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.35 }}>
@@ -219,7 +266,15 @@ export default function AgentProgrammePage() {
           </div>
 
           <div style={statCardStyle()}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', textTransform: 'uppercase', letterSpacing: '1.4px', marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.42)',
+                textTransform: 'uppercase',
+                letterSpacing: '1.4px',
+                marginBottom: 10,
+              }}
+            >
               Bilan training
             </div>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
@@ -228,7 +283,15 @@ export default function AgentProgrammePage() {
           </div>
 
           <div style={statCardStyle()}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', textTransform: 'uppercase', letterSpacing: '1.4px', marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.42)',
+                textTransform: 'uppercase',
+                letterSpacing: '1.4px',
+                marginBottom: 10,
+              }}
+            >
               Bilan moral
             </div>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
@@ -237,7 +300,15 @@ export default function AgentProgrammePage() {
           </div>
 
           <div style={statCardStyle()}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', textTransform: 'uppercase', letterSpacing: '1.4px', marginBottom: 10 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.42)',
+                textTransform: 'uppercase',
+                letterSpacing: '1.4px',
+                marginBottom: 10,
+              }}
+            >
               Charges loggées
             </div>
             <div style={{ fontSize: 18, fontWeight: 800 }}>
@@ -255,7 +326,8 @@ export default function AgentProgrammePage() {
               marginBottom: 12,
             }}
           >
-            Instructions spécifiques <span style={{ color: 'rgba(255,255,255,0.35)' }}>(optionnel)</span>
+            Instructions spécifiques{' '}
+            <span style={{ color: 'rgba(255,255,255,0.35)' }}>(optionnel)</span>
           </div>
 
           <textarea
@@ -290,7 +362,7 @@ export default function AgentProgrammePage() {
             padding: isMobile ? '20px 18px' : '22px 20px',
             borderRadius: 22,
             border: 'none',
-            background: 'linear-gradient(135deg, #5F84FF 0%, #0D1B4E 100%)',
+            background: 'linear-gradient(135deg, #5F84FF 0%, var(--navy) 100%)',
             color: 'white',
             fontSize: isMobile ? 18 : 20,
             fontWeight: 800,
