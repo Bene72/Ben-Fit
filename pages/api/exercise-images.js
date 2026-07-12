@@ -14,7 +14,7 @@
 import { checkRateLimit } from '../../lib/withAuth'
 
 async function handler(req, res) {
-  if (checkRateLimit(req, res, { maxRequests: 30, windowMs: 60_000 })) return
+  if (await checkRateLimit(req, res, { maxRequests: 30, windowMs: 60_000, routeKey: 'exercise-images' })) return
 
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
