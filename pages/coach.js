@@ -2459,6 +2459,19 @@ export default function CoachDashboard() {
           router.push('/login')
           return
         }
+        // SÉCURITÉ (10/07/2026) : cette page n'avait jamais vérifié le rôle,
+        // seulement qu'une session existait. N'importe quel client connecté
+        // pouvait donc ouvrir /coach. Les requêtes de données restaient
+        // protégées par la RLS, mais l'interface elle-même s'affichait.
+        const { data: prof, error: profErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single()
+        if (profErr || prof?.role !== 'coach') {
+          router.push('/dashboard')
+          return
+        }
         setUser(currentUser)
         await loadData(currentUser.id)
       } catch (err) {
@@ -2704,7 +2717,7 @@ export default function CoachDashboard() {
   }
   const displayedClients = [...searchedClients].sort(SORTERS[clientSort] || SORTERS.recent)
 
-  if (loading)
+  if (loading || !user)
     return (
       <div
         style={{
