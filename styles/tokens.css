@@ -1,42 +1,40 @@
 :root {
-  /* ── Identité Ben&Fit premium ─────────────────────── */
+  /* ── Ton Bleu Logo (Intouchable & Premium) ─────────────────────── */
   --navy:         #0D1B4E;
-  --navy-mid:     #1A2B3C;
-  --gold:         #B8860B;
-  --gold-light:   #D4AF37;
-  --gold-soft:    #FDF6E3;
+  --navy-mid:     #12235E;
+  --navy-light:   #1E3580;
 
-  /* ── 4 niveaux de profondeur ───────────────────────
-     fond → surface → carte → accent
-     C'est ce qui manquait : un palier intermédiaire
-     entre le fond de page et les cartes blanches.        */
-  --bg:           #FAF9F7;   /* fond de page */
-  --surface:      #F4F1EB;   /* zone intermédiaire (ex: header de section, bandeau) */
-  --card:         #FFFFFF;   /* cartes */
-  --card-warm:    #FBFAF7;   /* variante carte sur fond déjà clair */
+  /* ── Nouvelle palette neutre (Fini le beige, place au modernisme) ── */
+  --bg:           #F4F7FC;   /* Fond de page lumineux et frais */
+  --surface:      #E9EFF8;   /* Zone intermédiaire épurée */
+  --card:         #FFFFFF;   /* Cartes blanches pures */
+  --card-warm:    #FAFCFF;   /* Variante de carte */
 
-  --border:       #EDE9E0;
-  --border-soft:  #F0EDE6;
+  /* ── Bordures et détails fins ───────────────────────────────────── */
+  --border:       rgba(13, 27, 78, 0.08); /* Bordures subtiles */
+  --border-soft:  rgba(13, 27, 78, 0.04);
 
-  --text:         #0D1B4E;
-  --text-soft:    #6B6456;
-  --text-faint:   #A09880;
+  /* ── Typographie ────────────────────────────────────────────────── */
+  --text:         #0D1B4E;   /* Ton bleu logo pour le texte principal */
+  --text-soft:    #52608C;   /* Bleu-gris élégant pour les sous-titres */
+  --text-faint:   #8E9BBF;   /* Pour les textes très secondaires */
 
-  --success:      #3F7D58;
-  --success-bg:   #EEF6EE;
-  --danger:       #C45C3A;
-  --danger-bg:    #FEF0EB;
-  --accent:       #2C64E5;
-  --accent-soft:  #EEF2FF;
+  /* ── Accents & Statuts ──────────────────────────────────────────── */
+  --success:      #10B981;   /* Vert émeraude moderne */
+  --success-bg:   #E6F4EA;
+  --danger:       #EF4444;   /* Rouge tech vif */
+  --danger-bg:    #FEE2E2;
+  --accent:       #3B82F6;   /* Bleu électrique pour les boutons/actions */
+  --accent-soft:  rgba(59, 130, 246, 0.1);
 
-  /* ── Radius normalisés à 3 valeurs (au lieu de 16/18/22 dispersés) ── */
-  --r-sm: 12px;   /* boutons, badges, inputs */
-  --r-md: 20px;   /* cartes standard */
-  --r-lg: 28px;   /* hero, modals, grandes surfaces */
+  /* ── Radius & Coins arrondis modernes ───────────────────────────── */
+  --r-sm: 10px;   /* Boutons, badges, inputs plus acérés */
+  --r-md: 16px;   /* Cartes standard épurées */
+  --r-lg: 24px;   /* Hero, grandes sections */
 
-  /* ── Ombres remontées (effet plus luxueux) ─────────── */
-  --shadow-sm: 0 2px 8px rgba(13,27,42,0.05);
-  --shadow-md: 0 10px 30px rgba(13,27,42,0.09);
-  --shadow-lg: 0 20px 50px rgba(13,27,42,0.16);
-  --shadow-hero: 0 24px 60px rgba(13,27,42,0.22);
+  /* ── Ombres haut de gamme (Effet de profondeur aérien) ────────── */
+  --shadow-sm: 0 2px 12px rgba(13, 27, 78, 0.03);
+  --shadow-md: 0 12px 34px rgba(13, 27, 78, 0.06);
+  --shadow-lg: 0 24px 60px rgba(13, 27, 78, 0.1);
+  --shadow-hero: 0 32px 70px rgba(13, 27, 78, 0.14);
 }
