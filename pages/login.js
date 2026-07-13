@@ -39,6 +39,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const guardRes = await fetch('/api/login-guard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (guardRes.status === 429) {
+        const guardJson = await guardRes.json().catch(() => ({}))
+        throw new Error(guardJson.error || 'Trop de tentatives. Réessaie dans quelques minutes.')
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
