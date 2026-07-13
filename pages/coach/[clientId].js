@@ -84,10 +84,10 @@ export default function ClientPage() {
 
         const { data: measures } = await supabase
           .from('measures')
-          .select('weight, date')
+          .select('id, weight, date')
           .eq('client_id', clientId)
           .order('date', { ascending: false })
-          .limit(10)
+          .limit(500)
 
         const weekStart = new Date()
         weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
@@ -281,7 +281,8 @@ export default function ClientPage() {
           <OverviewTab
             client={client}
             sessionsThisWeek={client.sessionsThisWeek}
-            lastWeight={client.measures?.[0]?.weight}
+            measures={client.measures}
+            onMeasuresChange={(updated) => setClient((prev) => ({ ...prev, measures: updated }))}
             coachId={user?.id}
             onUpdate={handleClientUpdate}
           />
