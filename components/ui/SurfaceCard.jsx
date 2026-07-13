@@ -1,3 +1,5 @@
+import React from 'react';
+
 const VARIANTS = {
   default: {
     background: 'var(--card, #FFFFFF)',
@@ -37,4 +39,35 @@ const VARIANTS = {
     borderRadius: 'var(--r-md, 16px)',
     boxShadow: 'var(--shadow-lg)',
   },
+};
+
+export default function SurfaceCard({ children, variant = 'default', style = {}, onClick }) {
+  const baseStyle = VARIANTS[variant] || VARIANTS.default;
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        ...baseStyle,
+        padding: '20px',
+        transition: 'all 0.2s ease-in-out',
+        cursor: onClick ? 'pointer' : 'default',
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = baseStyle.boxShadow || 'none';
+        }
+      }}
+    >
+      {children}
+    </div>
+  );
 }
