@@ -22,6 +22,7 @@ const COACH_NUTRI_FIELDS = [
   { key: 'protein', label: 'Protéines', unit: 'g', icon: '🥩', color: S.green },
   { key: 'carbs', label: 'Glucides', unit: 'g', icon: '🌾', color: S.gold },
   { key: 'fat', label: 'Lipides', unit: 'g', icon: '🥑', color: S.blue },
+]
 
 export default function ClientDetail({
   client,
