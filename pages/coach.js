@@ -2952,6 +2952,28 @@ export default function CoachDashboard() {
                   </div>
                 </div>
               </div>
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  router.push('/')
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.55)',
+                  fontFamily: font,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                ⏻ Se déconnecter
+              </button>
             </div>
           </div>
         )}
