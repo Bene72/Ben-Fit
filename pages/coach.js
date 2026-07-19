@@ -467,7 +467,6 @@ export default function CoachDashboard() {
                 { id: 'clients', icon: '👥', label: 'Clients' },
                 { id: 'offres', icon: '📦', label: 'Offres' },
                 { id: 'calendar', icon: '📅', label: 'Calendrier' },
-                { id: 'finances', icon: '💳', label: 'Finances' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -600,7 +599,6 @@ export default function CoachDashboard() {
                 { id: 'clients', icon: '👥' },
                 { id: 'offres', icon: '📦' },
                 { id: 'calendar', icon: '📅' },
-                { id: 'finances', icon: '💳' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -646,7 +644,6 @@ export default function CoachDashboard() {
                 value={`${mrr} €`}
                 sub="Revenus mensuels"
                 accent={S.gold}
-                onClick={() => setActiveTab('finances')}
               />
               {pendingMsg > 0 && (
                 <KpiCard
@@ -944,7 +941,7 @@ export default function CoachDashboard() {
                     setActiveTab('clients')
                   }}
                 />
-                <CalendarPanel sessions={sessions} coachId={user?.id} />
+                <CalendarPanel sessions={sessions} coachId={user?.id} clients={clients} />
               </div>
             </div>
           ) : /* ── VUE OFFRES ── */
@@ -1140,7 +1137,7 @@ export default function CoachDashboard() {
                 gap: 16,
               }}
             >
-              <CalendarPanel sessions={sessions} coachId={user?.id} />
+              <CalendarPanel sessions={sessions} coachId={user?.id} clients={clients} />
               <div>
                 <div
                   style={{
@@ -1210,137 +1207,6 @@ export default function CoachDashboard() {
                 </div>
               </div>
             </div>
-          ) : /* ── VUE FINANCES ── */
-          activeTab === 'finances' ? (
-            <div>
-              <div
-                style={{
-                  fontFamily: bebas,
-                  fontSize: 18,
-                  color: S.navy,
-                  letterSpacing: 2,
-                  marginBottom: 20,
-                }}
-              >
-                FINANCES
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                <KpiCard
-                  icon="💰"
-                  label="MRR total"
-                  value={`${mrr} €`}
-                  sub="Clients actifs"
-                  accent={S.gold}
-                />
-                <KpiCard
-                  icon="✅"
-                  label="Paiements à jour"
-                  value={clients.filter((c) => !c.archived && c.balance === 0).length}
-                  sub="clients"
-                  accent={S.green}
-                />
-              </div>
-              <div
-                style={{
-                  background: S.card,
-                  border: `1px solid ${S.border}`,
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr',
-                    background: '#F8FAFF',
-                    padding: '10px 18px',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: S.muted,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    borderBottom: `1px solid ${S.border}`,
-                  }}
-                >
-                  <span>Client</span>
-                  <span>Offre</span>
-                  <span>Tarif / mois</span>
-                  <span>Solde</span>
-                  <span>Prochain paiement</span>
-                </div>
-                {clients
-                  .filter((c) => !c.archived)
-                  .map((c) => {
-                    const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
-                    return (
-                      <div
-                        key={c.id}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr',
-                          padding: '13px 18px',
-                          borderBottom: `1px solid ${S.border}`,
-                          alignItems: 'center',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Avatar
-                            initials={c.avatar}
-                            size={30}
-                            color={c.status === 'actif' ? offer.color : '#CCC'}
-                          />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>{c.name}</div>
-                            <Badge text={c.status} color={c.status === 'actif' ? S.green : S.red} />
-                          </div>
-                        </div>
-                        <Badge text={offer.name} color={offer.color} />
-                        <div style={{ fontFamily: bebas, fontSize: 18, color: S.navy }}>
-                          {c.status === 'actif' ? `${offer.price} €` : '—'}
-                        </div>
-                        <div
-                          style={{
-                            fontFamily: bebas,
-                            fontSize: 18,
-                            color: c.balance < 0 ? S.red : S.green,
-                          }}
-                        >
-                          {c.balance < 0 ? `${c.balance} €` : '✓'}
-                        </div>
-                        <div style={{ fontSize: 12, color: S.muted }}>
-                          {c.nextPayment
-                            ? new Date(c.nextPayment).toLocaleDateString('fr-FR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: '2-digit',
-                              })
-                            : '—'}
-                        </div>
-                      </div>
-                    )
-                  })}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr',
-                    padding: '13px 18px',
-                    background: '#F8FAFF',
-                    borderTop: `2px solid ${S.border}`,
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: S.navy }}>Total</div>
-                  <div />
-                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.gold }}>{mrr} €</div>
-                  <div style={{ fontFamily: bebas, fontSize: 20, color: S.red }}>
-                    {clients
-                      .filter((c) => !c.archived && c.balance < 0)
-                      .reduce((s, c) => s + c.balance, 0)}{' '}
-                    €
-                  </div>
-                  <div />
-                </div>
-              </div>
-            </div>
           ) : null}
         </div>
       </div>
@@ -1369,3 +1235,4 @@ export default function CoachDashboard() {
     </div>
   )
 }
+v
