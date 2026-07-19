@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import Badge from './Badge'
 import NavBtn from './NavBtn'
 import { S, font, bebas, mono, buildCalendar } from '../../lib/coachDashboard/shared'
 
-export default function CalendarPanel({ sessions, coachId }) {
+export default function CalendarPanel({ sessions, coachId, clients = [] }) {
   const today = new Date()
   const [month, setMonth] = useState(today.getMonth())
   const [year, setYear] = useState(today.getFullYear())
@@ -12,6 +11,7 @@ export default function CalendarPanel({ sessions, coachId }) {
   const [taskModalDate, setTaskModalDate] = useState(null) // 'YYYY-MM-DD' | null
   const [taskTitle, setTaskTitle] = useState('')
   const [taskTime, setTaskTime] = useState('09:00')
+  const [taskClientId, setTaskClientId] = useState('')
   const [savingTask, setSavingTask] = useState(false)
 
   const days = buildCalendar(year, month)
@@ -59,6 +59,7 @@ export default function CalendarPanel({ sessions, coachId }) {
     setTaskModalDate(dateStr)
     setTaskTitle('')
     setTaskTime('09:00')
+    setTaskClientId('')
   }
 
   const saveTask = async () => {
@@ -72,6 +73,7 @@ export default function CalendarPanel({ sessions, coachId }) {
           task_date: taskModalDate,
           task_time: taskTime || null,
           title: taskTitle.trim(),
+          client_id: taskClientId || null,
         })
         .select()
         .single()
@@ -101,7 +103,9 @@ export default function CalendarPanel({ sessions, coachId }) {
     if (!error) setTasks((prev) => prev.filter((t) => t.id !== task.id))
   }
 
-  const upcomingTasks = tasks.filter((t) => !t.done && t.task_date >= todayStr).slice(0, 4)
+  const upcomingTasks = tasks.filter((t) => !t.done && !t.client_id && t.task_date >= todayStr).slice(0, 4)
+  const upcomingFollowups = tasks.filter((t) => !t.done && t.client_id && t.task_date >= todayStr).slice(0, 4)
+  const clientNameById = Object.fromEntries(clients.map((c) => [c.id, c.name]))
 
   return (
     <div
@@ -306,11 +310,35 @@ export default function CalendarPanel({ sessions, coachId }) {
                 border: `1px solid ${S.border}`,
                 fontSize: 13,
                 fontFamily: mono,
-                marginBottom: 16,
+                marginBottom: 10,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
             />
+            <select
+              value={taskClientId}
+              onChange={(e) => setTaskClientId(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 10,
+                border: `1px solid ${S.border}`,
+                fontSize: 13,
+                fontFamily: font,
+                marginBottom: 16,
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: 'white',
+                color: taskClientId ? S.navy : S.muted,
+              }}
+            >
+              <option value="">Tâche libre (pas de client)</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Suivi — {c.name}
+                </option>
+              ))}
+            </select>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => setTaskModalDate(null)}
@@ -443,45 +471,49 @@ export default function CalendarPanel({ sessions, coachId }) {
           Prochains suivis
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {sessions
-            .filter((s) => s.date >= todayStr)
-            .slice(0, 3)
-            .map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 8px',
-                  background: '#F8FAFF',
-                  borderRadius: 8,
-                }}
-              >
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: s.color,
-                    flexShrink: 0,
-                  }}
-                />
-                <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy }}>
-                  {s.client}
-                </div>
-                <Badge text={s.type} color={s.color} />
-                <div style={{ fontSize: 10, color: S.muted }}>
-                  {new Date(s.date).toLocaleDateString('fr-FR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                  })}
-                </div>
+          {upcomingFollowups.map((t) => (
+            <div
+              key={t.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 8px',
+                background: '#F8FAFF',
+                borderRadius: 8,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={t.done}
+                onChange={() => toggleTask(t)}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {clientNameById[t.client_id] || 'Client'}
+                {t.title ? ` — ${t.title}` : ''}
               </div>
-            ))}
-          {sessions.filter((s) => s.date >= todayStr).length === 0 && (
+              {t.task_time && (
+                <span style={{ fontSize: 10, color: S.gold, fontFamily: mono }}>{t.task_time}</span>
+              )}
+              <span style={{ fontSize: 10, color: S.muted, fontFamily: mono }}>
+                {new Date(t.task_date + 'T12:00:00').toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                })}
+              </span>
+              <button
+                onClick={() => deleteTask(t)}
+                title="Supprimer"
+                style={{ border: 'none', background: 'transparent', color: S.muted, cursor: 'pointer', fontSize: 12, padding: '0 2px' }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {upcomingFollowups.length === 0 && (
             <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '8px 0' }}>
-              Aucun suivi à venir
+              Aucun suivi à venir — clique une date, choisis un client dans la liste.
             </div>
           )}
         </div>
