@@ -1,8 +1,12 @@
 /**
- * pages/training.js  —  1205 lignes → ~270 lignes
+ * pages/training.js
  *
- * Responsabilité unique : orchestrer les sous-composants et passer les props.
- * Plus aucun accès Supabase ici, plus aucune fonction utilitaire inline.
+ * Note : ce fichier a été partiellement découpé (data → useTrainingData,
+ * helpers → trainingUtils/calendarNotes, blocs → components/training/*),
+ * mais a regrossi depuis (1160 lignes actuellement) avec l'ajout des vues
+ * mobile/desktop dédiées et des composants locaux (CycleBadge, Alert,
+ * MiniKpi...). Prochaine étape de découpage : sortir ces composants locaux
+ * vers components/training/ et components/ui/.
  *
  *   Data / actions   →  hooks/useTrainingData.js
  *   Helpers purs     →  lib/trainingUtils.js
@@ -12,8 +16,9 @@
  *   Atomes           →  CompactExerciseRow.jsx, ExerciseWorkspace.jsx
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AppShell from '../components/ui/AppShell'
+import { watchBreakpoint } from '../lib/breakpoints'
 import SurfaceCard from '../components/ui/SurfaceCard'
 import SectionHead from '../components/ui/SectionHead'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -78,12 +83,7 @@ export default function TrainingPage() {
   } = useTrainingData()
 
   // ── Responsive ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const handle = () => setIsMobile(window.innerWidth < 980)
-    handle()
-    window.addEventListener('resize', handle)
-    return () => window.removeEventListener('resize', handle)
-  }, [])
+  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
 
   // ── Calendrier ───────────────────────────────────────────────────────────────
   const maxWeekOffset = useMemo(() => getMaxFutureWeekOffset(), [])
@@ -126,6 +126,12 @@ export default function TrainingPage() {
   }, [currentWorkout, selectedExerciseId])
 
   // ── Auto-sélections ──────────────────────────────────────────────────────────
+  const openSession = useCallback((id) => {
+    setOpenWorkout(id)
+    const w = workouts.find((w) => w.id === id)
+    setSelectedExerciseId(w?.exercises?.[0]?.id || null)
+  }, [workouts])
+
   useEffect(() => {
     if (workouts.length && selectedCalDay === null) {
       const todayWorkouts = workoutByJsDay[new Date().getDay()] || []
@@ -134,19 +140,13 @@ export default function TrainingPage() {
         openSession(todayWorkouts[0].id)
       }
     }
-  }, [workouts, workoutByJsDay]) // eslint-disable-line
+  }, [workouts, workoutByJsDay, todayStr, openSession])
 
   useEffect(() => {
     if (workouts.length && !isMobile && !openWorkout) openSession(workouts[0].id)
-  }, [workouts, isMobile]) // eslint-disable-line
+  }, [workouts, isMobile, openWorkout, openSession])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  function openSession(id) {
-    setOpenWorkout(id)
-    const w = workouts.find((w) => w.id === id)
-    setSelectedExerciseId(w?.exercises?.[0]?.id || null)
-  }
-
   function selectCalDay(dateStr) {
     setSelectedCalDay((prev) => {
       const next = prev === dateStr ? null : dateStr
