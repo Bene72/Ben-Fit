@@ -74,6 +74,11 @@ export default function TrainingPage() {
     loggingIds,
     logPerformance,
     onLogInput,
+    blockInputs,
+    loggingBlockIds,
+    blockResults,
+    logBlockResult,
+    onBlockInput,
     calendarNotes,
     noteDraft,
     setNoteDraft,
@@ -162,6 +167,11 @@ export default function TrainingPage() {
     onLogInput,
     onLog: logPerformance,
     onImageOpen: setImageLightbox,
+    blockInputs,
+    loggingBlockIds,
+    blockResults,
+    onBlockInput,
+    onLogBlock: logBlockResult,
   }
 
   // ── Rendu ────────────────────────────────────────────────────────────────────
