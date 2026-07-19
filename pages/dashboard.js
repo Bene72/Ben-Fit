@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { watchBreakpoint } from '../lib/breakpoints'
 import AppShell from '../components/ui/AppShell'
 import { useToast } from '../lib/useToast'
 
@@ -39,12 +40,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isMobile, setIsMobile] = useState(false)
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 980)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
 
   useEffect(() => {
     const load = async () => {
