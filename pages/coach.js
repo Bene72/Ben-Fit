@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { watchBreakpoint } from '../lib/breakpoints'
+import { signOutAndRedirect } from '../lib/auth'
 import { Toast, useToast } from '../components/Toast'
 
 import Avatar from '../components/coach/Avatar'
@@ -16,7 +18,7 @@ import ClientDetail from '../components/coach/ClientDetail'
 import ActivityFeed from '../components/coach/ActivityFeed'
 import CalendarPanel from '../components/coach/CalendarPanel'
 
-import { OFFERS, S, font, bebas, complianceColor, daysAgo, toClientModel } from '../lib/coachDashboard/shared'
+import { OFFERS, S, font, bebas, daysAgo, toClientModel, computeCompliance } from '../lib/coachDashboard/shared'
 
 export default function CoachDashboard() {
   const router = useRouter()
@@ -35,18 +37,14 @@ export default function CoachDashboard() {
   const [isMobile, setIsMobile] = useState(false)
   const [clientMeasures, setClientMeasures] = useState([])
   const [clientNutrition, setClientNutrition] = useState([])
+  const [clientCompliance, setClientCompliance] = useState(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [clientSearch, setClientSearch] = useState('')
   const [clientSort, setClientSort] = useState('recent')
   const [activity, setActivity] = useState([])
   const [activityLoading, setActivityLoading] = useState(true)
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 980)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
 
   useEffect(() => {
     const init = async () => {
@@ -187,11 +185,16 @@ export default function CoachDashboard() {
       if (!selected) {
         setClientMeasures([])
         setClientNutrition([])
+        setClientCompliance(null)
         return
       }
       setHistoryLoading(true)
       try {
-        const [{ data: m }, { data: n }] = await Promise.all([
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+
+        const [{ data: m }, { data: n }, { data: w }, { data: s }] = await Promise.all([
           supabase
             .from('measures')
             .select('*')
@@ -204,13 +207,24 @@ export default function CoachDashboard() {
             .eq('client_id', selected)
             .order('date', { ascending: false })
             .limit(200),
+          supabase
+            .from('workouts')
+            .select('id, day_of_week')
+            .eq('client_id', selected),
+          supabase
+            .from('workout_sessions')
+            .select('date, completed')
+            .eq('client_id', selected)
+            .gte('date', sevenDaysAgoStr),
         ])
         setClientMeasures(m || [])
         setClientNutrition(n || [])
+        setClientCompliance(computeCompliance(w, s))
       } catch (err) {
         console.error('Erreur chargement historique client:', err)
         setClientMeasures([])
         setClientNutrition([])
+        setClientCompliance(null)
       } finally {
         setHistoryLoading(false)
       }
@@ -297,9 +311,6 @@ export default function CoachDashboard() {
   const activeClients = clients.filter((c) => !c.archived && c.status === 'actif')
   const archivedClients = clients.filter((c) => c.archived)
   const mrr = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
-  const avgCompliance = Math.round(
-    activeClients.reduce((s, c) => s + c.compliance, 0) / (activeClients.length || 1)
-  )
   const pendingMsg = clients.reduce((s, c) => s + c.messages, 0)
   const selectedClient = selected ? clients.find((c) => c.id === selected) : null
   const baseClients =
@@ -309,7 +320,6 @@ export default function CoachDashboard() {
     : baseClients
   const SORTERS = {
     recent: (a, b) => new Date(b.lastBilan || 0) - new Date(a.lastBilan || 0),
-    compliance: (a, b) => b.compliance - a.compliance,
     name: (a, b) => a.name.localeCompare(b.name),
     balance: (a, b) => a.balance - b.balance,
   }
@@ -551,10 +561,7 @@ export default function CoachDashboard() {
                 </div>
               </div>
               <button
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  router.push('/')
-                }}
+                onClick={() => signOutAndRedirect(router)}
                 style={{
                   width: '100%',
                   marginTop: 12,
@@ -641,17 +648,6 @@ export default function CoachDashboard() {
                 accent={S.gold}
                 onClick={() => setActiveTab('finances')}
               />
-              <KpiCard
-                icon="📊"
-                label="Compliance moy."
-                value={`${avgCompliance}%`}
-                sub="7 derniers jours"
-                accent={complianceColor(avgCompliance)}
-                onClick={() => {
-                  setActiveTab('clients')
-                  setClientSort('compliance')
-                }}
-              />
               {pendingMsg > 0 && (
                 <KpiCard
                   icon="💬"
@@ -676,6 +672,7 @@ export default function CoachDashboard() {
               onUnarchive={unarchiveClient}
               onNotesUpdate={handleNotesUpdate}
               measures={clientMeasures}
+              compliance={clientCompliance}
               nutritionLogs={clientNutrition}
               historyLoading={historyLoading}
             />
@@ -785,7 +782,6 @@ export default function CoachDashboard() {
                     }}
                   >
                     <option value="recent">Trier : activité récente</option>
-                    <option value="compliance">Trier : compliance</option>
                     <option value="name">Trier : nom (A→Z)</option>
                     <option value="balance">Trier : solde</option>
                   </select>
@@ -916,25 +912,7 @@ export default function CoachDashboard() {
                                 })}
                               </div>
                             ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{ flex: 1, maxWidth: 120 }}>
-                                  <ProgressBar
-                                    value={c.compliance}
-                                    color={complianceColor(c.compliance)}
-                                    height={4}
-                                  />
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: complianceColor(c.compliance),
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {c.compliance}%
-                                </span>
-                                <span style={{ fontSize: 11, color: S.muted }}>· {c.program}</span>
-                              </div>
+                              <div style={{ fontSize: 11, color: S.muted }}>{c.program}</div>
                             )}
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
