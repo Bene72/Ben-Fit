@@ -717,6 +717,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       rest: wbForm.rest,
       objective: wbForm.objective,
       coachNote: wbForm.coachNote,
+      uiVersion: 2, // active le nouveau design de logging (score + journal) — absent sur les blocks déjà créés, qui gardent l'ancien rendu
     })
     const lines = wbForm.movements
       .split('\n')
