@@ -73,6 +73,9 @@ export function useTrainingData() {
   const [userName,           setUserName]           = useState('')
   const [logInputs,          setLogInputs]          = useState({})
   const [loggingIds,         setLoggingIds]         = useState({})
+  const [blockInputs,        setBlockInputs]        = useState({})
+  const [loggingBlockIds,    setLoggingBlockIds]    = useState({})
+  const [blockResults,       setBlockResults]       = useState({})
 
   // ── Annotations calendrier ─────────────────────────────────────────────────
   const [calendarNotes, setCalendarNotes] = useState({})
@@ -213,11 +216,49 @@ export function useTrainingData() {
     }
   }
 
+  // ── Action : log résultat Workout Block ─────────────────────────────────────
+  async function logBlockResult(groupId, workoutId, meta) {
+    const input = blockInputs[groupId] || {}
+    if (!input.time && !input.rounds && !input.reps && !input.note) return
+    try {
+      setLoggingBlockIds((prev) => ({ ...prev, [groupId]: true }))
+      setError(''); setSuccess('')
+      const { data, error } = await supabase
+        .from('workout_block_results')
+        .insert({
+          client_id: user.id,
+          workout_id: workoutId || null,
+          group_id: groupId,
+          format: meta?.type || null,
+          time_result: input.time || null,
+          rounds_result: input.rounds ? parseInt(input.rounds) : null,
+          reps_result: input.reps ? parseInt(input.reps) : null,
+          level: input.level || null,
+          note: input.note || null,
+          logged_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+      if (error) throw error
+      setBlockResults((prev) => ({ ...prev, [groupId]: [data, ...(prev[groupId] || [])] }))
+      setSuccess('Résultat enregistré.')
+    } catch (e) {
+      setError(e.message || "Impossible d'enregistrer le résultat")
+    } finally {
+      setLoggingBlockIds((prev) => ({ ...prev, [groupId]: false }))
+    }
+  }
+
+  function onBlockInput(groupId, field, value) {
+    setBlockInputs((prev) => ({ ...prev, [groupId]: { ...(prev[groupId] || {}), [field]: value } }))
+  }
+
   return {
     loading, error, success,
     user, workouts, archivedWorkouts,
     logsByExerciseName, currentCycleName, userName,
     logInputs, loggingIds, logPerformance, onLogInput,
+    blockInputs, loggingBlockIds, blockResults, logBlockResult, onBlockInput,
     calendarNotes, noteDraft, setNoteDraft, savingNote,
     saveNote, removeNote,
   }
