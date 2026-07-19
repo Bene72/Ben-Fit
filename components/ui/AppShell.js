@@ -1,12 +1,28 @@
 // components/ui/AppShell.js
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { watchBreakpoint } from '../../lib/breakpoints';
+import { signOutAndRedirect } from '../../lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-const SIDEBAR_WIDE   = 250;
-const SIDEBAR_NARROW = 68;
-const TOPBAR_H       = 60;
+/* ─── Tokens locaux alignés sur globals.css ─────────────────────────────── */
+const T = {
+  navy:      '#0D1B4E',
+  navyDeep:  '#09123A',
+  blue:      '#2C64E5',
+  blueLight: 'rgba(44,100,229,0.18)',
+  muted:     '#6B8ED6',
+  bg:        '#F8FAFF',
+  white:     '#FFFFFF',
+  border:    'rgba(255,255,255,0.1)',
+  textSm:    13,
+  textXs:    11,
+};
+
+const SIDEBAR_WIDE   = 240;
+const SIDEBAR_NARROW = 64;
+const TOPBAR_H       = 56;
 
 /* ─── NavItem ────────────────────────────────────────────────────────────── */
 function NavItem({ href, icon, children, collapsed }) {
@@ -20,24 +36,24 @@ function NavItem({ href, icon, children, collapsed }) {
         style={{
           display:        'flex',
           alignItems:     'center',
-          gap:            12,
-          padding:        collapsed ? '12px 0' : '11px 16px',
-          margin:         '4px 12px',
-          borderRadius:   'var(--r-sm, 10px)',
+          gap:            10,
+          padding:        collapsed ? '11px 0' : '10px 14px',
+          margin:         '2px 8px',
+          borderRadius:   10,
           cursor:         'pointer',
-          fontSize:       13,
-          fontWeight:     isActive ? 600 : 500,
-          color:          isActive ? '#FFFFFF' : 'var(--text-faint)',
-          background:     isActive ? 'var(--navy-light)' : 'transparent',
-          transition:     'all 0.2s ease-in-out',
+          fontSize:       T.textSm,
+          fontWeight:     isActive ? 700 : 500,
+          color:          isActive ? T.white : T.muted,
+          background:     isActive ? T.blueLight : 'transparent',
+          transition:     'background 0.15s, color 0.15s',
           justifyContent: collapsed ? 'center' : 'flex-start',
           whiteSpace:     'nowrap',
           overflow:       'hidden',
         }}
-        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#FFFFFF'; } }}
-        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-faint)'; } }}
+        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(107,142,214,0.12)'; }}
+        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
       >
-        <span style={{ fontSize: 18, flexShrink: 0, filter: isActive ? 'none' : 'grayscale(30%)' }}>{icon}</span>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
         {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>}
       </div>
     </Link>
@@ -50,15 +66,14 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
 
   return (
     <>
-      {/* Overlay mobile flouté et fluide */}
+      {/* Overlay mobile */}
       {mobileOpen && (
         <div
           onClick={onMobileClose}
           style={{
             position:   'fixed', inset: 0, zIndex: 199,
-            background: 'rgba(13, 27, 78, 0.3)',
-            backdropFilter: 'blur(4px)',
-            transition: 'opacity 0.2s ease',
+            background: 'rgba(9,18,58,0.55)',
+            backdropFilter: 'blur(2px)',
           }}
         />
       )}
@@ -69,78 +84,86 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
         left:            0,
         height:          '100vh',
         width,
-        background:      'var(--navy)',
+        background:      T.navy,
         display:         'flex',
         flexDirection:   'column',
         zIndex:          200,
-        transition:      'width 0.25s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1)',
+        transition:      'width 0.22s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1)',
         overflowX:       'hidden',
         overflowY:       'auto',
         transform:       `translateX(${mobileOpen === false ? -SIDEBAR_WIDE : 0}px)`,
-        boxShadow:       '10px 0 30px rgba(13,27,78,0.05)',
       }}>
 
         {/* ── Logo ── */}
         <div style={{
-          padding:       collapsed ? '20px 0' : '18px 20px',
-          borderBottom:  '1px solid rgba(255,255,255,0.06)',
+          padding:       collapsed ? '20px 0 18px' : '18px 14px 16px',
+          borderBottom:  `1px solid ${T.border}`,
           display:       'flex',
           alignItems:    'center',
           justifyContent: collapsed ? 'center' : 'space-between',
           gap:           8,
-          minHeight:     68,
+          minHeight:     64,
           flexShrink:    0,
         }}>
-          <Link href="/coach" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <LogoMark size={collapsed ? 28 : 32} />
+          <Link href="/coach" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LogoMark />
             {!collapsed && (
               <span style={{
-                color:      '#FFFFFF',
+                color:      T.white,
                 fontFamily: "'DM Sans', sans-serif",
                 fontWeight: 800,
                 fontSize:   15,
-                letterSpacing: '0.5px',
+                letterSpacing: '-0.3px',
                 lineHeight: 1.1,
                 whiteSpace: 'nowrap',
               }}>
                 BEN&FIT<br />
-                <span style={{ fontWeight: 500, fontSize: 9, color: 'var(--accent)', letterSpacing: '1px' }}>COACH</span>
+                <span style={{ fontWeight: 400, fontSize: 10, color: T.muted }}>COACH</span>
               </span>
             )}
           </Link>
 
+          {/* Bouton collapse (desktop) */}
           <button
             onClick={onToggle}
+            aria-label={collapsed ? 'Déplier le menu' : 'Réduire le menu'}
             style={{
-              background:   'rgba(255,255,255,0.05)',
+              background:   'rgba(255,255,255,0.07)',
               border:       'none',
               borderRadius: 8,
               width:        28,
               height:       28,
-              display:      collapsed ? 'none' : 'flex',
+              display:      'flex',
               alignItems:   'center',
               justifyContent: 'center',
               cursor:       'pointer',
-              color:        'var(--text-faint)',
+              color:        T.muted,
               flexShrink:   0,
-              transition:   'background 0.2s',
+              transition:   'background 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
           >
             <ChevronIcon collapsed={collapsed} />
           </button>
         </div>
 
         {/* ── Navigation principale ── */}
-        <nav style={{ flex: 1, paddingTop: 16 }}>
+        <nav style={{ flex: 1, paddingTop: 10 }}>
           {isCoach ? (
             <>
-              <div style={{ padding: '4px 24px 8px', fontSize: 9, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>
+              {/* 👨‍🏫 GESTION COACH - remonté en haut */}
+              <div style={{ padding: '4px 22px 6px', fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700, marginTop: 4 }}>
                 Gestion Coach
               </div>
+              {/* URLs vérifiées : seules les pages qui existent réellement sont listées.
+                  /coach/saison, /coach/programmes/template et /gestion n'existent pas
+                  dans ce dépôt (menaient à des 404) — retirées de la navigation. */}
               <NavItem href="/coach" icon="👥" collapsed={collapsed}>Élèves</NavItem>
               <NavItem href="/coach/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
+
+              {/* Séparateur */}
+              <div style={{ borderTop: `1px solid ${T.border}`, margin: '12px 16px 8px' }} />
             </>
           ) : (
             <>
@@ -153,7 +176,7 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
           )}
         </nav>
 
-        {/* ── Profil & Déconnexion ── */}
+        {/* ── Profil & déconnexion ── */}
         <UserFooter user={user} collapsed={collapsed} />
       </aside>
     </>
@@ -167,47 +190,42 @@ function UserFooter({ user, collapsed }) {
 
   return (
     <div style={{
-      borderTop:   '1px solid rgba(255,255,255,0.06)',
-      padding:     collapsed ? '16px 0' : '16px 20px',
+      borderTop:   `1px solid ${T.border}`,
+      padding:     collapsed ? '12px 0' : '12px 14px',
       display:     'flex',
       alignItems:  'center',
-      gap:         12,
+      gap:         10,
       justifyContent: collapsed ? 'center' : 'flex-start',
-      background:  'rgba(0,0,0,0.15)',
     }}>
       <div style={{
-        width:        36,
-        height:       36,
+        width:        34,
+        height:       34,
         borderRadius: '50%',
-        background:   'linear-gradient(135deg, var(--accent) 0%, #10B981 100%)',
+        background:   T.blue,
         display:      'flex',
         alignItems:   'center',
         justifyContent: 'center',
-        fontSize:     14,
+        fontSize:     13,
         fontWeight:   700,
-        color:        '#FFFFFF',
+        color:        T.white,
         flexShrink:   0,
-        boxShadow:    '0 4px 10px rgba(0,0,0,0.2)',
       }}>
         {initials}
       </div>
 
       {!collapsed && (
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, color: T.white, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {user?.email || '…'}
           </div>
           <button
-            onClick={() => { supabase.auth.signOut(); router.push('/'); }}
+            onClick={() => signOutAndRedirect(router)}
             style={{
               background: 'none', border: 'none',
-              color:      'var(--text-faint)', cursor: 'pointer',
+              color:      T.muted, cursor: 'pointer',
               fontSize:   11, padding: 0,
               fontFamily: "'DM Sans', sans-serif",
-              transition: 'color 0.2s',
             }}
-            onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
           >
             Se déconnecter
           </button>
@@ -217,11 +235,14 @@ function UserFooter({ user, collapsed }) {
   );
 }
 
-/* ─── BottomNav (Mobile Nav bar) ────────────────────────────────────────── */
+/* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
+// Nav coach : uniquement les pages qui existent réellement (voir plus haut).
 const COACH_NAV = [
   { href: '/coach', icon: '👥', label: 'Élèves' },
   { href: '/coach/activite', icon: '📋', label: 'Activité' },
 ];
+
+// Nav client : juste les icônes, en bas — plus fluide sur mobile qu'un tiroir latéral
 const CLIENT_NAV = [
   { href: '/dashboard', icon: '📊', label: 'Aperçu' },
   { href: '/training',  icon: '💪', label: 'Programme' },
@@ -233,6 +254,7 @@ const CLIENT_NAV = [
 function BottomNav({ isCoach }) {
   const router = useRouter();
   const items  = isCoach ? COACH_NAV : CLIENT_NAV;
+  // Client : icônes seules, pas de texte, plus proche de l'ancienne barre mobile
   const showLabels = isCoach;
 
   return (
@@ -241,19 +263,21 @@ function BottomNav({ isCoach }) {
       bottom:         0,
       left:           0,
       right:          0,
-      height:         showLabels ? 64 : 60,
-      background:     'var(--card)',
-      borderTop:      '1px solid var(--border)',
+      height:         showLabels ? 62 : 58,
+      background:     T.navy,
+      borderTop:      `1px solid ${T.border}`,
       display:        'flex',
       alignItems:     'stretch',
       zIndex:         190,
+      overflowX:      'auto',
+      overflowY:      'hidden',
+      scrollbarWidth: 'none',
       paddingBottom:  'env(safe-area-inset-bottom, 0px)',
-      boxShadow:      '0 -10px 30px rgba(13,27,78,0.03)',
     }}>
       {items.map(item => {
         const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
         return (
-          <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: 1 }}>
+          <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 48px', minWidth: 48 }}>
             <div style={{
               display:        'flex',
               flexDirection:  'column',
@@ -261,19 +285,15 @@ function BottomNav({ isCoach }) {
               justifyContent: 'center',
               gap:            2,
               height:         '100%',
-              color:          isActive ? 'var(--navy)' : 'var(--text-faint)',
-              transition:     'all 0.2s ease',
-              position:       'relative',
+              padding:        '0 4px',
+              color:          isActive ? T.white : T.muted,
+              borderTop:      isActive ? `2px solid ${T.blue}` : '2px solid transparent',
+              transition:     'color 0.15s, border-color 0.15s',
+              background:     isActive ? 'rgba(44,100,229,0.12)' : 'transparent',
             }}>
-              {isActive && (
-                <div style={{
-                  position: 'absolute', top: 0, width: 24, height: 3, 
-                  background: 'var(--navy)', borderRadius: '0 0 4px 4px'
-                }} />
-              )}
-              <span style={{ fontSize: showLabels ? 18 : 22, lineHeight: 1, transform: isActive ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.2s' }}>{item.icon}</span>
+              <span style={{ fontSize: showLabels ? 18 : 22, lineHeight: 1 }}>{item.icon}</span>
               {showLabels && (
-                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px' }}>
+                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
                   {item.label}
                 </span>
               )}
@@ -285,27 +305,28 @@ function BottomNav({ isCoach }) {
   );
 }
 
-/* ─── Top bar mobile (Glassmorphism moderne) ────────────────────────────── */
+/* ─── Top bar mobile ─────────────────────────────────────────────────────── */
 function TopBar({ onOpen, title }) {
   return (
     <header style={{
       position:    'fixed',
-      top:         0, left: 0, right: 0,
+      top:         0,
+      left:        0,
+      right:       0,
       height:      TOPBAR_H,
-      background:  'rgba(255, 255, 255, 0.8)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
+      background:  T.navy,
       display:     'flex',
       alignItems:  'center',
       padding:     '0 16px',
       gap:         12,
       zIndex:      150,
-      borderBottom: '1px solid var(--border)',
+      boxShadow:   '0 2px 12px rgba(13,27,78,0.18)',
     }}>
       <button
         onClick={onOpen}
+        aria-label="Ouvrir le menu"
         style={{
-          background:   'var(--surface)',
+          background:   'rgba(255,255,255,0.08)',
           border:       'none',
           borderRadius: 8,
           width:        36,
@@ -314,7 +335,7 @@ function TopBar({ onOpen, title }) {
           alignItems:   'center',
           justifyContent: 'center',
           cursor:       'pointer',
-          color:        'var(--navy)',
+          color:        T.white,
           flexShrink:   0,
         }}
       >
@@ -323,7 +344,7 @@ function TopBar({ onOpen, title }) {
 
       <Link href="/coach" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
         <LogoMark size={28} />
-        <span style={{ color: 'var(--navy)', stroke: 'var(--navy)', fontWeight: 800, fontSize: 14, letterSpacing: '0.2px' }}>
+        <span style={{ color: T.white, fontWeight: 800, fontSize: 14, letterSpacing: '-0.2px' }}>
           BEN&FIT
         </span>
       </Link>
@@ -331,7 +352,7 @@ function TopBar({ onOpen, title }) {
       <div style={{ flex: 1 }} />
 
       {title && (
-        <span style={{ color: 'var(--text-soft)', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '35vw' }}>
+        <span style={{ color: T.muted, fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40vw' }}>
           {title}
         </span>
       )}
@@ -341,42 +362,64 @@ function TopBar({ onOpen, title }) {
 
 /* ─── AppShell principal ─────────────────────────────────────────────────── */
 export default function AppShell({
-  children, title, subtitle, actions, userName, cycleName, coachName, coachAvailable,
+  children,
+  title,
+  subtitle,
+  actions,
+  userName,
+  cycleName,
+  coachName,
+  coachAvailable,
+  requiredRole, // 'coach' | 'client' — optionnel. Si fourni, redirige si le rôle ne correspond pas.
 }) {
+  const router = useRouter();
   const [user,        setUser]        = useState(null);
   const [profile,     setProfile]     = useState(null);
+  const [loading,     setLoading]     = useState(true);
   const [collapsed,   setCollapsed]   = useState(false);
-  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(null);
   const [isMobile,    setIsMobile]    = useState(false);
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  useEffect(() => watchBreakpoint('mobile', setIsMobile), []);
 
   useEffect(() => {
+    let isMounted = true
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!isMounted) return
       if (user) {
         setUser(user);
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const { data: profile } = await supabase
+          .from('profiles').select('role').eq('id', user.id).single();
+        if (!isMounted) return
         setProfile(profile);
       }
+      setLoading(false);
     }
     loadUser();
+    return () => { isMounted = false }
   }, []);
+
+  // Garde-fou : si la page déclare le rôle qu'elle attend et que le profil
+  // chargé ne correspond pas, on redirige plutôt que d'afficher (même
+  // brièvement) la mauvaise interface. Ne s'active que si `requiredRole`
+  // est passé par la page — comportement inchangé sinon.
+  useEffect(() => {
+    if (loading || !profile || !requiredRole) return
+    if (profile.role !== requiredRole) {
+      router.replace(profile.role === 'coach' ? '/coach' : '/dashboard')
+    }
+  }, [loading, profile, requiredRole, router]);
 
   const isCoach    = profile?.role === 'coach';
   const sidebarW   = collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDE;
+  const showBottom = isMobile || collapsed;
 
   return (
     <div style={{
       display:    'flex',
       minHeight:  '100dvh',
-      background: 'var(--bg)',
-      color:      'var(--text)',
+      background: T.bg,
       fontFamily: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
     }}>
 
@@ -386,17 +429,25 @@ export default function AppShell({
 
       {!isMobile ? (
         <Sidebar
-          isCoach={isCoach} user={user} collapsed={collapsed}
-          onToggle={() => setCollapsed(c => !c)} mobileOpen={null} onMobileClose={() => {}}
+          isCoach={isCoach}
+          user={user}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(c => !c)}
+          mobileOpen={null}
+          onMobileClose={() => {}}
         />
       ) : (
         <Sidebar
-          isCoach={isCoach} user={user} collapsed={false} onToggle={() => {}}
-          mobileOpen={mobileOpen === true} onMobileClose={() => setMobileOpen(false)}
+          isCoach={isCoach}
+          user={user}
+          collapsed={false}
+          onToggle={() => {}}
+          mobileOpen={mobileOpen === true}
+          onMobileClose={() => setMobileOpen(false)}
         />
       )}
 
-      {isMobile && <BottomNav isCoach={isCoach} />}
+      {showBottom && <BottomNav isCoach={isCoach} />}
 
       <main style={{
         marginLeft:  isMobile ? 0 : sidebarW,
@@ -404,9 +455,11 @@ export default function AppShell({
         minWidth:    0,
         minHeight:   '100dvh',
         padding:     isMobile
-          ? `${TOPBAR_H + 20}px 16px ${60 + 30}px`
-          : '32px 40px 40px',
-        transition:  'margin-left 0.25s cubic-bezier(.4,0,.2,1)',
+          ? `${TOPBAR_H + 16}px 14px ${62 + 16}px`
+          : collapsed
+            ? `24px 28px ${62 + 16}px`
+            : '24px 28px 24px',
+        transition:  'margin-left 0.22s cubic-bezier(.4,0,.2,1)',
         boxSizing:   'border-box',
       }}>
 
@@ -414,31 +467,31 @@ export default function AppShell({
           display:        'flex',
           justifyContent: 'space-between',
           alignItems:     'flex-start',
-          marginBottom:   28,
-          gap:            16,
+          marginBottom:   20,
+          gap:            12,
           flexWrap:       'wrap',
         }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={{
               margin:     0,
-              color:      'var(--navy)',
-              fontSize:   isMobile ? 22 : 28,
+              color:      T.navy,
+              fontSize:   isMobile ? 20 : 24,
               fontWeight: 800,
               lineHeight: 1.2,
-              letterSpacing: '-0.6px',
+              letterSpacing: '-0.4px',
             }}>
               {title}
               {userName && (
-                <span style={{ fontWeight: 400, color: 'var(--text-soft)', fontSize: isMobile ? 16 : 18, marginLeft: 8 }}>
+                <span style={{ fontWeight: 400, color: T.muted, fontSize: isMobile ? 15 : 17, marginLeft: 8 }}>
                   · {userName}
                 </span>
               )}
             </h1>
             {subtitle && (
-              <p style={{ margin: '6px 0 0', color: 'var(--text-soft)', fontSize: 13, fontWeight: 400 }}>{subtitle}</p>
+              <p style={{ margin: '4px 0 0', color: '#6B7A99', fontSize: 13 }}>{subtitle}</p>
             )}
             {cycleName && (
-              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', background: 'var(--accent-soft)', padding: '3px 8px', borderRadius: 6 }}>
+              <div style={{ marginTop: 4, fontSize: 12, color: T.blue, fontWeight: 700 }}>
                 🏆 {cycleName}
               </div>
             )}
@@ -448,13 +501,13 @@ export default function AppShell({
             {coachAvailable && coachName && (
               <div style={{
                 fontSize:     11,
-                color:        'var(--success)',
-                background:   'var(--success-bg)',
-                padding:      '6px 12px',
+                color:        '#3A7A5A',
+                background:   '#F0FBF4',
+                padding:      '4px 10px',
                 borderRadius: 20,
+                border:       '1px solid #C9E9D5',
                 fontWeight:   600,
                 whiteSpace:   'nowrap',
-                boxShadow:    'var(--shadow-sm)',
               }}>
                 🟢 {coachName} disponible
               </div>
@@ -463,15 +516,14 @@ export default function AppShell({
           </div>
         </div>
 
-        <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-          {children}
-        </div>
+        {children}
       </main>
     </div>
   );
 }
 
 /* ─── Micro-composants SVG ───────────────────────────────────────────────── */
+
 function LogoMark({ size = 32 }) {
   return (
     <img
@@ -479,7 +531,7 @@ function LogoMark({ size = 32 }) {
       alt="Ben&Fit"
       width={size}
       height={size}
-      style={{ objectFit: 'contain', display: 'block', flexShrink: 0, transition: 'all 0.2s' }}
+      style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }}
     />
   );
 }
@@ -488,9 +540,9 @@ function ChevronIcon({ collapsed }) {
   return (
     <svg
       width="14" height="14" viewBox="0 0 14 14" fill="none"
-      style={{ transition: 'transform 0.25s', transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
+      style={{ transition: 'transform 0.22s', transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
     >
-      <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -498,7 +550,7 @@ function ChevronIcon({ collapsed }) {
 function HamburgerIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
