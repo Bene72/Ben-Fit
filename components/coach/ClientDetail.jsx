@@ -34,6 +34,7 @@ export default function ClientDetail({
   onNotesUpdate,
   measures = [],
   nutritionLogs = [],
+  compliance = null,
   historyLoading = false,
 }) {
   const offer = OFFERS[client.offer] || OFFERS['tutto_bene']
@@ -187,9 +188,9 @@ export default function ClientDetail({
         <KpiCard
           icon="📊"
           label="Compliance"
-          value={`${client.compliance}%`}
-          sub="7 derniers jours"
-          accent={complianceColor(client.compliance)}
+          value={historyLoading ? '…' : compliance == null ? '—' : `${compliance}%`}
+          sub={compliance == null && !historyLoading ? 'Pas de programme actif' : '7 derniers jours'}
+          accent={complianceColor(compliance)}
         />
         <KpiCard
           icon="📋"
@@ -322,13 +323,13 @@ export default function ClientDetail({
               }}
             >
               <span style={{ color: S.muted }}>Compliance semaine</span>
-              <span style={{ fontWeight: 700, color: complianceColor(client.compliance) }}>
-                {client.compliance}%
+              <span style={{ fontWeight: 700, color: complianceColor(compliance) }}>
+                {compliance == null ? '—' : `${compliance}%`}
               </span>
             </div>
             <ProgressBar
-              value={client.compliance}
-              color={complianceColor(client.compliance)}
+              value={compliance ?? 0}
+              color={complianceColor(compliance)}
               height={7}
             />
           </div>
