@@ -58,6 +58,7 @@ export default function BilanPage() {
   const [editForm, setEditForm] = useState({})
   const [userName, setUserName] = useState('')
   const [cycleName, setCycleName] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -162,6 +163,8 @@ export default function BilanPage() {
   const currentWeekExists = bilans.find((b) => b.week_start === currentWeek)
   const average = computeAverage(selectedBilan)
   const completedCount = bilans.filter((b) => b.filled_by_client).length
+  const archivedBilans = bilans.filter((b) => b.archived)
+  const visibleBilans = showArchived ? archivedBilans : bilans.filter((b) => !b.archived)
 
   async function createCurrentWeekBilan() {
     try {
@@ -229,6 +232,24 @@ export default function BilanPage() {
       setError(e.message || 'Impossible d’enregistrer le bilan')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function toggleArchiveBilan(bilanId, archived) {
+    try {
+      const { error: archiveError } = await supabase
+        .from('bilans')
+        .update({ archived })
+        .eq('id', bilanId)
+      if (archiveError) throw archiveError
+      setBilans((prev) => prev.map((b) => (b.id === bilanId ? { ...b, archived } : b)))
+      if (archived && selectedBilanId === bilanId) {
+        const next = bilans.find((b) => b.id !== bilanId && !b.archived)
+        setSelectedBilanId(next ? next.id : null)
+        setEditForm(next || {})
+      }
+    } catch (e) {
+      setError(e.message || "Impossible d'archiver ce bilan")
     }
   }
 
@@ -307,44 +328,101 @@ export default function BilanPage() {
             <SectionHead
               title="Historique"
               caption="Sélectionne une semaine pour ouvrir le bilan."
-              action={<StatusBadge tone="default">{bilans.length} semaine(s)</StatusBadge>}
+              action={<StatusBadge tone="default">{visibleBilans.length} semaine(s)</StatusBadge>}
             />
-            {bilans.length ? (
+
+            <div style={{ display: 'flex', gap: 2, marginBottom: 14, borderBottom: '2px solid var(--border, #EAF0F8)' }}>
+              {[
+                { id: 'actifs', label: `Actifs (${bilans.length - archivedBilans.length})`, value: false },
+                { id: 'archives', label: `Archivés (${archivedBilans.length})`, value: true },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setShowArchived(tab.value)}
+                  style={{
+                    padding: '6px 14px',
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 12.5,
+                    fontWeight: showArchived === tab.value ? 700 : 500,
+                    cursor: 'pointer',
+                    color: showArchived === tab.value ? 'var(--accent)' : 'var(--muted, #6B7A99)',
+                    borderBottom: `2px solid ${showArchived === tab.value ? 'var(--accent)' : 'transparent'}`,
+                    marginBottom: -2,
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {visibleBilans.length ? (
               <div className="ui-list">
-                {bilans.map((bilan) => {
+                {visibleBilans.map((bilan) => {
                   const active = bilan.id === selectedBilanId
                   const avg = computeAverage(bilan)
                   const isCurrent = bilan.week_start === currentWeek
 
                   return (
-                    <button
+                    <div
                       key={bilan.id}
-                      type="button"
                       className={`ui-list-item ${active ? 'is-active' : ''}`}
-                      onClick={() => {
-                        setSelectedBilanId(bilan.id)
-                        setEditForm(bilan)
-                      }}
-                      style={{ textAlign: 'left', cursor: 'pointer' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 800 }}>{getWeekLabel(bilan.week_start)}</div>
-                        <div className="ui-muted" style={{ fontSize: 12 }}>
-                          {bilan.filled_by_client ? 'Complété' : 'À remplir'}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBilanId(bilan.id)
+                          setEditForm(bilan)
+                        }}
+                        style={{
+                          flex: 1,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 800 }}>{getWeekLabel(bilan.week_start)}</div>
+                          <div className="ui-muted" style={{ fontSize: 12 }}>
+                            {bilan.filled_by_client ? 'Complété' : 'À remplir'}
+                          </div>
                         </div>
-                      </div>
-                      <div className="ui-cluster">
-                        {isCurrent ? <StatusBadge tone="accent">Semaine</StatusBadge> : null}
-                        {avg ? <StatusBadge tone={avg >= 7 ? 'success' : avg >= 4 ? 'warning' : 'danger'}>{avg}/10</StatusBadge> : null}
-                      </div>
-                    </button>
+                        <div className="ui-cluster">
+                          {isCurrent ? <StatusBadge tone="accent">Semaine</StatusBadge> : null}
+                          {avg ? <StatusBadge tone={avg >= 7 ? 'success' : avg >= 4 ? 'warning' : 'danger'}>{avg}/10</StatusBadge> : null}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        title={bilan.archived ? 'Désarchiver' : 'Archiver'}
+                        onClick={() => toggleArchiveBilan(bilan.id, !bilan.archived)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          fontSize: 15,
+                          opacity: 0.6,
+                          padding: 4,
+                        }}
+                      >
+                        {bilan.archived ? '📤' : '📦'}
+                      </button>
+                    </div>
                   )
                 })}
               </div>
             ) : (
               <EmptyPanel
-                title="Aucun bilan"
-                description="Crée ton premier bilan hebdomadaire pour commencer."
+                title={showArchived ? 'Aucun bilan archivé' : 'Aucun bilan'}
+                description={
+                  showArchived
+                    ? 'Les bilans que tu archives apparaîtront ici.'
+                    : 'Crée ton premier bilan hebdomadaire pour commencer.'
+                }
               />
             )}
           </SurfaceCard>
