@@ -56,6 +56,9 @@ function NutritionTab({ clientId, clientName }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState('week')
+  const [selectedMonth, setSelectedMonth] = useState('all')
+  const [planHistory, setPlanHistory] = useState([])
+  const [showPlanHistory, setShowPlanHistory] = useState(false)
   const today = todayString()
 
   // ── Chargement ───────────────────────────────────────────────────────────────
@@ -63,7 +66,7 @@ function NutritionTab({ clientId, clientName }) {
     const load = async () => {
       setLoading(true)
       try {
-        const [{ data: np }, { data: lg }] = await Promise.all([
+        const [{ data: np }, { data: lg }, { data: history }] = await Promise.all([
           supabase
             .from('nutrition_plans')
             .select('*')
@@ -76,6 +79,12 @@ function NutritionTab({ clientId, clientName }) {
             .eq('client_id', clientId)
             .order('date', { ascending: false })
             .limit(84),
+          supabase
+            .from('nutrition_plans')
+            .select('*')
+            .eq('client_id', clientId)
+            .eq('active', false)
+            .order('created_at', { ascending: false }),
         ])
         setPlan(np)
         if (np) {
@@ -97,6 +106,7 @@ function NutritionTab({ clientId, clientName }) {
           })
         }
         setLogs(lg || [])
+        setPlanHistory(history || [])
       } catch (e) {
         console.error('Erreur chargement nutrition:', e)
       } finally {
@@ -105,6 +115,8 @@ function NutritionTab({ clientId, clientName }) {
     }
     load()
     setEditPlan(false)
+    setSelectedMonth('all')
+    setShowPlanHistory(false)
   }, [clientId])
 
   // ── Sauvegarde plan ──────────────────────────────────────────────────────────
@@ -129,10 +141,17 @@ function NutritionTab({ clientId, clientName }) {
         low_carbs: +planForm.low_carbs || 0,
         low_fat: +planForm.low_fat || 0,
       }
-      const query = plan
-        ? supabase.from('nutrition_plans').update(planData).eq('id', plan.id)
-        : supabase.from('nutrition_plans').insert(planData)
-      const { data } = await query.select().single()
+      // On ne modifie plus jamais le plan actif en place : on l'archive et on
+      // en crée un nouveau, pour garder un historique complet des versions.
+      if (plan) {
+        await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
+        setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
+      }
+      const { data } = await supabase
+        .from('nutrition_plans')
+        .insert(planData)
+        .select()
+        .single()
       setPlan(data)
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
@@ -173,6 +192,14 @@ function NutritionTab({ clientId, clientName }) {
   if (loading)
     return <div style={{ color: '#999', textAlign: 'center', padding: 40 }}>Chargement…</div>
 
+  // ── Liste des mois disponibles dans l'historique du client, pour le filtre ──
+  const availableMonths = Array.from(
+    new Set(logs.map((l) => l.date?.slice(0, 7)).filter(Boolean))
+  ).sort((a, b) => b.localeCompare(a))
+
+  const monthFilteredLogs =
+    selectedMonth === 'all' ? logs : logs.filter((l) => l.date?.startsWith(selectedMonth))
+
   return (
     <div>
       {/* ── Bloc plan nutritionnel ── */}
@@ -184,6 +211,9 @@ function NutritionTab({ clientId, clientName }) {
         setPlanForm={setPlanForm}
         savePlan={savePlan}
         saving={saving}
+        planHistory={planHistory}
+        showPlanHistory={showPlanHistory}
+        setShowPlanHistory={setShowPlanHistory}
       />
 
       {/* ── Suivi client ── */}
@@ -215,6 +245,34 @@ function NutritionTab({ clientId, clientName }) {
               {label}
             </button>
           ))}
+          {view === 'week' && availableMonths.length > 0 && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{
+                marginLeft: 'auto',
+                padding: '6px 12px',
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: '1px solid #DCE5F3',
+                fontFamily: "'DM Sans',sans-serif",
+                background: 'white',
+                color: 'var(--navy)',
+              }}
+            >
+              <option value="all">Tous les mois</option>
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {new Date(`${m}-01`).toLocaleDateString('fr-FR', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {view === 'today' && (
@@ -223,7 +281,7 @@ function NutritionTab({ clientId, clientName }) {
         {view === 'week' && (
           /* Vue semaine partagée — mode coach avec détail inline */
           <WeekTable
-            logs={logs}
+            logs={monthFilteredLogs}
             plan={plan}
             today={today}
             mode="coach"
@@ -242,7 +300,18 @@ function NutritionTab({ clientId, clientName }) {
 
 // ─── Bloc plan (coach uniquement) ────────────────────────────────────────────
 
-function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePlan, saving }) {
+function PlanBlock({
+  plan,
+  editPlan,
+  setEditPlan,
+  planForm,
+  setPlanForm,
+  savePlan,
+  saving,
+  planHistory,
+  showPlanHistory,
+  setShowPlanHistory,
+}) {
   return (
     <div
       style={{
@@ -269,17 +338,75 @@ function PlanBlock({ plan, editPlan, setEditPlan, planForm, setPlanForm, savePla
             letterSpacing: 2,
           }}
         >
-          {plan ? 'PLAN NUTRITIONNEL ACTUEL' : 'CRÉER UN PLAN NUTRITIONNEL'}
+          {showPlanHistory
+            ? 'HISTORIQUE DES PLANS'
+            : plan
+              ? 'PLAN NUTRITIONNEL ACTUEL'
+              : 'CRÉER UN PLAN NUTRITIONNEL'}
         </div>
-        <button
-          onClick={() => setEditPlan(!editPlan)}
-          style={btn(editPlan ? 'var(--navy)' : 'var(--navy)', 'white')}
-        >
-          {editPlan ? '✕ Annuler' : plan ? '✏️ Modifier' : '+ Créer le plan'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {!editPlan && planHistory.length > 0 && (
+            <button
+              onClick={() => setShowPlanHistory(!showPlanHistory)}
+              style={btn(showPlanHistory ? 'var(--navy)' : 'white', showPlanHistory ? 'white' : 'var(--navy)')}
+            >
+              {showPlanHistory ? '✕ Fermer' : `🕘 Historique (${planHistory.length})`}
+            </button>
+          )}
+          {!showPlanHistory && (
+            <button
+              onClick={() => setEditPlan(!editPlan)}
+              style={btn(editPlan ? 'var(--navy)' : 'var(--navy)', 'white')}
+            >
+              {editPlan ? '✕ Annuler' : plan ? '✏️ Modifier' : '+ Créer le plan'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {editPlan ? (
+      {showPlanHistory ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 420, overflowY: 'auto' }}>
+          {planHistory.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                background: 'white',
+                border: '1px solid #E8ECFA',
+                borderRadius: 10,
+                padding: '12px 14px',
+              }}
+            >
+              <div style={{ fontSize: 11, color: '#6B7A99', marginBottom: 8 }}>
+                {p.created_at
+                  ? new Date(p.created_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'Plan précédent'}
+              </div>
+              <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+                {[
+                  ['🔥', p.target_calories, 'kcal'],
+                  ['🥩', p.target_protein, 'g P'],
+                  ['🌾', p.target_carbs, 'g G'],
+                  ['🥑', p.target_fat, 'g L'],
+                ].map(([icon, val, unit]) => (
+                  <div key={unit} style={{ fontSize: 13 }}>
+                    {icon} <strong style={{ color: 'var(--navy)' }}>{val || '—'}</strong>{' '}
+                    <span style={{ color: '#6B7A99', fontSize: 11 }}>{unit}</span>
+                  </div>
+                ))}
+              </div>
+              {p.coach_note && (
+                <div style={{ fontSize: 11, color: '#6B7A99', marginTop: 6, fontStyle: 'italic' }}>
+                  💬 {p.coach_note}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : editPlan ? (
         <div>
           <div
             style={{
