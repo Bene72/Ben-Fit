@@ -13,6 +13,7 @@ function BilanTab({ clientId, clientName, coachId }) {
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({})
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     load()
@@ -49,9 +50,18 @@ function BilanTab({ clientId, clientName, coachId }) {
     setSaving(false)
   }
 
+  const toggleArchive = async (bilanId, archived, e) => {
+    e.stopPropagation()
+    await supabase.from('bilans').update({ archived }).eq('id', bilanId)
+    setBilans(prev => prev.map(b => b.id === bilanId ? { ...b, archived } : b))
+    if (archived && openBilan === bilanId) setOpenBilan(null)
+  }
+
   if (loading) return <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>Chargement…</div>
 
   const currentBilan = bilans.find(b => b.id === openBilan)
+  const archivedCount = bilans.filter(b => b.archived).length
+  const visibleBilans = bilans.filter(b => showArchived ? b.archived : !b.archived)
 
   return (
     <div>
@@ -69,13 +79,41 @@ function BilanTab({ clientId, clientName, coachId }) {
         </div>
       </div>
 
-      {bilans.length === 0 && (
+      <div style={{ display: 'flex', gap: 2, marginBottom: '16px', borderBottom: '2px solid #E8ECFA' }}>
+        {[
+          { id: 'actifs', label: `Actifs (${bilans.length - archivedCount})`, value: false },
+          { id: 'archives', label: `Archivés (${archivedCount})`, value: true },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setShowArchived(tab.value)}
+            style={{
+              padding: '7px 16px',
+              border: 'none',
+              background: 'transparent',
+              fontSize: '12.5px',
+              fontWeight: showArchived === tab.value ? 700 : 500,
+              cursor: 'pointer',
+              color: showArchived === tab.value ? '#0D1B4E' : '#6B7A99',
+              borderBottom: `2px solid ${showArchived === tab.value ? '#0D1B4E' : 'transparent'}`,
+              marginBottom: '-2px',
+              fontFamily: "'DM Sans',sans-serif",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {visibleBilans.length === 0 && (
         <div style={{ background: '#F0F4FF', border: '1px solid #C5D0F0', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#6B7A99' }}>
-          Aucun bilan pour l'instant. Crée le premier bilan de {clientName?.split(' ')[0]} !
+          {showArchived
+            ? 'Aucun bilan archivé.'
+            : `Aucun bilan pour l'instant. Crée le premier bilan de ${clientName?.split(' ')[0]} !`}
         </div>
       )}
 
-      {bilans.map(bilan => {
+      {visibleBilans.map(bilan => {
         const isOpen = openBilan === bilan.id
         const scores = BILAN_ITEMS.filter(i => !i.noteOnly).map(i => bilan[i.key + '_score']).filter(Boolean)
         const avg = scores.length ? Math.round(scores.reduce((a,b) => a+b, 0) / scores.length * 10) / 10 : null
@@ -94,6 +132,13 @@ function BilanTab({ clientId, clientName, coachId }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {avg && <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '22px', color: avgColor }}>{avg}<span style={{ fontSize: '12px', color: '#6B7A99' }}>/10</span></div>}
+                <button
+                  onClick={(e) => toggleArchive(bilan.id, !bilan.archived, e)}
+                  title={bilan.archived ? 'Désarchiver' : 'Archiver'}
+                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '15px', opacity: 0.6, padding: '2px' }}
+                >
+                  {bilan.archived ? '📤' : '📦'}
+                </button>
                 <span style={{ color: '#6B7A99', fontSize: '12px' }}>{isOpen ? '▲' : '▼'}</span>
               </div>
             </div>
