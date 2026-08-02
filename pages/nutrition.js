@@ -172,6 +172,131 @@ function NutritionMiniChart({ logs, field }) {
 }
 
 // ─── Historique complet (liste par date + sélecteur de courbe) ───────────────
+// ─── Regroupe les logs en blocs de N jours (par défaut 35j = 5 semaines) ─────
+// en partant de la date la plus récente et en remontant dans le temps.
+// Permet de comparer les moyennes de macros d'un "cycle" à l'autre sans
+// dépendre d'une table de cycles avec dates en base.
+function computeCycleAverages(logs, cycleLengthDays = 35) {
+  const withDate = logs
+    .filter((l) => l.date)
+    .map((l) => ({ ...l, _d: new Date(l.date) }))
+    .sort((a, b) => b._d - a._d)
+
+  if (!withDate.length) return []
+
+  const mostRecent = withDate[0]._d
+  const buckets = []
+
+  withDate.forEach((l) => {
+    const diffDays = Math.floor((mostRecent - l._d) / 86400000)
+    const bucketIndex = Math.floor(diffDays / cycleLengthDays)
+    if (!buckets[bucketIndex]) buckets[bucketIndex] = []
+    buckets[bucketIndex].push(l)
+  })
+
+  return buckets
+    .map((entries, i) => {
+      if (!entries || !entries.length) return null
+      const avg = {}
+      NUTRI_FIELDS.forEach((f) => {
+        const values = entries.map((e) => e[f.key]).filter((v) => v != null)
+        avg[f.key] = values.length
+          ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+          : null
+      })
+      const dates = entries.map((e) => e._d).sort((a, b) => a - b)
+      return {
+        index: i,
+        label: i === 0 ? 'Cycle actuel' : i === 1 ? 'Cycle précédent' : `Cycle -${i}`,
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
+        daysLogged: entries.length,
+        avg,
+      }
+    })
+    .filter(Boolean)
+}
+
+function CycleAverages({ logs }) {
+  const cycles = useMemo(() => computeCycleAverages(logs, 35), [logs])
+
+  if (cycles.length < 1) {
+    return (
+      <div style={{ textAlign: 'center', color: '#6B7A99', padding: '30px 0', fontSize: 13 }}>
+        Pas encore assez de données pour comparer les cycles.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 11, color: '#6B7A99', marginBottom: 2 }}>
+        Moyennes calculées par blocs de 5 semaines (35 jours), en partant du dernier log enregistré.
+      </div>
+      {cycles.map((cycle, i) => {
+        const prev = cycles[i + 1]
+        return (
+          <div
+            key={cycle.index}
+            style={{
+              background: i === 0 ? '#F8FBFF' : 'white',
+              border: i === 0 ? '1.5px solid #DCE5F3' : '1px solid #EEF2F8',
+              borderRadius: 12,
+              padding: '12px 14px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--navy)' }}>
+                {cycle.label}
+              </span>
+              <span style={{ fontSize: 11, color: '#6B7A99', fontFamily: "'DM Mono',monospace" }}>
+                {cycle.startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} →{' '}
+                {cycle.endDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} ·{' '}
+                {cycle.daysLogged} jour(s) loggé(s)
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
+              {NUTRI_FIELDS.filter((f) => cycle.avg[f.key] != null).map((f) => {
+                const delta = prev && prev.avg[f.key] != null ? cycle.avg[f.key] - prev.avg[f.key] : null
+                return (
+                  <div key={f.key} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: '#6B7A99' }}>
+                      {f.icon} {f.label}
+                    </span>
+                    <span style={{ fontWeight: 900, fontSize: 15, color: f.color }}>
+                      {cycle.avg[f.key]}
+                      <span style={{ fontSize: 10, fontWeight: 400, color: '#6B7A99' }}> {f.unit}</span>
+                    </span>
+                    {delta != null && delta !== 0 && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: delta > 0 ? '#B42318' : '#16804A',
+                        }}
+                      >
+                        ({delta > 0 ? '+' : ''}
+                        {delta})
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function NutritionHistory({ logs, isMobile, onOpenDay }) {
   const [subTab, setSubTab] = useState('list')
   const [field, setField] = useState('calories')
@@ -186,6 +311,7 @@ function NutritionHistory({ logs, isMobile, onOpenDay }) {
         {[
           { id: 'list', label: '📋 Liste' },
           { id: 'curve', label: '📈 Courbe' },
+          { id: 'cycles', label: '🔄 Cycles' },
         ].map((t) => (
           <button
             key={t.id}
@@ -208,7 +334,9 @@ function NutritionHistory({ logs, isMobile, onOpenDay }) {
         ))}
       </div>
 
-      {subTab === 'list' ? (
+      {subTab === 'cycles' ? (
+        <CycleAverages logs={logs} />
+      ) : subTab === 'list' ? (
         sorted.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#6B7A99', padding: '30px 0', fontSize: 13 }}>
             Aucune valeur de diète enregistrée pour le moment.
