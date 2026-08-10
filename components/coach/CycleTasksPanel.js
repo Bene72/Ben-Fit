@@ -43,10 +43,12 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     duration_weeks: 5,
   })
 
+  const [activeCycles, setActiveCycles] = useState([])
+
   const load = useCallback(async () => {
     if (!coachId) return
     setLoading(true)
-    const [{ data: taskData }, { data: alertData }] = await Promise.all([
+    const [{ data: taskData }, { data: alertData }, { data: cycleData }] = await Promise.all([
       supabase
         .from('coach_tasks')
         .select('*')
@@ -59,9 +61,18 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         .eq('coach_id', coachId)
         .in('alert_level', ['ending_soon', 'expired'])
         .order('end_date', { ascending: true }),
+      // Cycles actifs, tous niveaux d'alerte confondus — sert à afficher
+      // la date de début de cycle de chaque athlète (demande coach).
+      supabase
+        .from('cycles')
+        .select('id, client_id, name, start_date, duration_weeks')
+        .eq('coach_id', coachId)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false }),
     ])
     setTasks(taskData || [])
     setAlerts(alertData || [])
+    setActiveCycles(cycleData || [])
     setLoading(false)
   }, [coachId])
 
@@ -110,20 +121,45 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       .eq('client_id', cycleForm.client_id)
       .eq('status', 'active')
 
-    const { error } = await supabase.from('cycles').insert({
-      client_id: cycleForm.client_id,
-      coach_id: coachId,
-      name: cycleForm.name,
-      start_date: cycleForm.start_date,
-      duration_weeks: Number(cycleForm.duration_weeks) || 5,
-      status: 'active',
-    })
-    // Garde aussi le libellé texte à jour pour compat avec l'existant (bilan/nutrition)
-    if (!error) {
+    const durationWeeks = Number(cycleForm.duration_weeks) || 5
+
+    const { data: cycle, error } = await supabase
+      .from('cycles')
+      .insert({
+        client_id: cycleForm.client_id,
+        coach_id: coachId,
+        name: cycleForm.name,
+        start_date: cycleForm.start_date,
+        duration_weeks: durationWeeks,
+        status: 'active',
+      })
+      .select()
+      .single()
+
+    if (!error && cycle) {
+      // Crée automatiquement une tâche "Prog <client> à changer" au
+      // moment prévu de fin de cycle (start_date + durée en semaines).
+      const dueDate = new Date(cycleForm.start_date + 'T12:00:00')
+      dueDate.setDate(dueDate.getDate() + durationWeeks * 7)
+      const dueDateStr = dueDate.toISOString().split('T')[0]
+      const cName = clientName(cycleForm.client_id)
+
+      // Garde le libellé texte à jour pour compat avec l'existant
+      // (lu par bilan.js, nutrition.js et dashboard.js côté client)
       await supabase
         .from('profiles')
         .update({ current_cycle_name: cycleForm.name })
         .eq('id', cycleForm.client_id)
+
+      await supabase.from('coach_tasks').insert({
+        coach_id: coachId,
+        client_id: cycleForm.client_id,
+        cycle_id: cycle.id,
+        type: 'cycle_reminder',
+        title: `Prog ${cName} à changer`,
+        due_date: dueDateStr,
+      })
+
       setCycleForm({ client_id: '', name: '', start_date: new Date().toISOString().split('T')[0], duration_weeks: 5 })
       setShowCycleForm(false)
       load()
@@ -189,11 +225,49 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
           </form>
         )}
 
+        {/* Cycles en cours — date de début par athlète, pour voir d'un
+            coup d'œil qui a commencé quand (utile pour anticiper le
+            changement de programme toutes les 5 semaines). */}
+        {!loading && activeCycles.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+              Cycles en cours
+            </div>
+            {activeCycles.map((c) => {
+              const end = new Date(c.start_date + 'T12:00:00')
+              end.setDate(end.getDate() + (c.duration_weeks || 5) * 7)
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '7px 10px',
+                    borderRadius: 8,
+                    background: '#F7F9FC',
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: S.navy }}>
+                    {clientName(c.client_id)}
+                    <span style={{ fontWeight: 500, color: S.muted }}> · {c.name}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: S.muted, fontFamily: font, whiteSpace: 'nowrap' }}>
+                    {new Date(c.start_date + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                    <span style={{ color: '#C7CFE0' }}> → </span>
+                    {end.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {loading ? (
           <div style={{ fontSize: 12, color: S.muted }}>Chargement…</div>
-        ) : alerts.length === 0 ? (
+        ) : alerts.length === 0 && activeCycles.length === 0 ? (
           <div style={{ fontSize: 12, color: S.muted, padding: '8px 0' }}>Aucun suivi à venir.</div>
-        ) : (
+        ) : alerts.length === 0 ? null : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {alerts.map((a) => (
               <div
