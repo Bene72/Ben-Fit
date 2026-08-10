@@ -37,8 +37,8 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
   })
   const taskMap = {}
   tasks.forEach((t) => {
-    if (!taskMap[t.task_date]) taskMap[t.task_date] = []
-    taskMap[t.task_date].push(t)
+    if (!taskMap[t.due_date]) taskMap[t.due_date] = []
+    taskMap[t.due_date].push(t)
   })
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -48,7 +48,7 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
       .from('coach_tasks')
       .select('*')
       .eq('coach_id', coachId)
-      .order('task_date')
+      .order('due_date')
       .order('task_time')
       .then(({ data, error }) => {
         if (!error) setTasks(data || [])
@@ -70,7 +70,7 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
         .from('coach_tasks')
         .insert({
           coach_id: coachId,
-          task_date: taskModalDate,
+          due_date: taskModalDate,
           task_time: taskTime || null,
           title: taskTitle.trim(),
           client_id: taskClientId || null,
@@ -87,25 +87,6 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
       setSavingTask(false)
     }
   }
-
-  const toggleTask = async (task) => {
-    const { data, error } = await supabase
-      .from('coach_tasks')
-      .update({ done: !task.done })
-      .eq('id', task.id)
-      .select()
-      .single()
-    if (!error) setTasks((prev) => prev.map((t) => (t.id === task.id ? data : t)))
-  }
-
-  const deleteTask = async (task) => {
-    const { error } = await supabase.from('coach_tasks').delete().eq('id', task.id)
-    if (!error) setTasks((prev) => prev.filter((t) => t.id !== task.id))
-  }
-
-  const upcomingTasks = tasks.filter((t) => !t.done && !t.client_id && t.task_date >= todayStr).slice(0, 4)
-  const upcomingFollowups = tasks.filter((t) => !t.done && t.client_id && t.task_date >= todayStr).slice(0, 4)
-  const clientNameById = Object.fromEntries(clients.map((c) => [c.id, c.name]))
 
   return (
     <div
@@ -379,145 +360,6 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
         </div>
       )}
 
-      <div style={{ borderTop: `1px solid ${S.border}`, marginTop: 14, paddingTop: 12 }}>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: S.muted,
-            textTransform: 'uppercase',
-            letterSpacing: '0.8px',
-            marginBottom: 8,
-          }}
-        >
-          Tâches à venir
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {upcomingTasks.map((t) => (
-            <div
-              key={t.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 8px',
-                background: '#FBF8F0',
-                borderRadius: 8,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={t.done}
-                onChange={() => toggleTask(t)}
-                style={{ cursor: 'pointer', flexShrink: 0 }}
-              />
-              <div
-                style={{
-                  flex: 1,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: S.navy,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t.title}
-              </div>
-              {t.task_time && (
-                <span style={{ fontSize: 10, color: S.gold, fontFamily: mono }}>{t.task_time}</span>
-              )}
-              <span style={{ fontSize: 10, color: S.muted, fontFamily: mono }}>
-                {new Date(t.task_date + 'T12:00:00').toLocaleDateString('fr-FR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                })}
-              </span>
-              <button
-                onClick={() => deleteTask(t)}
-                title="Supprimer"
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: S.muted,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  padding: '0 2px',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {upcomingTasks.length === 0 && (
-            <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '8px 0' }}>
-              Aucune tâche — clique une date pour en ajouter une.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ borderTop: `1px solid ${S.border}`, marginTop: 14, paddingTop: 12 }}>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: S.muted,
-            textTransform: 'uppercase',
-            letterSpacing: '0.8px',
-            marginBottom: 8,
-          }}
-        >
-          Prochains suivis
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {upcomingFollowups.map((t) => (
-            <div
-              key={t.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 8px',
-                background: '#F8FAFF',
-                borderRadius: 8,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={t.done}
-                onChange={() => toggleTask(t)}
-                style={{ cursor: 'pointer', flexShrink: 0 }}
-              />
-              <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: S.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {clientNameById[t.client_id] || 'Client'}
-                {t.title ? ` — ${t.title}` : ''}
-              </div>
-              {t.task_time && (
-                <span style={{ fontSize: 10, color: S.gold, fontFamily: mono }}>{t.task_time}</span>
-              )}
-              <span style={{ fontSize: 10, color: S.muted, fontFamily: mono }}>
-                {new Date(t.task_date + 'T12:00:00').toLocaleDateString('fr-FR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                })}
-              </span>
-              <button
-                onClick={() => deleteTask(t)}
-                title="Supprimer"
-                style={{ border: 'none', background: 'transparent', color: S.muted, cursor: 'pointer', fontSize: 12, padding: '0 2px' }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          {upcomingFollowups.length === 0 && (
-            <div style={{ fontSize: 12, color: S.muted, textAlign: 'center', padding: '8px 0' }}>
-              Aucun suivi à venir — clique une date, choisis un client dans la liste.
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
