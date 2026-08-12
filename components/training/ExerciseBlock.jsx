@@ -10,14 +10,13 @@
  *    libre. Rendu uniquement si meta.uiVersion === 2, posé à la création
  *    par ProgrammeTab.jsx — aucun block existant n'est donc affecté.
  */
-import { WORKOUT_BLOCK_COLORS, GROUP_COLORS, scoreFieldsForFormat } from '../../lib/trainingUtils'
+import { WORKOUT_BLOCK_COLORS, GROUP_COLORS, scoreFieldsForFormat, findGroupMeta } from '../../lib/trainingUtils'
 import CompactExerciseRow from './CompactExerciseRow'
 import ExerciseWorkspace  from './ExerciseWorkspace'
 
 export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, loggingIds, logsByName, onLogInput, onLog, onImageOpen, isMobile, blockInputs, loggingBlockIds, blockResults, onBlockInput, onLogBlock }) {
   if (block.kind === 'group' && block.groupType === 'Workout Block') {
-    let meta = {}
-    try { meta = JSON.parse(block.exercises[0]?.note || '{}') } catch {}
+    const meta = findGroupMeta(block.exercises)
     const tc = WORKOUT_BLOCK_COLORS[meta.type] || '#0D1B4E'
 
     if (meta.uiVersion === 2) {
@@ -199,4 +198,3 @@ function ScoreField({ label, children }) {
 function scoreInputStyle() {
   return { width: '100%', boxSizing: 'border-box', padding: '9px 10px', borderRadius: 8, border: '1px solid #C5D8F5', background: 'white', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif" }
 }
-
