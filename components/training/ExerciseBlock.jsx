@@ -44,11 +44,6 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: i < block.exercises.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
               <span style={{ color: tc, fontSize: 11, fontWeight: 800, minWidth: 12 }}>•</span>
               <span style={{ color: 'white', fontSize: 12, fontWeight: 500, flex: 1 }}>{e.name}</span>
-              {(e.sets || e.reps) && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'white', background: 'rgba(255,255,255,0.12)', padding: '2px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-                  {e.sets}{e.sets && e.reps ? ' × ' : ''}{e.reps}
-                </span>
-              )}
               {e.rest && (
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>
                   ⏱ {e.rest}
@@ -116,11 +111,6 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
           <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
             <span style={{ color: tc, fontWeight: 800 }}>•</span>
             <span style={{ flex: 1 }}>{e.name}</span>
-            {(e.sets || e.reps) && (
-              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: 'white', background: 'rgba(255,255,255,0.1)', padding: '1px 7px', borderRadius: 6 }}>
-                {e.sets}{e.sets && e.reps ? ' × ' : ''}{e.reps}
-              </span>
-            )}
           </div>
         ))}
       </div>
