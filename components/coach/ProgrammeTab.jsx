@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
+import WorkoutBlockGroup from './WorkoutBlockGroup'
 import ExercisePicker from './ExercisePicker'
 import { Toast, useToast } from '../Toast'
 
@@ -692,22 +693,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     'Workout Block': '#1A1A2E',
   }
 
-  // Les métadonnées du block (type/rounds/cap/rest/objectif/note coach) sont
-  // stockées en JSON dans le champ `note` du premier exercice du groupe.
-  // Ce helper les relit pour l'affichage — jamais exposées en texte brut à l'écran.
-  const parseBlockMeta = (note) => {
-    if (!note) return null
-    try {
-      const m = JSON.parse(note)
-      if (m && typeof m === 'object') return m
-    } catch {
-      // note corrompue (ex: éditée à la main dans l'ancien champ texte) → fallback silencieux
-    }
-    return null
-  }
-
   const addWorkoutBlock = (workoutId) => {
-    setWbPicker({ workoutId, groupId: null, exerciseIds: null })
+    setWbPicker({ workoutId })
     setWbForm({
       type: 'For Time',
       rounds: '3',
@@ -719,47 +706,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     })
   }
 
-  // Ouvre le même mini-modal, pré-rempli, pour modifier un block existant
-  // au lieu de laisser le coach éditer le JSON brut dans les champs "note".
-  const editWorkoutBlock = (workoutId, group) => {
-    const exs = group.exercises || []
-    const first = exs[0]
-    const meta = parseBlockMeta(first?.note) || {}
-    setWbPicker({ workoutId, groupId: group.groupId, exerciseIds: exs.map((e) => e.id) })
-    setWbForm({
-      type: meta.type || 'For Time',
-      rounds: String(meta.rounds ?? first?.sets ?? '3'),
-      cap: meta.cap || '',
-      rest: meta.rest || exs[exs.length - 1]?.rest || '90s',
-      objective: meta.objective || '',
-      coachNote: meta.coachNote || '',
-      movements: exs.map((e) => e.name).join('\n'),
-    })
-  }
-
-  const deleteWorkoutBlock = async (workoutId, group) => {
-    if (!window.confirm('Supprimer ce Workout Block ?')) return
-    const ids = (group.exercises || []).map((e) => e.id)
-    const { error } = await supabase.from('exercises').delete().in('id', ids)
-    if (error) {
-      showToast('Erreur : ' + error.message, 'error')
-      return
-    }
-    const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
-    setter((prev) =>
-      prev.map((w) =>
-        w.id !== workoutId
-          ? w
-          : { ...w, exercises: (w.exercises || []).filter((e) => !ids.includes(e.id)) }
-      )
-    )
-  }
-
   const confirmAddWorkoutBlock = async () => {
     if (!wbPicker || !wbForm.movements.trim()) return
-    const { workoutId, groupId: editingGroupId, exerciseIds } = wbPicker
+    const { workoutId } = wbPicker
     const w = displayedWorkouts.find((w) => w.id === workoutId)
-    const gid = editingGroupId || 'wb_' + Date.now().toString()
+    const gid = 'wb_' + Date.now().toString()
     const meta = JSON.stringify({
       type: wbForm.type,
       rounds: wbForm.rounds,
@@ -773,15 +724,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
-    let baseIdx
-    if (editingGroupId) {
-      const existing = (w?.exercises || []).filter((e) => e.group_id === editingGroupId)
-      baseIdx = existing.length
-        ? Math.min(...existing.map((e) => e.order_index ?? 0))
-        : w?.exercises?.length || 0
-    } else {
-      baseIdx = w?.exercises?.length || 0
-    }
+    const baseIdx = w?.exercises?.length || 0
     const rows = lines.map((line, i) => ({
       workout_id: workoutId,
       name: line,
@@ -794,31 +737,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       group_type: 'Workout Block',
       group_id: gid,
     }))
-    // Mode édition : on remplace intégralement les anciennes lignes du groupe
-    // (les rounds/mouvements peuvent avoir changé de nombre).
-    if (editingGroupId && exerciseIds?.length) {
-      const { error: delErr } = await supabase.from('exercises').delete().in('id', exerciseIds)
-      if (delErr) {
-        showToast('Erreur : ' + delErr.message, 'error')
-        return
-      }
-    }
-    const { data, error } = await supabase.from('exercises').insert(rows).select()
-    if (error) {
-      showToast('Erreur : ' + error.message, 'error')
-      return
-    }
+    const { data } = await supabase.from('exercises').insert(rows).select()
     if (data) {
       const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
       setter((prev) =>
-        prev.map((w) => {
-          if (w.id !== workoutId) return w
-          const kept =
-            editingGroupId && exerciseIds?.length
-              ? (w.exercises || []).filter((e) => !exerciseIds.includes(e.id))
-              : w.exercises || []
-          return { ...w, exercises: [...kept, ...data] }
-        })
+        prev.map((w) =>
+          w.id !== workoutId ? w : { ...w, exercises: [...(w.exercises || []), ...data] }
+        )
       )
     }
     setWbPicker(null)
@@ -1491,101 +1416,22 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                         />
                       )
                     }
-                    const color = groupColors[item.groupType] || '#4A6FD4'
-                    const allExs = workout.exercises || []
-
-                    // ── Workout Block : carte compacte façon "athlète" ──
-                    // (au lieu de dérouler chaque exercice avec son champ note JSON brut)
                     if (item.groupType === 'Workout Block') {
-                      const meta = parseBlockMeta(item.exercises[0]?.note) || {}
                       return (
-                        <div
+                        <WorkoutBlockGroup
                           key={item.groupId}
-                          style={{
-                            margin: '10px 10px',
-                            borderRadius: 12,
-                            overflow: 'hidden',
-                            border: `1.5px solid ${color}`,
-                            fontFamily: "'DM Sans',sans-serif",
-                          }}
-                        >
-                          <div
-                            style={{
-                              padding: '8px 14px',
-                              background: color,
-                              color: 'white',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.6px' }}>
-                              🔥 {(meta.type || 'Workout Block').toUpperCase()}
-                            </span>
-                            <span style={{ fontSize: 12, opacity: 0.85 }}>
-                              {meta.rounds ? `${meta.rounds} rounds` : ''}
-                              {meta.cap ? `${meta.rounds ? ' · ' : ''}CAP ${meta.cap} min` : ''}
-                            </span>
-                          </div>
-                          <div style={{ background: '#FAFBFF', padding: '10px 14px' }}>
-                            {item.exercises.map((ex, i) => (
-                              <div
-                                key={ex.id}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  padding: '4px 0',
-                                  fontSize: 13,
-                                  borderBottom:
-                                    i < item.exercises.length - 1
-                                      ? '1px dashed #E0E8F5'
-                                      : 'none',
-                                }}
-                              >
-                                <span>• {ex.name}</span>
-                                <span style={{ color: '#6B7A99', fontWeight: 700 }}>{ex.sets}</span>
-                              </div>
-                            ))}
-                            {(meta.objective || meta.coachNote || meta.rest) && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: '#6B7A99' }}>
-                                {meta.objective && <div>🎯 {meta.objective}</div>}
-                                {meta.coachNote && <div>📝 {meta.coachNote}</div>}
-                                {meta.rest && <div>⏱ Repos entre rounds : {meta.rest}</div>}
-                              </div>
-                            )}
-                          </div>
-                          {isEdit && (
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 8,
-                                padding: '8px 14px',
-                                borderTop: '1px solid #EEF2FF',
-                                background: 'white',
-                              }}
-                            >
-                              <button
-                                onClick={() => editWorkoutBlock(workout.id, item)}
-                                style={btnVariant('outline')}
-                              >
-                                ✎ Éditer
-                              </button>
-                              <button
-                                onClick={() => deleteWorkoutBlock(workout.id, item)}
-                                style={{
-                                  ...btnVariant('outline'),
-                                  borderColor: 'var(--danger)',
-                                  color: 'var(--danger)',
-                                }}
-                              >
-                                🗑 Supprimer
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                          group={item}
+                          wId={workout.id}
+                          edit={isEdit}
+                          onUpdate={updateExercise}
+                          onDelete={deleteExercise}
+                          onMove={moveExercise}
+                          onAddExercise={addExercise}
+                        />
                       )
                     }
-
+                    const color = groupColors[item.groupType] || '#4A6FD4'
+                    const allExs = workout.exercises || []
                     return (
                       <div
                         key={item.groupId}
@@ -1741,9 +1587,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
               maxWidth: 480,
             }}
           >
-            <h3 style={{ margin: '0 0 16px', color: 'var(--navy)' }}>
-              {wbPicker.groupId ? 'Modifier le Workout Block' : 'Créer un Workout Block'}
-            </h3>
+            <h3 style={{ margin: '0 0 16px', color: 'var(--navy)' }}>Créer un Workout Block</h3>
             <div
               style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}
             >
@@ -1817,7 +1661,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={confirmAddWorkoutBlock} style={btnVariant('primary')}>
-                {wbPicker.groupId ? '✓ Enregistrer' : '✓ Créer'}
+                ✓ Créer
               </button>
               <button onClick={() => setWbPicker(null)} style={btnVariant('ghost')}>
                 Annuler
