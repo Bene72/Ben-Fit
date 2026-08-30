@@ -1,6 +1,12 @@
 /**
  * components/training/HistoryCalendar.jsx
  * Onglet Historique — calendrier, détail du jour, cycles archivés.
+ *
+ * HARMONISATION : reprend les classes tp-cal-*, tp-log-*, tp-accordion déjà
+ * posées dans <TrainingStyles /> (pages/training.js) au lieu des styles
+ * inline précédents, pour matcher exactement le rail de calendrier et les
+ * cartes de log utilisés ailleurs dans la page (même dégradés accent,
+ * mêmes rayons, mêmes tokens var(--navy)/var(--accent)).
  */
 import { useEffect, useMemo, useState } from 'react'
 import SurfaceCard from '../ui/SurfaceCard'
@@ -45,16 +51,18 @@ export default function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, t
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* ── Calendrier ── */}
       <SurfaceCard padded>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div className="tp-cal-nav-row">
           <NavBtn onClick={() => setWeekOffset(w => w - 1)}>‹</NavBtn>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1B4E', textAlign: 'center' }}>
-            {weekDays[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — {weekDays[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-            {weekOffset === 0 && <div style={{ fontSize: 10, color: '#6B8ED6', marginTop: 2 }}>Semaine en cours</div>}
+          <div>
+            <div className="tp-cal-label">
+              {weekDays[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — {weekDays[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+            </div>
+            {weekOffset === 0 && <div className="tp-cal-sub">Semaine en cours</div>}
           </div>
           <NavBtn onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>›</NavBtn>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+        <div className="tp-cal-grid">
           {weekDays.map(day => {
             const dateStr   = getLocalDateString(day)
             const isToday   = dateStr === todayStr
@@ -64,20 +72,21 @@ export default function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, t
             const hasWorkout = (workoutByJsDay[jsDay] || []).length > 0
             const isFuture  = dateStr > todayStr
             return (
-              <button key={dateStr} onClick={() => !isFuture && setSelectedDay(dateStr)} style={{
-                border: isSelected ? '2px solid #2C64E5' : isToday ? '2px solid #B0C4F5' : '1px solid #E8F0FF',
-                borderRadius: 10, padding: '8px 4px', textAlign: 'center',
-                cursor: isFuture ? 'default' : 'pointer',
-                background: isSelected ? '#2C64E5' : isToday ? '#EEF4FF' : hasLogs ? '#F0F7FF' : 'white',
-                opacity: isFuture ? 0.35 : 1, transition: 'all 0.15s',
-                fontFamily: "'DM Sans',sans-serif", position: 'relative',
-              }}>
-                <div style={{ fontSize: 9, color: isSelected ? 'rgba(255,255,255,0.8)' : '#6B8ED6', fontWeight: 600, marginBottom: 2, textTransform: 'uppercase' }}>
-                  {['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][jsDay]}
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 900, color: isSelected ? 'white' : isToday ? '#2C64E5' : '#0D1B4E' }}>{day.getDate()}</div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, minHeight: 6 }}>
-                  {hasLogs    && <Dot color={isSelected ? 'rgba(255,255,255,0.9)' : '#2C64E5'} />}
+              <button
+                key={dateStr}
+                onClick={() => !isFuture && setSelectedDay(dateStr)}
+                className={[
+                  'tp-cal-day',
+                  isToday && 'today',
+                  isSelected && 'selected',
+                  hasLogs && 'haslogs',
+                  isFuture && 'future',
+                ].filter(Boolean).join(' ')}
+              >
+                <div className="dow">{['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][jsDay]}</div>
+                <div className="num">{day.getDate()}</div>
+                <div className="marker">
+                  {hasLogs    && <Dot color={isSelected ? 'rgba(255,255,255,0.9)' : 'var(--accent, #2C64E5)'} />}
                   {hasWorkout && !hasLogs && <Dot color={isSelected ? 'rgba(255,255,255,0.5)' : '#C5D8F5'} />}
                 </div>
               </button>
@@ -85,8 +94,8 @@ export default function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, t
           })}
         </div>
 
-        <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 10, color: '#6B8ED6' }}>
-          <Legend color="#2C64E5" label="Séance loggée" />
+        <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 10, color: 'var(--muted, #6B8ED6)' }}>
+          <Legend color="var(--accent, #2C64E5)" label="Séance loguée" />
           <Legend color="#C5D8F5" label="Séance planifiée" />
         </div>
       </SurfaceCard>
@@ -95,29 +104,29 @@ export default function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, t
       <SurfaceCard padded>
         <SectionHead
           title={selectedDayLabel || 'Sélectionne un jour'}
-          caption={Object.keys(logsForDay).length ? `${Object.keys(logsForDay).length} exercice(s) loggé(s)` : 'Aucune performance ce jour'}
+          caption={Object.keys(logsForDay).length ? `${Object.keys(logsForDay).length} exercice(s) logué(s)` : 'Aucune performance ce jour'}
         />
         {Object.keys(logsForDay).length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(logsForDay).map(([exName, logs]) => (
-              <div key={exName} style={{ border: '1.5px solid #C5D8F5', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
-                <div style={{ background: '#EEF4FF', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 800, color: '#0D1B4E', fontSize: 13 }}>{exName}</div>
+              <div key={exName} className="tp-log-card">
+                <div className="head">
+                  <div className="name">{exName}</div>
                   <StatusBadge tone="default">{logs.length} série(s)</StatusBadge>
                 </div>
-                <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="body">
                   {logs.map((log, i) => {
                     const perf = latestPerfText(log)
                     const note = getLogNote(log)
                     const time = log.logged_at ? new Date(log.logged_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null
                     return (
-                      <div key={log.id || i} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 0', borderBottom: i < logs.length - 1 ? '1px solid #F0F5FF' : 'none' }}>
-                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#2C64E5', color: 'white', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                      <div key={log.id || i} className="tp-log-entry">
+                        <div className="tp-log-num">{i + 1}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: '#0D1B4E' }}>{perf}</div>
-                          {note && <div style={{ fontSize: 11, color: '#6B8ED6', marginTop: 2 }}>{note}</div>}
+                          <div className="tp-log-perf">{perf}</div>
+                          {note && <div className="tp-log-note">{note}</div>}
                         </div>
-                        {time && <div style={{ fontSize: 10, color: '#9AAAD4', flexShrink: 0 }}>{time}</div>}
+                        {time && <div className="tp-log-time">{time}</div>}
                       </div>
                     )
                   })}
@@ -126,7 +135,7 @@ export default function HistoryCalendar({ weekDays, weekOffset, setWeekOffset, t
             ))}
           </div>
         ) : (
-          <EmptyPanel title="Aucune perf ce jour" description={selectedDay && selectedDay <= todayStr ? "Tu n'as rien loggé ce jour-là." : "Sélectionne un jour passé pour voir tes performances."} />
+          <EmptyPanel title="Aucune perf ce jour" description={selectedDay && selectedDay <= todayStr ? "Tu n'as rien logué ce jour-là." : "Sélectionne un jour passé pour voir tes performances."} />
         )}
       </SurfaceCard>
 
@@ -156,26 +165,26 @@ function ArchivedCyclesView({ archivedWorkouts }) {
       <SectionHead title="📚 Cycles précédents" caption="Tes anciens programmes d'entraînement" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {cycles.map(cycle => (
-          <div key={cycle.name} style={{ border: '1px solid #DCE5F3', borderRadius: 12, overflow: 'hidden' }}>
-            <button onClick={() => setOpenCycle(openCycle === cycle.name ? null : cycle.name)} style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: '#F8FAFF', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 800, color: '#0D1B4E' }}>{cycle.name}</span>
+          <div key={cycle.name} className="tp-accordion">
+            <button onClick={() => setOpenCycle(openCycle === cycle.name ? null : cycle.name)} className="tp-accordion-head">
+              <span className="t">{cycle.name}</span>
               <span>{openCycle === cycle.name ? '▲' : '▼'}</span>
             </button>
             {openCycle === cycle.name && (
-              <div style={{ padding: '12px 16px', background: 'white', borderTop: '1px solid #E8ECF5' }}>
+              <div className="tp-accordion-body">
                 {cycle.workouts.map(workout => (
                   <div key={workout.id} style={{ marginBottom: 12 }}>
-                    <button onClick={() => setOpenWorkout(openWorkout === workout.id ? null : workout.id)} style={{ width: '100%', textAlign: 'left', background: '#FAFBFF', border: '1px solid #DCE5F3', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
-                      <div style={{ fontWeight: 700 }}>{workout.name}</div>
-                      <div style={{ fontSize: 11, color: '#6B7A99' }}>{getWorkoutDayLabel(workout.day_of_week)} · {(workout.exercises || []).length} exos</div>
+                    <button onClick={() => setOpenWorkout(openWorkout === workout.id ? null : workout.id)} className="tp-wk-mini">
+                      <div className="t">{workout.name}</div>
+                      <div className="m">{getWorkoutDayLabel(workout.day_of_week)} · {(workout.exercises || []).length} exos</div>
                     </button>
                     {openWorkout === workout.id && (
-                      <div style={{ marginTop: 8, paddingLeft: 16, borderLeft: '2px solid #2C64E5' }}>
+                      <div style={{ marginTop: 8, paddingLeft: 16, borderLeft: '2px solid var(--accent, #2C64E5)' }}>
                         {(workout.exercises || []).map(ex => (
-                          <div key={ex.id} style={{ padding: '8px 0', borderBottom: '1px solid #F0F5FF' }}>
-                            <div style={{ fontWeight: 600 }}>{ex.name}</div>
-                            <div style={{ fontSize: 12, color: '#6B7A99' }}>{ex.sets} × {ex.reps} · {ex.rest}</div>
-                            {ex.note && <div style={{ fontSize: 11, color: '#4A6FB5' }}>📝 {ex.note}</div>}
+                          <div key={ex.id} className="tp-ex-sub">
+                            <div className="n">{ex.name}</div>
+                            <div className="m">{ex.sets} × {ex.reps} · {ex.rest}</div>
+                            {ex.note && <div className="note">📝 {ex.note}</div>}
                           </div>
                         ))}
                       </div>
@@ -193,7 +202,7 @@ function ArchivedCyclesView({ archivedWorkouts }) {
 
 function NavBtn({ onClick, disabled, children }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ background: disabled ? '#F5F5F5' : '#EEF4FF', border: '1px solid #C5D8F5', borderRadius: 8, padding: '6px 12px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 700, color: disabled ? '#CCC' : '#2C64E5', fontSize: 16 }}>
+    <button onClick={onClick} disabled={disabled} className="tp-cal-navbtn">
       {children}
     </button>
   )
