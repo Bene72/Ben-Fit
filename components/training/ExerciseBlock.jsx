@@ -1,7 +1,14 @@
 /**
  * components/training/ExerciseBlock.jsx
  * Rendu d'un bloc exercice — Workout Block / groupe / single.
- * Élimine la duplication mobile/desktop du fichier d'origine.
+ *
+ * HARMONISATION : ce fichier s'appuie maintenant sur les classes tp-wblock*
+ * et tp-group* déjà déclarées dans <TrainingStyles /> (pages/training.js).
+ * Avant, ce composant recréait sa propre feuille de style inline (couleurs
+ * en dur #0D1B4E, #2C64E5…) qui ne suivait pas les tokens var(--navy) /
+ * var(--accent) / var(--gold) posés lors du redesign de training.js — d'où
+ * un rendu légèrement différent du reste de la page. Même logique, mêmes
+ * props, juste l'habillage qui rejoint le système commun.
  *
  * Workout Block a 2 rendus coexistants :
  *  - v1 (historique) : liste statique, non loguable dans sa propre logique.
@@ -17,7 +24,7 @@ import ExerciseWorkspace  from './ExerciseWorkspace'
 export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, loggingIds, logsByName, onLogInput, onLog, onImageOpen, isMobile, blockInputs, loggingBlockIds, blockResults, onBlockInput, onLogBlock }) {
   if (block.kind === 'group' && block.groupType === 'Workout Block') {
     const meta = findGroupMeta(block.exercises)
-    const tc = WORKOUT_BLOCK_COLORS[meta.type] || '#0D1B4E'
+    const tc = WORKOUT_BLOCK_COLORS[meta.type] || 'var(--navy, #0D1B4E)'
 
     if (meta.uiVersion === 2) {
       return (
@@ -32,23 +39,19 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
     }
 
     return (
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 12px rgba(13,27,78,0.1)', marginBottom: 4 }}>
-        <div style={{ background: tc, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="tp-wblock" style={{ border: `2px solid ${tc}` }}>
+        <div className="tp-wblock-head" style={{ background: tc }}>
           <span style={{ fontSize: 14 }}>🔥</span>
-          <div style={{ color: 'white', fontWeight: 800, fontSize: 11, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div className="label">
             {meta.type || 'Workout Block'}{meta.cap ? ` — CAP ${meta.cap} min` : ''}{meta.rounds && meta.rounds > 1 ? ` · ${meta.rounds} rounds` : ''}
           </div>
         </div>
-        <div style={{ background: '#0D1B4E', padding: '8px 12px' }}>
-          {block.exercises.map((e, i) => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: i < block.exercises.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+        <div className="tp-wblock-body">
+          {block.exercises.map((e) => (
+            <div key={e.id} className="tp-wblock-row">
               <span style={{ color: tc, fontSize: 11, fontWeight: 800, minWidth: 12 }}>•</span>
-              <span style={{ color: 'white', fontSize: 12, fontWeight: 500, flex: 1 }}>{e.name}</span>
-              {e.rest && (
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>
-                  ⏱ {e.rest}
-                </span>
-              )}
+              <span style={{ flex: 1 }}>{e.name}</span>
+              {e.rest && <span className="tp-wblock-rest">⏱ {e.rest}</span>}
             </div>
           ))}
         </div>
@@ -57,10 +60,10 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
   }
 
   if (block.kind === 'group') {
-    const gc = GROUP_COLORS[block.groupType] || '#3A5FD4'
+    const gc = GROUP_COLORS[block.groupType] || 'var(--accent, #3A5FD4)'
     return (
-      <div style={{ borderRadius: 12, border: `2px solid ${gc}22`, overflow: 'hidden', background: 'white' }}>
-        <div style={{ background: gc, color: 'white', padding: '6px 10px', fontWeight: 800, letterSpacing: '1px', fontSize: 10, textTransform: 'uppercase' }}>⚡ {block.groupType}</div>
+      <div className="tp-group" style={{ borderColor: `${gc}22` }}>
+        <div className="tp-group-head" style={{ background: gc }}>⚡ {block.groupType}</div>
         <div style={{ padding: isMobile ? 8 : 10 }}>
           {block.exercises.map((exercise) => (
             <ExerciseRow key={exercise.id} exercise={exercise} selectedId={selectedId} onSelect={onSelect} logInputs={logInputs} loggingIds={loggingIds} logsByName={logsByName} onLogInput={onLogInput} onLog={onLog} onImageOpen={onImageOpen} isMobile={isMobile} mb={8} />
@@ -95,29 +98,29 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
   const lastResult = ((blockResults && blockResults[groupId]) || [])[0]
 
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 12px rgba(13,27,78,0.1)', marginBottom: 4 }}>
-      <div style={{ background: tc, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ color: 'white', fontWeight: 800, fontSize: 11, letterSpacing: '0.5px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="tp-wblock" style={{ border: `2px solid ${tc}` }}>
+      <div className="tp-wblock-head" style={{ background: tc, justifyContent: 'space-between' }}>
+        <div className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 14 }}>🔥</span>
           {meta.type || 'Workout Block'}{meta.cap ? ` — CAP ${meta.cap} min` : ''}
         </div>
         {meta.rounds && meta.rounds > 1 && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{meta.rounds} rounds</div>
+          <div className="rounds">{meta.rounds} rounds</div>
         )}
       </div>
 
-      <div style={{ background: '#0D1B4E', padding: '4px 12px 10px' }}>
-        {block.exercises.map((e, i) => (
-          <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+      <div className="tp-wblock-body" style={{ paddingTop: 4, paddingBottom: 10 }}>
+        {block.exercises.map((e) => (
+          <div key={e.id} className="tp-wblock-row">
             <span style={{ color: tc, fontWeight: 800 }}>•</span>
             <span style={{ flex: 1 }}>{e.name}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ background: '#F8FBFF', padding: 16, borderTop: '1px solid #DCE5F3' }}>
+      <div className="tp-wblock-score">
         {lastResult && (
-          <div style={{ fontSize: 11, color: '#6B7A99', marginBottom: 10 }}>
+          <div className="tp-wblock-last">
             Dernier résultat : {lastResult.time_result && `${lastResult.time_result}`}
             {lastResult.rounds_result != null && ` ${lastResult.rounds_result} rounds`}
             {lastResult.reps_result != null && ` +${lastResult.reps_result} reps`}
@@ -125,50 +128,41 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
           </div>
         )}
 
-        <div style={{ fontSize: 10, fontWeight: 800, color: '#0D1B4E', letterSpacing: '0.5px', marginBottom: 8 }}>
-          SCORE DE LA SÉANCE
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${fields.length + 1}, 1fr)`, gap: 8, marginBottom: 12 }}>
+        <div className="tp-wblock-sectlabel">SCORE DE LA SÉANCE</div>
+        <div className="tp-score-grid" style={{ gridTemplateColumns: `repeat(${fields.length + 1}, 1fr)` }}>
           {fields.includes('time') && (
             <ScoreField label="Temps">
-              <input value={input.time || ''} onChange={(e) => onBlockInput(groupId, 'time', e.target.value)} placeholder="12:34" style={scoreInputStyle()} />
+              <input className="tp-score-input" value={input.time || ''} onChange={(e) => onBlockInput(groupId, 'time', e.target.value)} placeholder="12:34" />
             </ScoreField>
           )}
           {fields.includes('rounds') && (
             <ScoreField label="Rounds">
-              <input value={input.rounds || ''} onChange={(e) => onBlockInput(groupId, 'rounds', e.target.value)} placeholder="5" style={scoreInputStyle()} />
+              <input className="tp-score-input" value={input.rounds || ''} onChange={(e) => onBlockInput(groupId, 'rounds', e.target.value)} placeholder="5" />
             </ScoreField>
           )}
           {fields.includes('reps') && (
             <ScoreField label="Reps +">
-              <input value={input.reps || ''} onChange={(e) => onBlockInput(groupId, 'reps', e.target.value)} placeholder="0" style={scoreInputStyle()} />
+              <input className="tp-score-input" value={input.reps || ''} onChange={(e) => onBlockInput(groupId, 'reps', e.target.value)} placeholder="0" />
             </ScoreField>
           )}
           <ScoreField label="Niveau">
-            <select value={input.level || 'rx'} onChange={(e) => onBlockInput(groupId, 'level', e.target.value)} style={scoreInputStyle()}>
+            <select className="tp-score-input" value={input.level || 'rx'} onChange={(e) => onBlockInput(groupId, 'level', e.target.value)}>
               <option value="rx">RX'd</option>
               <option value="scaled">Scaled</option>
             </select>
           </ScoreField>
         </div>
 
-        <div style={{ fontSize: 10, fontWeight: 800, color: '#0D1B4E', letterSpacing: '0.5px', marginBottom: 6 }}>
-          JOURNAL DE SÉANCE
-        </div>
+        <div className="tp-wblock-sectlabel" style={{ marginBottom: 6 }}>JOURNAL DE SÉANCE</div>
         <textarea
+          className="tp-wblock-note"
           value={input.note || ''}
           onChange={(e) => onBlockInput(groupId, 'note', e.target.value)}
           placeholder="Écris comme tu réfléchis — sensations, douleur, ce qu'il faut tester la prochaine fois…"
           rows={3}
-          style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid #C5D8F5', background: 'white', fontSize: 13, color: '#0D1B4E', lineHeight: 1.6, resize: 'vertical', fontFamily: "'DM Sans',sans-serif", boxSizing: 'border-box' }}
         />
 
-        <button
-          type="button"
-          onClick={() => onLogBlock(groupId, workoutId, meta)}
-          disabled={logging}
-          style={{ width: '100%', marginTop: 12, border: 'none', background: '#2C64E5', color: 'white', borderRadius: 8, padding: 11, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
-        >
+        <button type="button" className="tp-wblock-submit" onClick={() => onLogBlock(groupId, workoutId, meta)} disabled={logging}>
           {logging ? '...' : '✓ Enregistrer'}
         </button>
       </div>
@@ -178,13 +172,9 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
 
 function ScoreField({ label, children }) {
   return (
-    <div>
-      <label style={{ fontSize: 10, fontWeight: 800, color: '#6B7A99', display: 'block', marginBottom: 4 }}>{label}</label>
+    <div className="tp-score-field">
+      <label>{label}</label>
       {children}
     </div>
   )
-}
-
-function scoreInputStyle() {
-  return { width: '100%', boxSizing: 'border-box', padding: '9px 10px', borderRadius: 8, border: '1px solid #C5D8F5', background: 'white', fontSize: 13, color: '#0D1B4E', fontFamily: "'DM Sans',sans-serif" }
 }
