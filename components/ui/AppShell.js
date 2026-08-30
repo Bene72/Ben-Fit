@@ -6,14 +6,21 @@ import { signOutAndRedirect } from '../../lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-/* ─── Tokens locaux alignés sur globals.css ─────────────────────────────── */
+/* ─── Tokens locaux alignés sur globals.css ───────────────────────────────
+ * HARMONISATION : mêmes valeurs qu'avant (fallback), mais référencées via
+ * les CSS custom properties var(--navy)/var(--accent)/var(--gold) posées
+ * lors du redesign de pages/training.js, pour que l'AppShell (sidebar,
+ * topbar, bottom nav, badges) suive le même système de tokens que le reste
+ * de l'app plutôt que des hex isolés. */
 const T = {
-  navy:      '#0D1B4E',
-  navyDeep:  '#09123A',
-  blue:      '#2C64E5',
+  navy:      'var(--navy, #0D1B4E)',
+  navyDeep:  'var(--navy-mid, #12235E)', // --navy-deep n'existe pas dans tokens.css ; --navy-mid est le vrai token voisin
+  blue:      'var(--accent, #3B82F6)',
+  blueDeep:  'var(--accent-deep, #1E4FC4)', // pas de token --accent-deep en prod, à défaut on garde ce dégradé
   blueLight: 'rgba(44,100,229,0.18)',
+  gold:      'var(--gold, #e8c84a)', // --gold absent de tokens.css : fallback = valeur actuellement en prod
   muted:     '#6B8ED6',
-  bg:        '#F8FAFF',
+  bg:        'var(--bg, #F8FAFF)',
   white:     '#FFFFFF',
   border:    'rgba(255,255,255,0.1)',
   textSm:    13,
@@ -491,8 +498,18 @@ export default function AppShell({
               <p style={{ margin: '4px 0 0', color: '#6B7A99', fontSize: 13 }}>{subtitle}</p>
             )}
             {cycleName && (
-              <div style={{ marginTop: 4, fontSize: 12, color: T.blue, fontWeight: 700 }}>
-                🏆 {cycleName}
+              <div style={{
+                display:      'inline-flex',
+                alignItems:   'center',
+                gap:          6,
+                marginTop:    8,
+                padding:      '5px 12px',
+                borderRadius: 100,
+                background:   `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
+                boxShadow:    '0 6px 16px rgba(13,27,78,0.18)',
+              }}>
+                <span style={{ fontSize: 12 }}>🏆</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: T.gold }}>{cycleName}</span>
               </div>
             )}
           </div>
@@ -501,12 +518,12 @@ export default function AppShell({
             {coachAvailable && coachName && (
               <div style={{
                 fontSize:     11,
-                color:        '#3A7A5A',
+                color:        'var(--green, #3A7A5A)',
                 background:   '#F0FBF4',
-                padding:      '4px 10px',
-                borderRadius: 20,
+                padding:      '5px 12px',
+                borderRadius: 100,
                 border:       '1px solid #C9E9D5',
-                fontWeight:   600,
+                fontWeight:   700,
                 whiteSpace:   'nowrap',
               }}>
                 🟢 {coachName} disponible
