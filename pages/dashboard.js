@@ -480,7 +480,7 @@ export default function Dashboard() {
                           <div
                             style={{
                               height: '100%',
-                              background: 'linear-gradient(90deg, var(--gold), #D4A017)',
+                              background: 'linear-gradient(90deg, var(--gold), var(--gold-deep))',
                               width: `${Math.min(100, adherence)}%`,
                               borderRadius: 99,
                               transition: 'width 0.6s ease',
