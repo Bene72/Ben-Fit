@@ -18,7 +18,7 @@ const T = {
   blue:      'var(--accent, #3B82F6)',
   blueDeep:  'var(--accent-deep, #1E4FC4)', // pas de token --accent-deep en prod, à défaut on garde ce dégradé
   blueLight: 'rgba(44,100,229,0.18)',
-  gold:      'var(--gold, #e8c84a)', // --gold absent de tokens.css : fallback = valeur actuellement en prod
+  gold:      'var(--gold)', // défini dans styles/tokens.css
   muted:     '#6B8ED6',
   bg:        'var(--bg, #F8FAFF)',
   white:     '#FFFFFF',
