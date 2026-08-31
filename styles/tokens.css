@@ -1,40 +1,83 @@
+/* ── tokens.css — Ben&Fit — SOURCE UNIQUE DE VÉRITÉ ─────────────────────────
+   Toutes les couleurs/radius/ombres de l'app passent par ici. Aucune autre
+   feuille de style ne doit redéfinir un :root — voir ui-foundation.css qui
+   ne contient plus que des classes de composants (.ui-*, .btn, .card…).
+   ────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  /* ── Ton Bleu Logo (Intouchable & Premium) ─────────────────────── */
+  /* ── Marque — Navy (intouchable) ──────────────────────────────────── */
   --navy:         #0D1B4E;
-  --navy-mid:     #12235E;
-  --navy-light:   #1E3580;
+  --navy-mid:     #1A2B6B;
+  --navy-light:   #2A3F8F;
+  --navy-deep:    #081230;
 
-  /* ── Nouvelle palette neutre (Fini le beige, place au modernisme) ── */
-  --bg:           #F4F7FC;   /* Fond de page lumineux et frais */
-  --surface:      #E9EFF8;   /* Zone intermédiaire épurée */
-  --card:         #FFFFFF;   /* Cartes blanches pures */
-  --card-warm:    #FAFCFF;   /* Variante de carte */
+  /* ── Marque — Or (validé, ne pas changer sans décision explicite) ──── */
+  --gold:         #e8c84a;
+  --gold-deep:    #C9A83E; /* variante plus sombre du même or, pour dégradés/hover — pas un autre doré */
+  --gold-dim:     rgba(232, 200, 74, 0.15);
+  --gold-soft:    rgba(232, 200, 74, 0.08);
 
-  /* ── Bordures et détails fins ───────────────────────────────────── */
-  --border:       rgba(13, 27, 78, 0.08); /* Bordures subtiles */
-  --border-soft:  rgba(13, 27, 78, 0.04);
+  /* ── Neutres / surfaces ──────────────────────────────────────────── */
+  --bg:              #F3F5FA;
+  --surface:         #FFFFFF;
+  --surface-muted:   #F7F9FC;
+  --surface-strong:  #EEF1F8;
+  --card:            #FFFFFF;
+  --card-warm:       #FAFCFF;
+  --border:          #E4E9F2;
+  --border-soft:     rgba(13, 27, 78, 0.06);
+  --border-strong:   #D6DEEA;
 
-  /* ── Typographie ────────────────────────────────────────────────── */
-  --text:         #0D1B4E;   /* Ton bleu logo pour le texte principal */
-  --text-soft:    #52608C;   /* Bleu-gris élégant pour les sous-titres */
-  --text-faint:   #8E9BBF;   /* Pour les textes très secondaires */
+  /* ── Texte ───────────────────────────────────────────────────────── */
+  --text:        #0D1B4E;
+  --text-soft:   #58628A;
+  --text-faint:  #94A0BF;
 
-  /* ── Accents & Statuts ──────────────────────────────────────────── */
-  --success:      #10B981;   /* Vert émeraude moderne */
-  --success-bg:   #E6F4EA;
-  --danger:       #EF4444;   /* Rouge tech vif */
-  --danger-bg:    #FEE2E2;
-  --accent:       #3B82F6;   /* Bleu électrique pour les boutons/actions */
-  --accent-soft:  rgba(59, 130, 246, 0.1);
+  /* ── Accent fonctionnel (bleu — actions secondaires, PAS la marque) ── */
+  --accent:      #3B6BE0;
+  --accent-soft: rgba(59, 107, 224, 0.1);
+  --accent-2:    #4A6FD4;
 
-  /* ── Radius & Coins arrondis modernes ───────────────────────────── */
-  --r-sm: 10px;   /* Boutons, badges, inputs plus acérés */
-  --r-md: 16px;   /* Cartes standard épurées */
-  --r-lg: 24px;   /* Hero, grandes sections */
+  /* ── Statuts ─────────────────────────────────────────────────────── */
+  --success:      #17A673;
+  --success-soft: rgba(23, 166, 115, 0.12);
+  --success-bg:   #E8F5EE;
+  --warning:      #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --warning-bg:   #FEF3C7;
+  --danger:       #E5484D;
+  --danger-soft:  rgba(229, 72, 77, 0.12);
+  --danger-bg:    #FEE8E0;
+  --green:        #3A8A5A; /* alias historique utilisé par plusieurs pages */
 
-  /* ── Ombres haut de gamme (Effet de profondeur aérien) ────────── */
-  --shadow-sm: 0 2px 12px rgba(13, 27, 78, 0.03);
-  --shadow-md: 0 12px 34px rgba(13, 27, 78, 0.06);
-  --shadow-lg: 0 24px 60px rgba(13, 27, 78, 0.1);
+  /* ── Radius ──────────────────────────────────────────────────────── */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  /* alias legacy — certaines classes .ui-* attendent ce nommage */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  /* ── Ombres ──────────────────────────────────────────────────────── */
+  --shadow-sm:   0 2px 12px rgba(13, 27, 78, 0.04);
+  --shadow-md:   0 10px 30px rgba(13, 27, 78, 0.07);
+  --shadow-lg:   0 24px 60px rgba(13, 27, 78, 0.12);
   --shadow-hero: 0 32px 70px rgba(13, 27, 78, 0.14);
+
+  /* ── Espacement ──────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* ── Typographie ─────────────────────────────────────────────────── */
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-sans:    'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
