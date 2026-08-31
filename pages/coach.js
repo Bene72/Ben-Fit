@@ -18,6 +18,7 @@ import ClientDetail from '../components/coach/ClientDetail'
 import ActivityFeed from '../components/coach/ActivityFeed'
 import CalendarPanel from '../components/coach/CalendarPanel'
 import CycleTasksPanel from '../components/coach/CycleTasksPanel'
+import CoachHome, { computeAtRiskClients } from '../components/coach/CoachHome'
 
 import { OFFERS, S, font, bebas, daysAgo, toClientModel, computeCompliance } from '../lib/coachDashboard/shared'
 
@@ -311,6 +312,7 @@ export default function CoachDashboard() {
 
   const activeClients = clients.filter((c) => !c.archived && c.status === 'actif')
   const archivedClients = clients.filter((c) => c.archived)
+  const atRiskClients = computeAtRiskClients(clients)
   const mrr = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
   const pendingMsg = clients.reduce((s, c) => s + c.messages, 0)
   const selectedClient = selected ? clients.find((c) => c.id === selected) : null
@@ -656,6 +658,20 @@ export default function CoachDashboard() {
                   onClick={() => setActiveTab('clients')}
                 />
               )}
+              {atRiskClients.length > 0 && (
+                <KpiCard
+                  icon="⚠️"
+                  label="À risque"
+                  value={atRiskClients.length}
+                  sub="sans bilan récent"
+                  accent={S.red}
+                  onClick={() => {
+                    setActiveTab('clients')
+                    setClientSubTab('actifs')
+                    setClientSort('recent')
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -684,6 +700,10 @@ export default function CoachDashboard() {
               }}
             >
               <div>
+                {clientSubTab === 'actifs' && (
+                  <CoachHome clients={clients} onSelectClient={(id) => setSelected(id)} />
+                )}
+
                 {/* Sous-onglets Actifs / Anciens clients */}
                 <div
                   style={{
