@@ -1,4 +1,12 @@
-/** components/training/CompactExerciseRow.jsx */
+/**
+ * components/training/CompactExerciseRow.jsx
+ *
+ * FIX : `exercise.note` n'était jamais affiché — le champ existe bien en
+ * base (rempli par le coach via "Notes / consigne coach" dans ProgrammeTab)
+ * mais ce composant, qui rend chaque ligne d'exercice côté athlète, ne le
+ * lisait tout simplement pas. Ajout d'une ligne de note sous les badges,
+ * dans le même esprit que ce que voit déjà le coach.
+ */
 export default function CompactExerciseRow({ exercise, selected, latestLog, onSelect, isMobile }) {
   return (
     <button type="button" onClick={onSelect} style={{
@@ -23,6 +31,19 @@ export default function CompactExerciseRow({ exercise, selected, latestLog, onSe
           <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', background: '#2C64E5', color: 'white', borderRadius: 6 }}>{exercise.sets} × {exercise.reps}</span>
           <span style={{ fontSize: 11, padding: '3px 8px', background: '#EEF4FF', color: '#2C64E5', borderRadius: 6, border: '1px solid #DCE5F3' }}>{exercise.rest || '—'}</span>
         </div>
+        {exercise.note && (
+          <div style={{
+            fontSize: 11.5,
+            color: '#6B7A99',
+            marginTop: 5,
+            lineHeight: 1.4,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            📋 {exercise.note}
+          </div>
+        )}
       </div>
       <div style={{ color: selected ? '#2C64E5' : '#E0E0E0', fontSize: 20 }}>{selected ? '●' : '○'}</div>
     </button>
