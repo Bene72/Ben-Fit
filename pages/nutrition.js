@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { watchBreakpoint } from '../lib/breakpoints'
 import { todayString, clampPercent } from '../lib/nutritionUtils'
 
 import AppShell from '../components/ui/AppShell'
@@ -486,12 +487,7 @@ export default function NutritionPage() {
   const [form, setForm] = useState({ calories: '', protein: '', carbs: '', fat: '', note: '' })
 
   // ── Responsive ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const handle = () => setIsMobile(window.innerWidth < 980)
-    handle()
-    window.addEventListener('resize', handle)
-    return () => window.removeEventListener('resize', handle)
-  }, [])
+  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
 
   // ── Boot ────────────────────────────────────────────────────────────────────
   useEffect(() => {
