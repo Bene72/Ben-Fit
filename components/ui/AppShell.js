@@ -5,6 +5,7 @@ import { watchBreakpoint } from '../../lib/breakpoints';
 import { signOutAndRedirect } from '../../lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { Icon } from './Icon';
 
 /* ─── Tokens locaux alignés sur globals.css ───────────────────────────────
  * HARMONISATION : mêmes valeurs qu'avant (fallback), mais référencées via
@@ -71,7 +72,9 @@ function NavItem({ href, icon, children, collapsed }) {
         onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(107,142,214,0.12)'; }}
         onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
       >
-        <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+        <span style={{ display: 'flex', flexShrink: 0 }}>
+          <Icon name={icon} size={16} color={isActive ? T.white : T.muted} />
+        </span>
         {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>}
       </div>
     </Link>
@@ -180,21 +183,21 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                   Offres et Calendrier sont des onglets internes de /coach (pas des
                   routes séparées) — on les rend accessibles depuis la sidebar via
                   un deep-link ?tab=, lu par pages/coach.js au chargement. */}
-              <NavItem href="/coach" icon="🏠" collapsed={collapsed}>Accueil</NavItem>
-              <NavItem href="/coach?tab=offres" icon="📦" collapsed={collapsed}>Offres</NavItem>
-              <NavItem href="/coach?tab=calendar" icon="📅" collapsed={collapsed}>Calendrier</NavItem>
-              <NavItem href="/coach/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
+              <NavItem href="/coach" icon="home" collapsed={collapsed}>Accueil</NavItem>
+              <NavItem href="/coach?tab=offres" icon="archive" collapsed={collapsed}>Offres</NavItem>
+              <NavItem href="/coach?tab=calendar" icon="calendar" collapsed={collapsed}>Calendrier</NavItem>
+              <NavItem href="/coach/activite" icon="bilan" collapsed={collapsed}>Activité</NavItem>
 
               {/* Séparateur */}
               <div style={{ borderTop: `1px solid ${T.border}`, margin: '12px 16px 8px' }} />
             </>
           ) : (
             <>
-              <NavItem href="/dashboard" icon="📊" collapsed={collapsed}>Aperçu</NavItem>
-              <NavItem href="/training"  icon="💪" collapsed={collapsed}>Programme</NavItem>
-              <NavItem href="/nutrition" icon="🍽️" collapsed={collapsed}>Nutrition</NavItem>
-              <NavItem href="/bilan"     icon="📈" collapsed={collapsed}>Bilan</NavItem>
-              <NavItem href="/messages"  icon="💬" collapsed={collapsed}>Messages</NavItem>
+              <NavItem href="/dashboard" icon="dashboard" collapsed={collapsed}>Aperçu</NavItem>
+              <NavItem href="/training"  icon="training"  collapsed={collapsed}>Programme</NavItem>
+              <NavItem href="/nutrition" icon="nutrition" collapsed={collapsed}>Nutrition</NavItem>
+              <NavItem href="/bilan"     icon="bilan"     collapsed={collapsed}>Bilan</NavItem>
+              <NavItem href="/messages"  icon="message"   collapsed={collapsed}>Messages</NavItem>
             </>
           )}
         </nav>
@@ -261,19 +264,19 @@ function UserFooter({ user, collapsed }) {
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
 // Nav coach : uniquement les pages qui existent réellement (voir plus haut).
 const COACH_NAV = [
-  { href: '/coach', icon: '🏠', label: 'Accueil' },
-  { href: '/coach?tab=offres', icon: '📦', label: 'Offres' },
-  { href: '/coach?tab=calendar', icon: '📅', label: 'Calendrier' },
-  { href: '/coach/activite', icon: '📋', label: 'Activité' },
+  { href: '/coach', icon: 'home', label: 'Accueil' },
+  { href: '/coach?tab=offres', icon: 'archive', label: 'Offres' },
+  { href: '/coach?tab=calendar', icon: 'calendar', label: 'Calendrier' },
+  { href: '/coach/activite', icon: 'bilan', label: 'Activité' },
 ];
 
 // Nav client : juste les icônes, en bas — plus fluide sur mobile qu'un tiroir latéral
 const CLIENT_NAV = [
-  { href: '/dashboard', icon: '📊', label: 'Aperçu' },
-  { href: '/training',  icon: '💪', label: 'Programme' },
-  { href: '/nutrition', icon: '🍽️', label: 'Nutrition' },
-  { href: '/bilan',     icon: '📈', label: 'Bilan' },
-  { href: '/messages',  icon: '💬', label: 'Messages' },
+  { href: '/dashboard', icon: 'dashboard', label: 'Aperçu' },
+  { href: '/training',  icon: 'training',  label: 'Programme' },
+  { href: '/nutrition', icon: 'nutrition', label: 'Nutrition' },
+  { href: '/bilan',     icon: 'bilan',     label: 'Bilan' },
+  { href: '/messages',  icon: 'message',   label: 'Messages' },
 ];
 
 function BottomNav({ isCoach }) {
@@ -316,7 +319,9 @@ function BottomNav({ isCoach }) {
               transition:     'color 0.15s, border-color 0.15s',
               background:     isActive ? 'rgba(44,100,229,0.12)' : 'transparent',
             }}>
-              <span style={{ fontSize: showLabels ? 18 : 22, lineHeight: 1 }}>{item.icon}</span>
+              <span style={{ fontSize: showLabels ? 18 : 22, lineHeight: 1, display: 'flex' }}>
+                <Icon name={item.icon} size={showLabels ? 18 : 22} color={isActive ? T.white : T.muted} />
+              </span>
               {showLabels && (
                 <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
                   {item.label}
