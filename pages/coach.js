@@ -19,6 +19,8 @@ import ActivityFeed from '../components/coach/ActivityFeed'
 import CalendarPanel from '../components/coach/CalendarPanel'
 import CycleTasksPanel from '../components/coach/CycleTasksPanel'
 import CoachHome, { computeAtRiskClients } from '../components/coach/CoachHome'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
+import { Icon } from '../components/ui/Icon'
 
 import { OFFERS, S, font, bebas, daysAgo, toClientModel, computeCompliance } from '../lib/coachDashboard/shared'
 
@@ -338,44 +340,7 @@ export default function CoachDashboard() {
   }
   const displayedClients = [...searchedClients].sort(SORTERS[clientSort] || SORTERS.recent)
 
-  if (loading || !user)
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: S.bg,
-          fontFamily: font,
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: `3px solid ${S.border}`,
-              borderTopColor: S.gold,
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 12px',
-            }}
-          />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          <div
-            style={{
-              fontSize: 13,
-              color: S.muted,
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-            }}
-          >
-            Chargement
-          </div>
-        </div>
-      </div>
-    )
+  if (loading || !user) return <LoadingSpinner full gold message="Chargement" />
 
   if (error)
     return (
@@ -477,9 +442,9 @@ export default function CoachDashboard() {
             </div>
             <nav style={{ padding: '16px 10px', flex: 1 }}>
               {[
-                { id: 'clients', icon: '👥', label: 'Clients' },
-                { id: 'offres', icon: '📦', label: 'Offres' },
-                { id: 'calendar', icon: '📅', label: 'Calendrier' },
+                { id: 'clients', icon: 'coach', label: 'Clients' },
+                { id: 'offres', icon: 'archive', label: 'Offres' },
+                { id: 'calendar', icon: 'calendar', label: 'Calendrier' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -520,7 +485,7 @@ export default function CoachDashboard() {
                       }}
                     />
                   )}
-                  <span style={{ fontSize: 16 }}>{item.icon}</span>
+                  <Icon name={item.icon} size={16} color={activeTab === item.id ? S.gold : 'rgba(255,255,255,0.6)'} />
                   {item.label}
                 </button>
               ))}
@@ -547,7 +512,7 @@ export default function CoachDashboard() {
                   transition: 'all 0.15s',
                 }}
               >
-                <span style={{ fontSize: 16 }}>📋</span>
+                <Icon name="bilan" size={16} color="rgba(255,255,255,0.6)" />
                 Activité
               </button>
               <button
@@ -569,7 +534,8 @@ export default function CoachDashboard() {
                   marginTop: 12,
                 }}
               >
-                + Nouvel élève
+                <Icon name="plus" size={15} color={S.gold} />
+                Nouvel élève
               </button>
             </nav>
             <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -613,9 +579,13 @@ export default function CoachDashboard() {
                   fontWeight: 600,
                   cursor: 'pointer',
                   textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                ⏻ Se déconnecter
+                <Icon name="logout" size={13} color="rgba(255,255,255,0.55)" />
+                Se déconnecter
               </button>
             </div>
           </div>
@@ -635,9 +605,9 @@ export default function CoachDashboard() {
               }}
             >
               {[
-                { id: 'clients', icon: '👥' },
-                { id: 'offres', icon: '📦' },
-                { id: 'calendar', icon: '📅' },
+                { id: 'clients', icon: 'coach' },
+                { id: 'offres', icon: 'archive' },
+                { id: 'calendar', icon: 'calendar' },
               ].map((item) => (
                 <button
                   key={item.id}
@@ -656,9 +626,11 @@ export default function CoachDashboard() {
                     fontSize: 12,
                     fontWeight: 700,
                     flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
-                  {item.icon}
+                  <Icon name={item.icon} size={16} color={activeTab === item.id ? S.gold : S.muted} />
                 </button>
               ))}
               <button
@@ -674,9 +646,11 @@ export default function CoachDashboard() {
                   fontSize: 12,
                   fontWeight: 700,
                   flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                📋
+                <Icon name="bilan" size={16} color={S.muted} />
               </button>
             </div>
           )}
