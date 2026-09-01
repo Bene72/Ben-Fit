@@ -17,17 +17,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ci, inp, lbl, btn } from '../../lib/coachShared'
 import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
+import { watchBreakpoint } from '../../lib/breakpoints'
 import FoodBlock from '../nutrition/FoodBlock'
 import WeekTable from '../nutrition/WeekTable'
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(false)
-  useEffect(() => {
-    const check = () => setMobile(window.innerWidth < 640)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  useEffect(() => watchBreakpoint('compact', setMobile), [])
   return mobile
 }
 
