@@ -60,7 +60,7 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
   // fois que le coach ouvre un bloc différent (key={group.groupId} côté
   // ProgrammeTab force un remount, donc un nouvel useState initial).
   const [meta, setMeta] = useState(() => parseMeta(first?.note))
-  const tc = WORKOUT_BLOCK_COLORS[meta.type] || '#0D1B4E'
+  const tc = WORKOUT_BLOCK_COLORS[meta.type] || 'var(--navy)'
 
   const updateMeta = (field, value) => {
     if (!first) return
@@ -85,7 +85,7 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{readMeta.rounds} rounds</div>
           )}
         </div>
-        <div style={{ background: '#0D1B4E', padding: '4px 12px 10px' }}>
+        <div style={{ background: 'var(--navy)', padding: '4px 12px 10px' }}>
           {exercises.map((e) => (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
               <span style={{ color: tc, fontWeight: 800 }}>•</span>
@@ -94,7 +94,7 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
           ))}
         </div>
         {(readMeta.objective || readMeta.coachNote) && (
-          <div style={{ background: '#F8FBFF', padding: '8px 12px', borderTop: '1px solid #DCE5F3', fontSize: 11, color: '#6B7A99' }}>
+          <div style={{ background: 'var(--surface-muted)', padding: '8px 12px', borderTop: '1px solid var(--border-strong)', fontSize: 11, color: 'var(--text-soft)' }}>
             {readMeta.objective && <div>🎯 {readMeta.objective}</div>}
             {readMeta.coachNote && <div style={{ marginTop: readMeta.objective ? 3 : 0 }}>📋 {readMeta.coachNote}</div>}
           </div>
@@ -105,7 +105,7 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
 
   // ── Mode édition ──
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${tc}55`, margin: '8px 10px', background: '#FAFBFF' }}>
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${tc}55`, margin: '8px 10px', background: 'var(--surface-muted)' }}>
       <div style={{ padding: '7px 12px', background: tc, color: 'white', fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>🔥 Workout Block</span>
         <button
@@ -158,12 +158,12 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
                 <button
                   onClick={() => i > 0 && onMove(wId, ex.id, -1)}
                   disabled={i === 0}
-                  style={{ width: 20, height: 16, border: '1px solid #C5D0F0', borderRadius: 3, background: i === 0 ? '#F5F5F5' : 'white', color: i === 0 ? '#CCC' : '#0D1B4E', cursor: i === 0 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  style={{ width: 20, height: 16, border: '1px solid var(--border-strong)', borderRadius: 3, background: i === 0 ? 'var(--surface-strong)' : 'var(--card)', color: i === 0 ? 'var(--text-faint)' : 'var(--navy)', cursor: i === 0 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                 >▲</button>
                 <button
                   onClick={() => i < exercises.length - 1 && onMove(wId, ex.id, 1)}
                   disabled={i === exercises.length - 1}
-                  style={{ width: 20, height: 16, border: '1px solid #C5D0F0', borderRadius: 3, background: i === exercises.length - 1 ? '#F5F5F5' : 'white', color: i === exercises.length - 1 ? '#CCC' : '#0D1B4E', cursor: i === exercises.length - 1 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  style={{ width: 20, height: 16, border: '1px solid var(--border-strong)', borderRadius: 3, background: i === exercises.length - 1 ? 'var(--surface-strong)' : 'var(--card)', color: i === exercises.length - 1 ? 'var(--text-faint)' : 'var(--navy)', cursor: i === exercises.length - 1 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                 >▼</button>
               </div>
               <input
@@ -174,12 +174,12 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
               />
               <button
                 onClick={() => onDelete(wId, ex.id)}
-                style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'rgba(196,92,58,0.12)', color: '#C45C3A', cursor: 'pointer', fontSize: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'var(--danger-soft)', color: 'var(--danger)', cursor: 'pointer', fontSize: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >×</button>
             </div>
           ))}
           {exercises.length === 0 && (
-            <div style={{ fontSize: 12, color: '#9BA8C0', fontStyle: 'italic' }}>Aucun mouvement — clique "+ Mouvement".</div>
+            <div style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic' }}>Aucun mouvement — clique "+ Mouvement".</div>
           )}
         </div>
       </div>
