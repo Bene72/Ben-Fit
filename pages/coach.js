@@ -35,6 +35,16 @@ export default function CoachDashboard() {
   const [archivingClient, setArchivingClient] = useState(null)
   const [activeTab, setActiveTab] = useState('clients')
   const [clientSubTab, setClientSubTab] = useState('actifs')
+
+  // Deep-link : /coach?tab=offres ou /coach?tab=calendar ouvre directement
+  // l'onglet correspondant (utilisé par la nav globale — components/ui/AppShell.js).
+  useEffect(() => {
+    if (!router.isReady) return
+    const t = router.query.tab
+    if (t === 'offres' || t === 'calendar' || t === 'clients') {
+      setActiveTab(t)
+    }
+  }, [router.isReady, router.query.tab])
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [clientMeasures, setClientMeasures] = useState([])
@@ -514,6 +524,32 @@ export default function CoachDashboard() {
                   {item.label}
                 </button>
               ))}
+              {/* Auparavant absente : /coach n'avait aucun lien vers /coach/activite,
+                  qui n'était atteignable que depuis la sidebar d'une fiche client. */}
+              <button
+                onClick={() => router.push('/coach/activite')}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontFamily: font,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  marginBottom: 2,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 16 }}>📋</span>
+                Activité
+              </button>
               <button
                 onClick={() => setShowCreate(true)}
                 style={{
@@ -625,6 +661,23 @@ export default function CoachDashboard() {
                   {item.icon}
                 </button>
               ))}
+              <button
+                onClick={() => router.push('/coach/activite')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: S.card,
+                  color: S.muted,
+                  fontFamily: font,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                📋
+              </button>
             </div>
           )}
 
