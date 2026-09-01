@@ -60,7 +60,7 @@ export default function Dashboard() {
           .single()
         if (profErr) throw profErr
         if (prof?.role === 'coach') {
-          router.replace('/eleves')
+          router.replace('/coach')
           return
         }
         setProfile(prof)
