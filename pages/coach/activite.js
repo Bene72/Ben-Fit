@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
+import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
 
 // ── Helper : formatte une date relative en français ──────────────────────
@@ -42,12 +43,7 @@ export default function ActivitePage() {
   const [isMobile, setIsMobile] = useState(false)
   const [clientsMap, setClientsMap] = useState({})
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  useEffect(() => watchBreakpoint('mobile', setIsMobile), [])
 
   useEffect(() => {
     const init = async () => {
@@ -337,7 +333,6 @@ export default function ActivitePage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: 20,
-                border: 'none',
                 cursor: 'pointer',
                 fontFamily: "'DM Sans',sans-serif",
                 fontSize: 13,
