@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
 import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
+import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import OverviewTab from '../../components/coach/OverviewTab'
 import ProgrammeTab from '../../components/coach/ProgrammeTab'
 import NutritionTab from '../../components/coach/NutritionTab'
@@ -135,28 +136,8 @@ export default function ClientPage() {
   if (loading || !client)
     return (
       <AppShell title="Chargement...">
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '60px',
-            color: '#8A8070',
-            fontSize: '14px',
-            fontFamily: "'DM Sans',sans-serif",
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              border: '3px solid #E8E4DC',
-              borderTopColor: 'var(--gold)',
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 12px',
-            }}
-          />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          Chargement...
+        <div style={{ padding: '60px', display: 'flex', justifyContent: 'center' }}>
+          <LoadingSpinner gold message="Chargement…" />
         </div>
       </AppShell>
     )
