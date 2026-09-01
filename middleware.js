@@ -17,8 +17,8 @@
  * un middleware ne peut pas lire le localStorage, qui n'existe que dans le
  * navigateur.
  *
- * Les vérifications côté client déjà en place dans pages/coach.js,
- * pages/eleves.js, etc. restent en place : défense en profondeur, elles ne
+ * Les vérifications côté client déjà en place dans pages/coach.js
+ * restent en place : défense en profondeur, elles ne
  * coûtent rien et protègent aussi contre une éventuelle navigation
  * client-side (Next.js Link/router.push) qui ne redéclenche pas toujours le
  * middleware selon le mode de navigation.
@@ -26,7 +26,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-const PROTECTED_PREFIXES = ['/coach', '/eleves', '/agent-bilan', '/agent-programme']
+const PROTECTED_PREFIXES = ['/coach', '/agent-bilan']
 
 function isProtectedPath(pathname) {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
@@ -95,5 +95,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/coach', '/coach/:path*', '/eleves', '/agent-bilan', '/agent-programme'],
+  matcher: ['/coach', '/coach/:path*', '/agent-bilan'],
 }
