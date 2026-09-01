@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
 import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
+import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
 // ── Helper : formatte une date relative en français ──────────────────────
 function timeAgo(dateStr) {
@@ -186,39 +187,8 @@ export default function ActivitePage() {
   if (loading || !user) {
     return (
       <AppShell title="Activité">
-        <div
-          style={{
-            minHeight: '60vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                border: '3px solid #E8E4DC',
-                borderTopColor: 'var(--gold)',
-                animation: 'spin 0.8s linear infinite',
-                margin: '0 auto 12px',
-              }}
-            />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            <div
-              style={{
-                fontSize: 13,
-                color: '#8A8070',
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-                fontFamily: "'DM Sans',sans-serif",
-              }}
-            >
-              Chargement
-            </div>
-          </div>
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LoadingSpinner gold message="Chargement" />
         </div>
       </AppShell>
     )
