@@ -240,12 +240,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [exPickerQuery, setExPickerQuery] = useState('')
   const [exPickerMode, setExPickerMode] = useState('search')
   const [exPickerFree, setExPickerFree] = useState('')
+  const [exPickerAdded, setExPickerAdded] = useState([])
 
   const addExercise = (workoutId, groupType, groupId) => {
     setExPicker({ workoutId, groupType, groupId })
     setExPickerQuery('')
     setExPickerMode('search')
     setExPickerFree('')
+    setExPickerAdded([])
   }
 
   const confirmAddExercise = async (name, imageUrl) => {
@@ -285,8 +287,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           }
         })
       )
+      // Ajout en rafale : la modale reste ouverte, on efface juste la recherche
+      // pour enchaîner directement sur l'exercice suivant sans la rouvrir.
+      setExPickerAdded((prev) => [...prev, name.trim()])
+      setExPickerQuery('')
+      setExPickerFree('')
     }
-    setExPicker(null)
   }
 
   // ── Workout Block ──────────────────────────────────────────
@@ -1051,18 +1057,31 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       {showAdd && (
         <div
           style={{
-            background: cycleMode === 'future' ? '#EEF4FF' : '#F0F4FF',
-            borderRadius: 12,
-            padding: 16,
+            background: cycleMode === 'future' ? 'var(--accent-soft)' : 'var(--surface-strong)',
+            borderRadius: 'var(--r-lg, 12px)',
+            padding: 18,
             marginBottom: 20,
-            border: `1.5px solid ${cycleMode === 'future' ? '#4A6FD4' : '#C5D0F0'}`,
+            border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent)' : 'var(--border-strong)'}`,
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
+          <div
+            style={{
+              fontFamily: 'var(--font-display, "Bebas Neue", sans-serif)',
+              fontSize: 16,
+              letterSpacing: 1,
+              color: 'var(--navy)',
+              marginBottom: 4,
+            }}
+          >
+            NOUVELLE SÉANCE
+          </div>
           {cycleMode === 'future' && (
-            <div style={{ fontSize: 12, color: '#4A6FD4', fontWeight: 700, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700, marginBottom: 10 }}>
               🔵 Cette séance sera ajoutée au cycle futur
             </div>
           )}
+          {cycleMode !== 'future' && <div style={{ marginBottom: 10 }} />}
           <div
             style={{
               display: 'grid',
@@ -1128,7 +1147,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={addWorkout} style={btnVariant('primary')}>
+            <button onClick={addWorkout} style={btnVariant('gold')}>
               ✓ Créer
             </button>
             <button onClick={() => setShowAdd(false)} style={btnVariant('ghost')}>
@@ -1559,8 +1578,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           freeText={exPickerFree}
           setFreeText={setExPickerFree}
           imageFiles={exerciseImageFiles || []}
+          addedNames={exPickerAdded}
           onConfirm={confirmAddExercise}
-          onClose={() => setExPicker(null)}
+          onClose={() => {
+            setExPicker(null)
+            setExPickerAdded([])
+          }}
         />
       )}
 
