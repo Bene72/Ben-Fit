@@ -32,9 +32,20 @@ const SIDEBAR_NARROW = 64;
 const TOPBAR_H       = 56;
 
 /* ─── NavItem ────────────────────────────────────────────────────────────── */
+/* ─── Détection d'état actif (pathname + éventuel ?tab=) ────────────────────
+ * Partagée par NavItem (sidebar) et BottomNav (mobile/collapsed) pour que
+ * les deux nav ne divergent jamais dans leur logique de surlignage. */
+function isNavItemActive(router, href) {
+  const [hrefPath, hrefQuery] = href.split('?');
+  const wantedTab = hrefQuery ? new URLSearchParams(hrefQuery).get('tab') : null;
+  const currentTab = router.query?.tab || null;
+  if (router.pathname !== hrefPath) return router.pathname.startsWith(hrefPath + '/');
+  return wantedTab ? wantedTab === currentTab : !currentTab;
+}
+
 function NavItem({ href, icon, children, collapsed }) {
   const router  = useRouter();
-  const isActive = router.pathname === href || router.pathname.startsWith(href + '/');
+  const isActive = isNavItemActive(router, href);
 
   return (
     <Link href={href} style={{ textDecoration: 'none' }}>
@@ -165,8 +176,13 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
               </div>
               {/* URLs vérifiées : seules les pages qui existent réellement sont listées.
                   /coach/saison, /coach/programmes/template et /gestion n'existent pas
-                  dans ce dépôt (menaient à des 404) — retirées de la navigation. */}
-              <NavItem href="/coach" icon="👥" collapsed={collapsed}>Élèves</NavItem>
+                  dans ce dépôt (menaient à des 404) — retirées de la navigation.
+                  Offres et Calendrier sont des onglets internes de /coach (pas des
+                  routes séparées) — on les rend accessibles depuis la sidebar via
+                  un deep-link ?tab=, lu par pages/coach.js au chargement. */}
+              <NavItem href="/coach" icon="🏠" collapsed={collapsed}>Accueil</NavItem>
+              <NavItem href="/coach?tab=offres" icon="📦" collapsed={collapsed}>Offres</NavItem>
+              <NavItem href="/coach?tab=calendar" icon="📅" collapsed={collapsed}>Calendrier</NavItem>
               <NavItem href="/coach/activite" icon="📋" collapsed={collapsed}>Activité</NavItem>
 
               {/* Séparateur */}
@@ -245,7 +261,9 @@ function UserFooter({ user, collapsed }) {
 /* ─── BottomNav — visible quand sidebar collapsed (desktop) ou mobile ───── */
 // Nav coach : uniquement les pages qui existent réellement (voir plus haut).
 const COACH_NAV = [
-  { href: '/coach', icon: '👥', label: 'Élèves' },
+  { href: '/coach', icon: '🏠', label: 'Accueil' },
+  { href: '/coach?tab=offres', icon: '📦', label: 'Offres' },
+  { href: '/coach?tab=calendar', icon: '📅', label: 'Calendrier' },
   { href: '/coach/activite', icon: '📋', label: 'Activité' },
 ];
 
@@ -282,7 +300,7 @@ function BottomNav({ isCoach }) {
       paddingBottom:  'env(safe-area-inset-bottom, 0px)',
     }}>
       {items.map(item => {
-        const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
+        const isActive = isNavItemActive(router, item.href);
         return (
           <Link key={item.href} href={item.href} style={{ textDecoration: 'none', flex: '1 0 48px', minWidth: 48 }}>
             <div style={{
