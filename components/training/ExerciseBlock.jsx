@@ -55,6 +55,12 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
             </div>
           ))}
         </div>
+        {(meta.objective || meta.coachNote) && (
+          <div style={{ background: 'var(--surface-muted, #F8FBFF)', padding: '8px 12px', borderTop: '1px solid var(--border-strong, #DCE5F3)', fontSize: 11, color: 'var(--text-soft, #6B7A99)' }}>
+            {meta.objective && <div>🎯 {meta.objective}</div>}
+            {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
+          </div>
+        )}
       </div>
     )
   }
@@ -117,6 +123,13 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
           </div>
         ))}
       </div>
+
+      {(meta.objective || meta.coachNote) && (
+        <div style={{ background: 'var(--surface-muted, #F8FBFF)', padding: '8px 12px', borderTop: '1px solid var(--border-strong, #DCE5F3)', fontSize: 11, color: 'var(--text-soft, #6B7A99)' }}>
+          {meta.objective && <div>🎯 {meta.objective}</div>}
+          {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
+        </div>
+      )}
 
       <div className="tp-wblock-score">
         {lastResult && (
