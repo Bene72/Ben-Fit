@@ -141,7 +141,7 @@ export default function CoachSidebar({ user, activeTab, onSelectTab, onCreateCli
             color={S.blue}
           />
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>Coach</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--chalk)' }}>Coach</div>
             <div
               style={{
                 fontSize: 10,
