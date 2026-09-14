@@ -22,14 +22,14 @@ export default function WorkoutBlockPickerModal({ form, onChangeForm, onConfirm,
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           borderRadius: 16,
           padding: 24,
           width: '100%',
           maxWidth: 480,
         }}
       >
-        <h3 style={{ margin: '0 0 16px', color: 'var(--navy)' }}>Créer un Workout Block</h3>
+        <h3 style={{ margin: '0 0 16px', color: 'var(--chalk)' }}>Créer un Workout Block</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
             <label style={lbl}>Format</label>
@@ -52,7 +52,7 @@ export default function WorkoutBlockPickerModal({ form, onChangeForm, onConfirm,
                 placeholder="ex: 6"
                 style={inp}
               />
-              <div style={{ fontSize: 10, color: '#9BA8C0', marginTop: 3 }}>
+              <div style={{ fontSize: 10, color: 'var(--chalk-dim)', marginTop: 3 }}>
                 C'est cette durée que l'athlète verra en gros sur son écran.
               </div>
             </div>
