@@ -24,7 +24,7 @@ import ExerciseWorkspace  from './ExerciseWorkspace'
 export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, loggingIds, logsByName, onLogInput, onLog, onImageOpen, isMobile, blockInputs, loggingBlockIds, blockResults, onBlockInput, onLogBlock }) {
   if (block.kind === 'group' && block.groupType === 'Workout Block') {
     const meta = findGroupMeta(block.exercises)
-    const tc = WORKOUT_BLOCK_COLORS[meta.type] || 'var(--navy, #0D1B4E)'
+    const tc = WORKOUT_BLOCK_COLORS[meta.type] || 'var(--chalk)'
 
     if (meta.uiVersion === 2) {
       return (
@@ -58,7 +58,7 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
           ))}
         </div>
         {(meta.objective || meta.coachNote) && (
-          <div style={{ background: 'var(--surface-muted, #F8FBFF)', padding: '8px 12px', borderTop: '1px solid var(--border-strong, #DCE5F3)', fontSize: 11, color: 'var(--text-soft, #6B7A99)' }}>
+          <div style={{ background: 'var(--bg-card-2)', padding: '8px 12px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--chalk-dim)' }}>
             {meta.objective && <div>🎯 {meta.objective}</div>}
             {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
           </div>
@@ -68,7 +68,7 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
   }
 
   if (block.kind === 'group') {
-    const gc = GROUP_COLORS[block.groupType] || 'var(--accent, #3A5FD4)'
+    const gc = GROUP_COLORS[block.groupType] || 'var(--accent)'
     return (
       <div className="tp-group" style={{ borderColor: `${gc}22` }}>
         <div className="tp-group-head" style={{ background: gc }}>⚡ {block.groupType}</div>
@@ -128,7 +128,7 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
       </div>
 
       {(meta.objective || meta.coachNote) && (
-        <div style={{ background: 'var(--surface-muted, #F8FBFF)', padding: '8px 12px', borderTop: '1px solid var(--border-strong, #DCE5F3)', fontSize: 11, color: 'var(--text-soft, #6B7A99)' }}>
+        <div style={{ background: 'var(--bg-card-2)', padding: '8px 12px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--chalk-dim)' }}>
           {meta.objective && <div>🎯 {meta.objective}</div>}
           {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
         </div>
