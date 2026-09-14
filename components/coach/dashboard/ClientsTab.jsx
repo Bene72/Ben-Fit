@@ -89,8 +89,8 @@ export default function ClientsTab({
         {clientSubTab === 'archives' && archivedClients.length > 0 && (
           <div
             style={{
-              background: '#F3F0FC',
-              border: `1px solid #C4B8E8`,
+              background: 'var(--surface-3)',
+              border: `1px solid var(--border-hi)`,
               borderRadius: 10,
               padding: '10px 14px',
               marginBottom: 14,
@@ -174,7 +174,7 @@ export default function ClientsTab({
             style={{
               textAlign: 'center',
               padding: '60px 20px',
-              background: 'white',
+              background: 'var(--bg-card)',
               borderRadius: 20,
               border: `2px dashed ${S.border}`,
             }}
@@ -196,7 +196,7 @@ export default function ClientsTab({
                 style={{
                   padding: '10px 22px',
                   background: S.navy,
-                  color: 'white',
+                  color: 'var(--chalk)',
                   border: 'none',
                   borderRadius: 10,
                   fontSize: 13,
@@ -219,8 +219,8 @@ export default function ClientsTab({
                   key={c.id}
                   onClick={() => onSelectClient(c.id)}
                   style={{
-                    background: archived ? '#F7F6FB' : S.card,
-                    border: `1px solid ${archived ? '#D8D2EE' : S.border}`,
+                    background: archived ? 'var(--bg-card-2)' : S.card,
+                    border: `1px solid ${archived ? 'var(--border-hi)' : S.border}`,
                     borderRadius: 14,
                     padding: '14px 18px',
                     cursor: 'pointer',
@@ -261,7 +261,7 @@ export default function ClientsTab({
                       </div>
                       <Badge text={offer.name} color={archived ? S.gray : offer.color} />
                       {archived ? (
-                        <Badge text="Archivé" color={S.purple} bg="#EDE9F8" />
+                        <Badge text="Archivé" color={S.purple} bg="var(--surface-3)" />
                       ) : (
                         c.status !== 'actif' && <Badge text="inactif" color={S.red} />
                       )}
