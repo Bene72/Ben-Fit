@@ -135,7 +135,7 @@ export default function OffresTab({ isMobile, clients, onSelectClient }) {
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr 1fr 1fr',
-            background: '#F8FAFF',
+            background: 'var(--accent-dim)',
             padding: '10px 18px',
             fontSize: 10,
             fontWeight: 700,
@@ -166,7 +166,7 @@ export default function OffresTab({ isMobile, clients, onSelectClient }) {
                   alignItems: 'center',
                   cursor: 'pointer',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFF')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-dim)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
