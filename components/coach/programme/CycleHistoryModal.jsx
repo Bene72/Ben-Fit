@@ -28,7 +28,7 @@ export default function CycleHistoryModal({
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           borderRadius: 16,
           padding: 24,
           width: '100%',
@@ -45,7 +45,7 @@ export default function CycleHistoryModal({
             marginBottom: 16,
           }}
         >
-          <h3 style={{ margin: 0, color: 'var(--navy)' }}>
+          <h3 style={{ margin: 0, color: 'var(--chalk)' }}>
             {openArchivedCycle ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button
@@ -66,7 +66,7 @@ export default function CycleHistoryModal({
         </div>
 
         {archivedCycles.length === 0 ? (
-          <div style={{ color: '#9BA8C0', textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: '20px 0' }}>
             Aucun cycle archivé
           </div>
         ) : !openArchivedCycle ? (
@@ -80,9 +80,9 @@ export default function CycleHistoryModal({
                 textAlign: 'left',
                 marginBottom: 10,
                 padding: '12px 14px',
-                background: '#F5F7FF',
+                background: 'var(--accent-dim)',
                 borderRadius: 10,
-                border: '1px solid #E0E6F0',
+                border: '1px solid var(--border)',
                 cursor: 'pointer',
                 fontFamily: "'DM Sans',sans-serif",
                 display: 'flex',
@@ -91,10 +91,10 @@ export default function CycleHistoryModal({
               }}
             >
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--chalk)' }}>
                   🗂 {cycle.name}
                 </div>
-                <div style={{ fontSize: 12, color: '#6B7A99', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: 'var(--chalk-dim)', marginTop: 2 }}>
                   {cycle.workouts.length} séance{cycle.workouts.length > 1 ? 's' : ''}
                   {cycle.archivedAt && (
                     <span>
@@ -104,7 +104,7 @@ export default function CycleHistoryModal({
                   )}
                 </div>
               </div>
-              <span style={{ fontSize: 16, color: '#9BA8C0' }}>›</span>
+              <span style={{ fontSize: 16, color: 'var(--chalk-dim)' }}>›</span>
             </button>
           ))
         ) : (
@@ -118,16 +118,16 @@ export default function CycleHistoryModal({
                 style={{
                   marginBottom: 10,
                   padding: '10px 14px',
-                  background: '#F5F7FF',
+                  background: 'var(--accent-dim)',
                   borderRadius: 10,
-                  border: '1px solid #E0E6F0',
+                  border: '1px solid var(--border)',
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>{w.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--chalk)' }}>{w.name}</div>
                 <div
                   style={{
                     fontSize: 12,
-                    color: '#6B7A99',
+                    color: 'var(--chalk-dim)',
                     marginBottom: (w.exercises || []).length ? 8 : 0,
                   }}
                 >
@@ -142,16 +142,16 @@ export default function CycleHistoryModal({
                       key={ex.id}
                       style={{
                         fontSize: 12,
-                        color: 'var(--navy)',
+                        color: 'var(--chalk)',
                         padding: '4px 0',
-                        borderTop: '1px solid #E8ECF7',
+                        borderTop: '1px solid var(--border)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         gap: 8,
                       }}
                     >
                       <span>{ex.name}</span>
-                      <span style={{ color: '#6B7A99', flexShrink: 0 }}>
+                      <span style={{ color: 'var(--chalk-dim)', flexShrink: 0 }}>
                         {ex.sets} × {ex.reps}
                       </span>
                     </div>
