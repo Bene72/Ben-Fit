@@ -36,7 +36,7 @@ export default function CalendarTab({ isMobile, sessions, coachId, clients }) {
               style={{
                 textAlign: 'center',
                 padding: '40px 20px',
-                background: 'white',
+                background: 'var(--bg-card)',
                 borderRadius: 14,
                 border: `1px solid ${S.border}`,
                 color: S.muted,
