@@ -29,14 +29,14 @@ export default function DuplicateCycleModal({
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           borderRadius: 16,
           padding: 24,
           width: '100%',
           maxWidth: 400,
         }}
       >
-        <h3 style={{ margin: '0 0 16px', color: 'var(--navy)' }}>
+        <h3 style={{ margin: '0 0 16px', color: 'var(--chalk)' }}>
           Dupliquer le cycle {cycleMode === 'future' ? 'futur' : 'actuel'}
         </h3>
         <label style={lbl}>Choisir un client</label>
@@ -60,7 +60,7 @@ export default function DuplicateCycleModal({
             marginBottom: 12,
             cursor: 'pointer',
             fontSize: 13,
-            color: 'var(--navy)',
+            color: 'var(--chalk)',
           }}
         >
           <input
@@ -69,7 +69,7 @@ export default function DuplicateCycleModal({
             onChange={(e) => onChangeResetWeights(e.target.checked)}
           />
           Remettre les charges à zéro{' '}
-          <span style={{ color: '#6B7A99', fontSize: 11 }}>
+          <span style={{ color: 'var(--chalk-dim)', fontSize: 11 }}>
             (recommandé pour un nouveau client)
           </span>
         </label>
