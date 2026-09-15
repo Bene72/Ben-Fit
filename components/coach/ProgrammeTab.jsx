@@ -18,7 +18,7 @@ import CycleHistoryModal from './programme/CycleHistoryModal'
 // ── Toggle Actuel / Futur ──────────────────────────────────────
 function CycleToggle({ mode, onChange }) {
   return (
-    <div style={{ display: 'flex', background: '#F0F4FF', borderRadius: 10, padding: 3, gap: 2 }}>
+    <div style={{ display: 'flex', background: 'var(--accent-dim)', borderRadius: 10, padding: 3, gap: 2 }}>
       {[
         { id: 'current', label: '🟢 Cycle actuel' },
         { id: 'future', label: '🔵 Cycle futur' },
@@ -31,8 +31,8 @@ function CycleToggle({ mode, onChange }) {
             borderRadius: 8,
             border: 'none',
             cursor: 'pointer',
-            background: mode === id ? (id === 'future' ? '#4A6FD4' : 'var(--navy)') : 'transparent',
-            color: mode === id ? 'white' : '#6B7A99',
+            background: mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
+            color: mode === id ? 'var(--chalk)' : 'var(--chalk-dim)',
             fontWeight: 700,
             fontSize: 13,
             fontFamily: "'DM Sans',sans-serif",
@@ -735,9 +735,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   // ── Workout Block ──────────────────────────────────────────
   const groupColors = {
     Superset: 'var(--danger)',
-    'Giant Set': '#8FA07A',
-    'Drop Set': '#4A6FD4',
-    'Workout Block': '#1A1A2E',
+    'Giant Set': 'var(--rx)',
+    'Drop Set': 'var(--accent)',
+    'Workout Block': 'var(--chalk)',
   }
 
   const addWorkoutBlock = (workoutId) => {
@@ -890,32 +890,32 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             .map((ex) => {
               const img =
                 ex.image_url && imgCache[ex.image_url]
-                  ? `<img src="${imgCache[ex.image_url]}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #e0e6f0;" />`
-                  : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
+                  ? `<img src="${imgCache[ex.image_url]}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
+                  : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
               const details = [
                 ex.sets && ex.reps
-                  ? `<span style="background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${ex.sets} × ${ex.reps}</span>`
+                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${ex.sets} × ${ex.reps}</span>`
                   : '',
                 ex.rest
-                  ? `<span style="border:1px solid #C5D0F0;color:#6B7A99;padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${ex.rest}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${ex.rest}</span>`
                   : '',
                 ex.target_weight
-                  ? `<span style="border:1px solid #C5D0F0;color:#6B7A99;padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${ex.target_weight}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${ex.target_weight}</span>`
                   : '',
               ]
                 .filter(Boolean)
                 .join(' ')
               const note = ex.note
-                ? `<div style="font-size:11px;color:#6B7A99;margin-top:4px;font-style:italic;">📋 ${ex.note}</div>`
+                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${ex.note}</div>`
                 : ''
-              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid #F0F4FF;">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:4px;">${ex.name}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
+              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${ex.name}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
             })
             .join('')
           const dayLabel = dayNames[(workout.day_of_week || 1) - 1] || ''
-          return `<div style="margin-bottom:28px;background:white;border-radius:12px;border:1px solid #E0E6F0;overflow:hidden;"><div style="background:var(--navy);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:white;font-weight:700;font-size:16px;">${workout.name}</div><div style="color:#A0B0D0;font-size:13px;">${dayLabel} · ${workout.duration_min || 60} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
+          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${workout.name}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${workout.duration_min || 60} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
         })
         .join('')
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#F5F7FF;color:var(--navy);}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:var(--navy);margin:0 0 4px;">${clientName || 'Programme'}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#6B7A99;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${clientName || 'Programme'}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
       const win = window.open('', '_blank')
       win.document.write(html)
       win.document.close()
@@ -935,7 +935,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '60px 0',
-          color: '#6B7A99',
+          color: 'var(--chalk-dim)',
         }}
       >
         Chargement du programme…
@@ -964,15 +964,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             disabled={activating}
             style={{
               padding: '8px 18px',
-              background: activating ? '#9BA8C0' : '#4A6FD4',
-              color: 'white',
+              background: activating ? 'var(--surface-2)' : 'var(--accent)',
+              color: 'var(--chalk)',
               border: 'none',
               borderRadius: 9,
               fontWeight: 700,
               fontSize: 13,
               cursor: activating ? 'not-allowed' : 'pointer',
               fontFamily: "'DM Sans',sans-serif",
-              boxShadow: '0 2px 8px rgba(74,111,212,0.3)',
+              boxShadow: '0 2px 8px rgba(255,91,46,0.3)',
             }}
           >
             {activating ? '⏳ Activation…' : '🚀 Activer ce cycle'}
@@ -984,8 +984,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       {cycleMode === 'future' && (
         <div
           style={{
-            background: '#EEF4FF',
-            border: '1.5px solid #4A6FD4',
+            background: 'var(--accent-dim)',
+            border: '1.5px solid var(--accent)',
             borderRadius: 10,
             padding: '10px 14px',
             marginBottom: 20,
@@ -996,10 +996,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         >
           <span style={{ fontSize: 18 }}>🔵</span>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--chalk)' }}>
               Mode cycle futur
             </div>
-            <div style={{ fontSize: 12, color: '#4A6FD4' }}>
+            <div style={{ fontSize: 12, color: 'var(--accent)' }}>
               {futureWorkouts.length === 0
                 ? 'Aucune séance encore. Crée le programme ici — le client ne le verra pas avant activation.'
                 : `${futureWorkouts.length} séance(s) prête(s). Clique "🚀 Activer" quand tu veux le basculer.`}
@@ -1098,12 +1098,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       {showAdd && (
         <div
           style={{
-            background: cycleMode === 'future' ? 'var(--accent-soft)' : 'var(--surface-strong)',
-            borderRadius: 'var(--r-lg, 12px)',
+            background: cycleMode === 'future' ? 'var(--accent-dim)' : 'var(--bg-card-2)',
+            borderRadius: 'var(--radius-lg)',
             padding: 18,
             marginBottom: 20,
-            border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent)' : 'var(--border-strong)'}`,
-            boxShadow: 'var(--shadow-sm)',
+            border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent)' : 'var(--accent-brd)'}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
           }}
         >
           <div
@@ -1111,7 +1111,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
               fontFamily: 'var(--font-display, "Bebas Neue", sans-serif)',
               fontSize: 16,
               letterSpacing: 1,
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               marginBottom: 4,
             }}
           >
@@ -1202,7 +1202,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
       {/* ── Liste vide ── */}
       {displayedWorkouts.length === 0 && !showAdd && (
-        <div style={{ textAlign: 'center', color: '#9BA8C0', padding: '40px 0', fontSize: 15 }}>
+        <div style={{ textAlign: 'center', color: 'var(--chalk-dim)', padding: '40px 0', fontSize: 15 }}>
           {cycleMode === 'future'
             ? 'Aucune séance dans le cycle futur — clique sur "+ Séance" pour commencer'
             : 'Aucune séance — clique sur "+ Séance" pour commencer'}
@@ -1219,11 +1219,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
             key={workout.id}
             style={{
               marginBottom: 12,
-              background: 'white',
+              background: 'var(--bg-card)',
               borderRadius: 14,
-              border: `1.5px solid ${cycleMode === 'future' ? '#A0B8F0' : '#E0E6F0'}`,
+              border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent-brd)' : 'var(--border)'}`,
               overflow: 'hidden',
-              boxShadow: isOpen ? '0 4px 20px rgba(13,27,78,0.08)' : 'none',
+              boxShadow: isOpen ? '0 4px 20px rgba(255,91,46,0.08)' : 'none',
             }}
           >
             <div
@@ -1235,7 +1235,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 alignItems: 'center',
                 padding: '14px 16px',
                 cursor: isRenaming ? 'default' : 'pointer',
-                background: isOpen ? (cycleMode === 'future' ? '#EEF4FF' : '#F0F4FF') : 'white',
+                background: isOpen ? (cycleMode === 'future' ? 'var(--accent-dim)' : 'var(--accent-dim)') : 'var(--bg-card)',
                 transition: 'background 0.15s',
               }}
             >
@@ -1252,7 +1252,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     border: 'none',
                     background: 'transparent',
                     cursor: wIdx === 0 ? 'default' : 'pointer',
-                    color: wIdx === 0 ? '#D5DCEC' : '#6B7A99',
+                    color: wIdx === 0 ? 'var(--accent)' : 'var(--chalk-dim)',
                     fontSize: 12,
                     padding: 2,
                     lineHeight: 1,
@@ -1268,7 +1268,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     border: 'none',
                     background: 'transparent',
                     cursor: wIdx === displayedWorkouts.length - 1 ? 'default' : 'pointer',
-                    color: wIdx === displayedWorkouts.length - 1 ? '#D5DCEC' : '#6B7A99',
+                    color: wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
                     fontSize: 12,
                     padding: 2,
                     lineHeight: 1,
@@ -1283,7 +1283,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   style={{
                     fontWeight: 700,
                     fontSize: 15,
-                    color: 'var(--navy)',
+                    color: 'var(--chalk)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -1337,7 +1337,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                           cursor: 'pointer',
                           fontSize: 12,
                           padding: 2,
-                          color: '#9BA8C0',
+                          color: 'var(--chalk-dim)',
                           lineHeight: 1,
                         }}
                       >
@@ -1349,8 +1349,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     <span
                       style={{
                         fontSize: 10,
-                        background: '#4A6FD4',
-                        color: 'white',
+                        background: 'var(--accent)',
+                        color: '#16110D',
                         padding: '2px 7px',
                         borderRadius: 20,
                         fontWeight: 700,
@@ -1360,12 +1360,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: '#6B7A99', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: 'var(--chalk-dim)', marginTop: 2 }}>
                   {DAYS_FR[(workout.day_of_week || 1) - 1]} · {workout.duration_min || 60} min ·{' '}
                   {workout.exercises?.length || 0} exercice
                   {(workout.exercises?.length || 0) > 1 ? 's' : ''}
                   {workout.cycle_name && (
-                    <span style={{ marginLeft: 8, color: '#4A6FD4' }}>· {workout.cycle_name}</span>
+                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {workout.cycle_name}</span>
                   )}
                 </div>
               </div>
@@ -1398,7 +1398,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 >
                   🗑
                 </button>
-                <span style={{ fontSize: 12, color: '#9BA8C0' }}>{isOpen ? '▲' : '▼'}</span>
+                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>{isOpen ? '▲' : '▼'}</span>
               </div>
             </div>
 
@@ -1408,8 +1408,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   <div
                     style={{
                       padding: '10px 16px',
-                      background: '#FAFBFF',
-                      borderBottom: '1px solid #E0E6F0',
+                      background: 'var(--accent-dim)',
+                      borderBottom: '1px solid var(--border)',
                       display: 'flex',
                       gap: 8,
                       alignItems: 'center',
@@ -1437,7 +1437,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                       gridTemplateColumns: '1fr 48px 56px 80px',
                       gap: 4,
                       padding: '8px 12px 4px',
-                      borderBottom: '1px solid #F0F4FF',
+                      borderBottom: '1px solid var(--accent-brd)',
                     }}
                   >
                     {['Exercice', 'Séries', 'Reps', 'Repos'].map((h) => (
@@ -1448,7 +1448,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                           fontWeight: 700,
                           letterSpacing: '0.8px',
                           textTransform: 'uppercase',
-                          color: '#9BA8C0',
+                          color: 'var(--chalk-dim)',
                           textAlign: h === 'Exercice' ? 'left' : 'center',
                         }}
                       >
@@ -1512,7 +1512,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                         />
                       )
                     }
-                    const color = groupColors[item.groupType] || '#4A6FD4'
+                    const color = groupColors[item.groupType] || 'var(--accent)'
                     const allExs = workout.exercises || []
                     return (
                       <div
@@ -1521,7 +1521,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                           borderLeft: `4px solid ${color}`,
                           margin: '8px 10px',
                           borderRadius: '0 10px 10px 0',
-                          background: '#FAFBFF',
+                          background: 'var(--accent-dim)',
                           overflow: 'hidden',
                         }}
                       >
@@ -1529,7 +1529,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                           style={{
                             padding: '6px 12px',
                             background: color,
-                            color: 'white',
+                            color: 'var(--chalk)',
                             fontSize: 11,
                             fontWeight: 700,
                             letterSpacing: '0.8px',
@@ -1546,7 +1546,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                               style={{
                                 background: 'rgba(255,255,255,0.2)',
                                 border: 'none',
-                                color: 'white',
+                                color: 'var(--chalk)',
                                 borderRadius: 5,
                                 padding: '2px 8px',
                                 cursor: 'pointer',
@@ -1586,7 +1586,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                       display: 'flex',
                       gap: 8,
                       flexWrap: 'wrap',
-                      borderTop: '1px solid #F0F4FF',
+                      borderTop: '1px solid var(--accent-brd)',
                     }}
                   >
                     <button
@@ -1607,19 +1607,19 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Giant Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: '#8FA07A', color: '#8FA07A' }}
+                      style={{ ...btnVariant('outline'), borderColor: 'var(--rx)', color: 'var(--rx)' }}
                     >
                       + Giant Set
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Drop Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: '#4A6FD4', color: '#4A6FD4' }}
+                      style={{ ...btnVariant('outline'), borderColor: 'var(--accent)', color: 'var(--accent)' }}
                     >
                       + Drop Set
                     </button>
                     <button
                       onClick={() => addWorkoutBlock(workout.id)}
-                      style={{ ...btnVariant('outline'), borderColor: '#1A1A2E', color: '#1A1A2E' }}
+                      style={{ ...btnVariant('outline'), borderColor: 'var(--border)', color: 'var(--chalk)' }}
                     >
                       + WOD Block
                     </button>
