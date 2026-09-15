@@ -9,7 +9,7 @@ export default function NavBtn({ onClick, children }) {
         height: 26,
         border: `1px solid ${S.border}`,
         borderRadius: 6,
-        background: 'white',
+        background: 'var(--bg-card)',
         cursor: 'pointer',
         fontSize: 14,
         display: 'flex',
