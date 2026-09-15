@@ -6,7 +6,7 @@ export default function ActivityFeed({ items, loading, onSelect }) {
   return (
     <div
       style={{
-        background: S.navy,
+        background: 'var(--bg-card-2)',
         borderRadius: 16,
         padding: '18px 20px',
         position: 'relative',
@@ -45,7 +45,7 @@ export default function ActivityFeed({ items, loading, onSelect }) {
             animation: 'signalPulse 2s ease-in-out infinite',
           }}
         />
-        <div style={{ fontFamily: bebas, fontSize: 14, color: 'white', letterSpacing: 2 }}>
+        <div style={{ fontFamily: bebas, fontSize: 14, color: 'var(--chalk)', letterSpacing: 2 }}>
           SIGNAL
         </div>
         <div
@@ -102,7 +102,7 @@ export default function ActivityFeed({ items, loading, onSelect }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <b style={{ color: 'white' }}>{it.clientName}</b> {it.label}
+                <b style={{ color: 'var(--chalk)' }}>{it.clientName}</b> {it.label}
               </span>
               <span
                 style={{
