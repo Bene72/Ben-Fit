@@ -72,7 +72,7 @@ function SectionCard({ title, icon, count, accent, children }) {
           <span
             style={{
               background: accent,
-              color: '#fff',
+              color: 'var(--chalk)',
               fontSize: 11,
               fontWeight: 700,
               borderRadius: 999,
@@ -102,7 +102,7 @@ function ClientRow({ client, rightLabel, rightColor, onClick }) {
         cursor: 'pointer',
         transition: 'background 0.12s',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = S.bgSoft || '#F5F7FC')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = S.bgSoft || 'var(--bg-card-2)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       <Avatar initials={client.avatar} size={30} />
