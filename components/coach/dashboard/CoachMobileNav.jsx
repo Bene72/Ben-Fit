@@ -29,8 +29,8 @@ export default function CoachMobileNav({ activeTab, onSelectTab }) {
             borderRadius: 10,
             border: 'none',
             cursor: 'pointer',
-            background: activeTab === item.id ? S.navy : S.card,
-            color: activeTab === item.id ? S.blue : S.muted,
+            background: activeTab === item.id ? 'var(--accent)' : S.card,
+            color: activeTab === item.id ? '#16110D' : S.muted,
             fontFamily: font,
             fontSize: 12,
             fontWeight: 700,
@@ -39,7 +39,7 @@ export default function CoachMobileNav({ activeTab, onSelectTab }) {
             alignItems: 'center',
           }}
         >
-          <Icon name={item.icon} size={16} color={activeTab === item.id ? S.blue : S.muted} />
+          <Icon name={item.icon} size={16} color={activeTab === item.id ? '#16110D' : S.muted} />
         </button>
       ))}
     </div>
