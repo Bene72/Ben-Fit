@@ -93,7 +93,7 @@ export default function CoachMiniChart({ entries, field, fieldsMeta }) {
             cx={x}
             cy={y}
             r={i === pts.length - 1 ? 5 : 3.5}
-            fill="white"
+            fill="var(--chalk)"
             stroke={color}
             strokeWidth="2.5"
           />
