@@ -18,7 +18,7 @@ export default function CoachSidebar({ user, activeTab, onSelectTab, onCreateCli
     <div
       style={{
         width: 220,
-        background: `linear-gradient(180deg, ${S.navy}, ${S.navyDeep})`,
+        background: 'linear-gradient(180deg, var(--bg-card), var(--bg))',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -74,7 +74,7 @@ export default function CoachSidebar({ user, activeTab, onSelectTab, onCreateCli
               borderRadius: 10,
               border: 'none',
               cursor: 'pointer',
-              background: activeTab === item.id ? 'rgba(74,111,212,0.16)' : 'transparent',
+              background: activeTab === item.id ? 'rgba(255,91,46,0.16)' : 'transparent',
               color: activeTab === item.id ? S.blue : 'rgba(255,255,255,0.6)',
               fontFamily: font,
               fontSize: 13,
