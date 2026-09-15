@@ -186,7 +186,7 @@ function NutritionTab({ clientId, clientName }) {
   }
 
   if (loading)
-    return <div style={{ color: '#999', textAlign: 'center', padding: 40 }}>Chargement…</div>
+    return <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: 40 }}>Chargement…</div>
 
   // ── Liste des mois disponibles dans l'historique du client, pour le filtre ──
   const availableMonths = Array.from(
@@ -213,9 +213,9 @@ function NutritionTab({ clientId, clientName }) {
       />
 
       {/* ── Suivi client ── */}
-      <div style={{ borderTop: '2px solid #EAEAEA', paddingTop: 24 }}>
+      <div style={{ borderTop: '2px solid var(--border)', paddingTop: 24 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)', marginRight: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--chalk)', marginRight: 8 }}>
             📊 Suivi client
           </div>
           {[
@@ -233,8 +233,8 @@ function NutritionTab({ clientId, clientName }) {
                 cursor: 'pointer',
                 border: 'none',
                 fontFamily: "'DM Sans',sans-serif",
-                background: view === id ? 'var(--navy)' : 'white',
-                color: view === id ? 'white' : '#666',
+                background: view === id ? 'var(--accent)' : 'var(--bg-card)',
+                color: view === id ? 'var(--chalk)' : 'var(--chalk-dim)',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
               }}
             >
@@ -252,10 +252,10 @@ function NutritionTab({ clientId, clientName }) {
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: 'pointer',
-                border: '1px solid #DCE5F3',
+                border: '1px solid var(--accent-brd)',
                 fontFamily: "'DM Sans',sans-serif",
-                background: 'white',
-                color: 'var(--navy)',
+                background: 'var(--bg-card)',
+                color: 'var(--chalk)',
               }}
             >
               <option value="all">Tous les mois</option>
@@ -311,8 +311,8 @@ function PlanBlock({
   return (
     <div
       style={{
-        background: '#F0F4FF',
-        border: '1px solid #C5D0F0',
+        background: 'var(--accent-dim)',
+        border: '1px solid var(--accent-brd)',
         borderRadius: 14,
         padding: '20px 24px',
         marginBottom: 24,
@@ -330,7 +330,7 @@ function PlanBlock({
           style={{
             fontFamily: "'Bebas Neue',sans-serif",
             fontSize: 18,
-            color: 'var(--navy)',
+            color: 'var(--chalk)',
             letterSpacing: 2,
           }}
         >
@@ -344,7 +344,7 @@ function PlanBlock({
           {!editPlan && planHistory.length > 0 && (
             <button
               onClick={() => setShowPlanHistory(!showPlanHistory)}
-              style={btn(showPlanHistory ? 'var(--navy)' : 'white', showPlanHistory ? 'white' : 'var(--navy)')}
+              style={btn(showPlanHistory ? 'var(--chalk)' : 'var(--bg-card)', showPlanHistory ? 'var(--bg-card)' : 'var(--chalk)')}
             >
               {showPlanHistory ? '✕ Fermer' : `🕘 Historique (${planHistory.length})`}
             </button>
@@ -352,7 +352,7 @@ function PlanBlock({
           {!showPlanHistory && (
             <button
               onClick={() => setEditPlan(!editPlan)}
-              style={btn(editPlan ? 'var(--navy)' : 'var(--navy)', 'white')}
+              style={btn(editPlan ? 'var(--chalk)' : 'var(--chalk)', 'var(--bg-card)')}
             >
               {editPlan ? '✕ Annuler' : plan ? '✏️ Modifier' : '+ Créer le plan'}
             </button>
@@ -366,13 +366,13 @@ function PlanBlock({
             <div
               key={p.id}
               style={{
-                background: 'white',
-                border: '1px solid #E8ECFA',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--accent-brd)',
                 borderRadius: 10,
                 padding: '12px 14px',
               }}
             >
-              <div style={{ fontSize: 11, color: '#6B7A99', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--chalk-dim)', marginBottom: 8 }}>
                 {p.created_at
                   ? new Date(p.created_at).toLocaleDateString('fr-FR', {
                       day: 'numeric',
@@ -389,13 +389,13 @@ function PlanBlock({
                   ['🥑', p.target_fat, 'g L'],
                 ].map(([icon, val, unit]) => (
                   <div key={unit} style={{ fontSize: 13 }}>
-                    {icon} <strong style={{ color: 'var(--navy)' }}>{val || '—'}</strong>{' '}
-                    <span style={{ color: '#6B7A99', fontSize: 11 }}>{unit}</span>
+                    {icon} <strong style={{ color: 'var(--chalk)' }}>{val || '—'}</strong>{' '}
+                    <span style={{ color: 'var(--chalk-dim)', fontSize: 11 }}>{unit}</span>
                   </div>
                 ))}
               </div>
               {p.coach_note && (
-                <div style={{ fontSize: 11, color: '#6B7A99', marginTop: 6, fontStyle: 'italic' }}>
+                <div style={{ fontSize: 11, color: 'var(--chalk-dim)', marginTop: 6, fontStyle: 'italic' }}>
                   💬 {p.coach_note}
                 </div>
               )}
@@ -436,18 +436,18 @@ function PlanBlock({
             style={{
               marginBottom: 12,
               padding: '14px 16px',
-              background: planForm.cyclic_diet ? '#EEF4FF' : '#F5F5F5',
+              background: planForm.cyclic_diet ? 'var(--accent-dim)' : 'var(--bg-card-2)',
               borderRadius: 10,
-              border: `1px solid ${planForm.cyclic_diet ? '#B8CBF5' : '#E0E0E0'}`,
+              border: `1px solid ${planForm.cyclic_diet ? 'var(--accent-brd)' : 'var(--border)'}`,
               transition: 'all 0.2s',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--chalk)' }}>
                   🔄 Diète cyclique
                 </div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: 'var(--chalk-dim)', marginTop: 2 }}>
                   Définir des jours hauts et bas en glucides / calories
                 </div>
               </div>
@@ -461,7 +461,7 @@ function PlanBlock({
                   borderRadius: 12,
                   border: 'none',
                   cursor: 'pointer',
-                  background: planForm.cyclic_diet ? 'var(--navy)' : '#CCC',
+                  background: planForm.cyclic_diet ? 'var(--accent)' : 'var(--bg-card-2)',
                   transition: 'background 0.2s',
                   flexShrink: 0,
                   padding: 0,
@@ -475,7 +475,7 @@ function PlanBlock({
                     width: 18,
                     height: 18,
                     borderRadius: '50%',
-                    background: 'white',
+                    background: 'var(--bg-card)',
                     transition: 'left 0.2s',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
                     display: 'block',
@@ -488,7 +488,7 @@ function PlanBlock({
                 {[
                   {
                     label: '📈 Jour Haut',
-                    color: '#3A7BD5',
+                    color: 'var(--accent)',
                     keys: [
                       ['high_calories', '🔥 Calories', '2600'],
                       ['high_protein', '🥩 Protéines', '180'],
@@ -549,7 +549,7 @@ function PlanBlock({
               style={{ ...inp, resize: 'vertical' }}
             />
           </div>
-          <button onClick={savePlan} disabled={saving} style={btn('var(--navy)', 'white')}>
+          <button onClick={savePlan} disabled={saving} style={btn('var(--chalk)', 'var(--bg-card)')}>
             {saving ? 'Sauvegarde…' : '✓ Enregistrer le plan'}
           </button>
         </div>
@@ -575,12 +575,12 @@ function PlanBlock({
                   style={{
                     fontFamily: "'Bebas Neue',sans-serif",
                     fontSize: 28,
-                    color: 'var(--navy)',
+                    color: 'var(--chalk)',
                   }}
                 >
                   {val || '—'}
                 </div>
-                <div style={{ fontSize: 12, color: '#6B7A99' }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>{label}</div>
               </div>
             ))}
           </div>
@@ -589,16 +589,16 @@ function PlanBlock({
               style={{
                 marginTop: 14,
                 padding: '12px 16px',
-                background: '#F5F8FF',
+                background: 'var(--accent-dim)',
                 borderRadius: 10,
-                border: '1px solid #D0DCFF',
+                border: '1px solid var(--accent-brd)',
               }}
             >
               <div
                 style={{
                   fontWeight: 700,
                   fontSize: 12,
-                  color: 'var(--navy)',
+                  color: 'var(--chalk)',
                   marginBottom: 10,
                   letterSpacing: 1,
                 }}
@@ -609,9 +609,9 @@ function PlanBlock({
                 {[
                   {
                     label: '📈 Jour Haut',
-                    color: '#3A7BD5',
-                    bg: '#EEF4FF',
-                    border: '#B8CBF5',
+                    color: 'var(--accent)',
+                    bg: 'var(--accent-dim)',
+                    border: 'var(--accent-brd)',
                     vals: [
                       ['🔥', plan.high_calories, 'kcal'],
                       ['🥩', plan.high_protein, 'g P'],
@@ -622,8 +622,8 @@ function PlanBlock({
                   {
                     label: '📉 Jour Bas',
                     color: 'var(--danger)',
-                    bg: '#FFF4F0',
-                    border: '#F5C9BB',
+                    bg: 'var(--danger-dim)',
+                    border: 'var(--danger-dim)',
                     vals: [
                       ['🔥', plan.low_calories, 'kcal'],
                       ['🥩', plan.low_protein, 'g P'],
@@ -662,7 +662,7 @@ function PlanBlock({
                           >
                             {val || '—'}
                           </div>
-                          <div style={{ fontSize: 9, color: '#6B7A99' }}>{unit}</div>
+                          <div style={{ fontSize: 9, color: 'var(--chalk-dim)' }}>{unit}</div>
                         </div>
                       ))}
                     </div>
@@ -673,7 +673,7 @@ function PlanBlock({
           )}
         </div>
       ) : (
-        <div style={{ color: '#6B7A99', fontSize: 14, textAlign: 'center', padding: 10 }}>
+        <div style={{ color: 'var(--chalk-dim)', fontSize: 14, textAlign: 'center', padding: 10 }}>
           Aucun plan nutritionnel. Clique sur "+ Créer le plan" pour commencer.
         </div>
       )}
@@ -695,7 +695,7 @@ function NutritionRing({ value, target, label, unit, color }) {
     <div style={{ textAlign: 'center' }}>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <svg height={R * 2} width={R * 2} style={{ transform: 'rotate(-90deg)' }}>
-          <circle stroke="#EEE" fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
+          <circle stroke="var(--chalk-dim)" fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
           <circle
             stroke={over ? 'var(--danger)' : color}
             fill="transparent"
@@ -722,15 +722,15 @@ function NutritionRing({ value, target, label, unit, color }) {
           }}
         >
           <div
-            style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : 'var(--navy)' }}
+            style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : 'var(--chalk)' }}
           >
             {value}
           </div>
-          <div style={{ fontSize: 9, color: '#AAA' }}>/{target}</div>
+          <div style={{ fontSize: 9, color: 'var(--chalk-dim)' }}>/{target}</div>
         </div>
       </div>
-      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: '#444' }}>{label}</div>
-      <div style={{ fontSize: 10, color: '#AAA' }}>{unit}</div>
+      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: 'var(--chalk)' }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--chalk-dim)' }}>{unit}</div>
     </div>
   )
 }
@@ -772,10 +772,10 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
   return (
     <div
       style={{
-        background: 'white',
+        background: 'var(--bg-card)',
         borderRadius: 14,
         padding: 20,
-        border: '1px solid #EAEAEA',
+        border: '1px solid var(--border)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         marginBottom: 16,
       }}
@@ -788,15 +788,15 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
           marginBottom: 20,
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--chalk)' }}>
           📊 Apports du jour
         </span>
         <button
           onClick={() => setEditing(!editing)}
           style={{
             padding: '4px 12px',
-            background: editing ? '#EEF0F5' : 'var(--navy)',
-            color: editing ? '#666' : 'white',
+            background: editing ? 'var(--bg-card-2)' : 'var(--accent)',
+            color: editing ? 'var(--chalk-dim)' : 'var(--chalk)',
             border: 'none',
             borderRadius: 7,
             fontSize: 12,
@@ -825,7 +825,7 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
                     fontSize: 11,
                     letterSpacing: 1,
                     textTransform: 'uppercase',
-                    color: '#999',
+                    color: 'var(--chalk-dim)',
                     marginBottom: 4,
                     fontWeight: 600,
                   }}
@@ -854,8 +854,8 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
             disabled={saving}
             style={{
               padding: '7px 18px',
-              background: 'var(--navy)',
-              color: 'white',
+              background: 'var(--accent)',
+              color: '#16110D',
               border: 'none',
               borderRadius: 7,
               fontSize: 13,
@@ -894,13 +894,13 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
 function NutritionScoreBlock({ log, plan }) {
   if (!plan)
     return (
-      <InfoBox bg="#FFF8E1" border="#FFD54F" color="#7B6000">
+      <InfoBox bg="var(--gold-dim)" border="var(--gold)" color="var(--gold)">
         ⚠️ Aucun plan nutritionnel défini pour ce client
       </InfoBox>
     )
   if (!log || log.calories === 0)
     return (
-      <InfoBox bg="#F7F7F7" border="#EAEAEA" color="#999">
+      <InfoBox bg="var(--bg-card-2)" border="var(--border)" color="var(--chalk-dim)">
         📝 Aucune donnée pour aujourd'hui
       </InfoBox>
     )
@@ -923,7 +923,7 @@ function NutritionScoreBlock({ log, plan }) {
         100
     )
   )
-  const color = score >= 80 ? '#3A7BD5' : score >= 50 ? '#2A50B0' : 'var(--danger)'
+  const color = score >= 80 ? 'var(--accent)' : score >= 50 ? 'var(--accent)' : 'var(--danger)'
 
   const feedback = []
   if ((log.protein || 0) < (plan.target_protein || 0)) feedback.push('💪 Augmente les protéines')
@@ -939,8 +939,8 @@ function NutritionScoreBlock({ log, plan }) {
         style={{
           padding: '14px 18px',
           borderRadius: 12,
-          background: '#F7F7F7',
-          border: '1px solid #EAEAEA',
+          background: 'var(--bg-card-2)',
+          border: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
           gap: 14,
@@ -948,11 +948,11 @@ function NutritionScoreBlock({ log, plan }) {
       >
         <div style={{ fontSize: 26, fontWeight: 800, color }}>
           {score}
-          <span style={{ fontSize: 12, color: '#999', fontWeight: 400 }}>/100</span>
+          <span style={{ fontSize: 12, color: 'var(--chalk-dim)', fontWeight: 400 }}>/100</span>
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: '#333' }}>Score nutrition</div>
-          <div style={{ fontSize: 11, color: '#999' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)' }}>Score nutrition</div>
+          <div style={{ fontSize: 11, color: 'var(--chalk-dim)' }}>
             {score >= 80
               ? '🟢 Excellente journée'
               : score >= 50
@@ -965,15 +965,15 @@ function NutritionScoreBlock({ log, plan }) {
         style={{
           padding: '14px 18px',
           borderRadius: 12,
-          background: '#EEF4FF',
-          border: '1px solid #B8CBF5',
+          background: 'var(--accent-dim)',
+          border: '1px solid var(--accent-brd)',
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 12, color: '#1A3580', marginBottom: 6 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)', marginBottom: 6 }}>
           Feedback
         </div>
         {feedback.map((f, i) => (
-          <div key={i} style={{ fontSize: 12, color: '#555', marginBottom: 2 }}>
+          <div key={i} style={{ fontSize: 12, color: 'var(--chalk)', marginBottom: 2 }}>
             {f}
           </div>
         ))}
@@ -1000,12 +1000,12 @@ function NutritionWeekGraph({ logs, plan, today }) {
       style={{
         padding: '14px 18px',
         borderRadius: 12,
-        background: 'white',
-        border: '1px solid #EAEAEA',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
         marginBottom: 16,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 13, color: '#333', marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--chalk)', marginBottom: 14 }}>
         📈 Calories — 7 derniers jours
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 70 }}>
@@ -1025,19 +1025,19 @@ function NutritionWeekGraph({ logs, plan, today }) {
                 justifyContent: 'flex-end',
               }}
             >
-              {d.calories > 0 && <div style={{ fontSize: 8, color: '#999' }}>{d.calories}</div>}
+              {d.calories > 0 && <div style={{ fontSize: 8, color: 'var(--chalk-dim)' }}>{d.calories}</div>}
               <div
                 style={{
                   width: '100%',
                   height: `${h}%`,
-                  background: isToday ? 'var(--navy)' : '#C5CEEA',
+                  background: isToday ? 'var(--accent)' : 'var(--border-hi)',
                   borderRadius: '3px 3px 0 0',
                 }}
               />
               <div
                 style={{
                   fontSize: 9,
-                  color: isToday ? 'var(--navy)' : '#999',
+                  color: isToday ? 'var(--chalk)' : 'var(--chalk-dim)',
                   fontWeight: isToday ? 700 : 400,
                 }}
               >
@@ -1055,7 +1055,7 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
   const log = logs.find((l) => l.date === today)
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)', marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--chalk)', marginBottom: 14 }}>
         {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </div>
       <NutritionMacroBlock log={log} plan={plan} date={today} onSave={onSave} />
