@@ -59,7 +59,7 @@ export default function OverviewTab({
 
   if (!client) {
     return (
-      <div style={{ color: '#6B7A99', textAlign: 'center', padding: '40px' }}>
+      <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: '40px' }}>
         Client non trouvé
       </div>
     )
@@ -102,25 +102,25 @@ export default function OverviewTab({
             key={i}
             onClick={stat.onClick}
             style={{
-              background: 'white',
+              background: 'var(--bg-card)',
               borderRadius: '12px',
               padding: '16px 20px',
               border:
                 stat.label === 'Dernier poids' && showWeightHistory
-                  ? '1.5px solid var(--navy)'
-                  : '1px solid #EAEAEA',
+                  ? '1.5px solid var(--chalk)'
+                  : '1px solid var(--border)',
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
               cursor: stat.onClick ? 'pointer' : 'default',
               transition: 'border-color 0.15s',
             }}
           >
             <div style={{ fontSize: '24px', marginBottom: '4px' }}>{stat.icon}</div>
-            <div style={{ fontSize: '13px', color: '#6B7A99' }}>{stat.label}</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--navy)' }}>
+            <div style={{ fontSize: '13px', color: 'var(--chalk-dim)' }}>{stat.label}</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--chalk)' }}>
               {stat.value}
             </div>
             {stat.hint && (
-              <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '4px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--chalk-dim)', marginTop: '4px' }}>
                 {stat.hint}
               </div>
             )}
@@ -139,10 +139,10 @@ export default function OverviewTab({
       {/* Note coach */}
       <div
         style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           borderRadius: '12px',
           padding: '20px',
-          border: '1px solid #EAEAEA',
+          border: '1px solid var(--border)',
           marginBottom: '16px',
         }}
       >
@@ -154,15 +154,15 @@ export default function OverviewTab({
             marginBottom: '12px',
           }}
         >
-          <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--navy)' }}>
+          <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--chalk)' }}>
             📝 Note coach
           </div>
           <button
             onClick={() => setEditing(!editing)}
             style={btn(
-              editing ? 'var(--accent-soft)' : 'var(--navy)',
-              editing ? 'var(--navy)' : 'white',
-              editing ? '#C5D0F0' : null
+              editing ? 'var(--accent-dim)' : 'var(--chalk)',
+              editing ? 'var(--chalk)' : 'var(--bg-card)',
+              editing ? 'var(--accent-brd)' : null
             )}
           >
             {editing ? 'Annuler' : '✏️ Modifier'}
@@ -211,7 +211,7 @@ export default function OverviewTab({
             <button
               onClick={save}
               disabled={saving}
-              style={btn(saving ? '#CCCCCC' : 'var(--navy)', 'white', null)}
+              style={btn(saving ? 'var(--border)' : 'var(--accent)', 'var(--bg-card)', null)}
             >
               {saving ? 'Sauvegarde...' : '✓ Enregistrer'}
             </button>
@@ -221,11 +221,11 @@ export default function OverviewTab({
             {client.coach_note ? (
               <div
                 style={{
-                  background: '#F5F8FF',
+                  background: 'var(--accent-dim)',
                   padding: '12px 16px',
                   borderRadius: '8px',
-                  borderLeft: '3px solid #4A6FD4',
-                  color: '#333',
+                  borderLeft: '3px solid var(--accent)',
+                  color: 'var(--chalk)',
                   fontSize: '14px',
                   lineHeight: '1.6',
                 }}
@@ -233,17 +233,17 @@ export default function OverviewTab({
                 {client.coach_note}
               </div>
             ) : (
-              <div style={{ color: '#999', fontSize: '13px', fontStyle: 'italic' }}>
+              <div style={{ color: 'var(--chalk-dim)', fontSize: '13px', fontStyle: 'italic' }}>
                 Aucune note pour ce client
               </div>
             )}
             {client.current_program && (
-              <div style={{ marginTop: '8px', fontSize: '13px', color: '#6B7A99' }}>
+              <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--chalk-dim)' }}>
                 📋 Programme: <strong>{client.current_program}</strong>
               </div>
             )}
             {client.session_target && (
-              <div style={{ fontSize: '13px', color: '#6B7A99' }}>
+              <div style={{ fontSize: '13px', color: 'var(--chalk-dim)' }}>
                 🎯 Objectif: <strong>{client.session_target}</strong>
               </div>
             )}
@@ -255,38 +255,38 @@ export default function OverviewTab({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <div
           style={{
-            background: 'white',
+            background: 'var(--bg-card)',
             borderRadius: '12px',
             padding: '20px',
-            border: '1px solid #EAEAEA',
+            border: '1px solid var(--border)',
           }}
         >
           <div
             style={{
               fontWeight: '700',
               fontSize: '14px',
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               marginBottom: '12px',
             }}
           >
             👤 Informations
           </div>
-          <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>Email</div>
+          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>Email</div>
           <div
             style={{
               fontSize: '14px',
               fontWeight: '500',
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               marginBottom: '12px',
             }}
           >
             {client.email || '—'}
           </div>
-          <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>ID</div>
+          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>ID</div>
           <div
             style={{
               fontSize: '12px',
-              color: '#999',
+              color: 'var(--chalk-dim)',
               fontFamily: 'monospace',
               wordBreak: 'break-all',
             }}
@@ -296,36 +296,36 @@ export default function OverviewTab({
         </div>
         <div
           style={{
-            background: 'white',
+            background: 'var(--bg-card)',
             borderRadius: '12px',
             padding: '20px',
-            border: '1px solid #EAEAEA',
+            border: '1px solid var(--border)',
           }}
         >
           <div
             style={{
               fontWeight: '700',
               fontSize: '14px',
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               marginBottom: '12px',
             }}
           >
             📊 Activité
           </div>
-          <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>
             Séances cette semaine
           </div>
           <div
             style={{
               fontSize: '24px',
               fontWeight: '700',
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               marginBottom: '12px',
             }}
           >
             {sessionsThisWeek || 0}
           </div>
-          <div style={{ fontSize: '13px', color: '#6B7A99', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>
             Dernier poids
           </div>
           <div
@@ -333,7 +333,7 @@ export default function OverviewTab({
             style={{
               fontSize: '18px',
               fontWeight: '600',
-              color: 'var(--navy)',
+              color: 'var(--chalk)',
               cursor: 'pointer',
               textDecoration: 'underline',
               textDecorationStyle: 'dotted',
