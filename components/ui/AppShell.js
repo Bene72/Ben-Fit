@@ -45,7 +45,13 @@ function isNavItemActive(router, href) {
   return wantedTab ? wantedTab === currentTab : !currentTab
 }
 
-function NavItem({ href, icon, children, collapsed }) {
+// Bleu clair renforcé pour l'espace COACH uniquement : le T.muted d'origine
+// (#6B8ED6, ~5:1 sur navy) passe de justesse le AA mais reste "délavé" à
+// l'œil sur les petits libellés de la sidebar. #B9C6EE monte à ~10:1.
+// Espace athlète non touché (garde T.muted partout).
+const COACH_MUTED = '#B9C6EE'
+
+function NavItem({ href, icon, children, collapsed, mutedColor = T.muted }) {
   const router = useRouter()
   const isActive = isNavItemActive(router, href)
 
@@ -63,7 +69,7 @@ function NavItem({ href, icon, children, collapsed }) {
           cursor: 'pointer',
           fontSize: T.textSm,
           fontWeight: isActive ? 700 : 500,
-          color: isActive ? T.white : T.muted,
+          color: isActive ? T.white : mutedColor,
           background: isActive ? T.blueLight : 'transparent',
           transition: 'background 0.15s, color 0.15s',
           justifyContent: collapsed ? 'center' : 'flex-start',
@@ -78,7 +84,7 @@ function NavItem({ href, icon, children, collapsed }) {
         }}
       >
         <span style={{ display: 'flex', flexShrink: 0 }}>
-          <Icon name={icon} size={16} color={isActive ? T.white : T.muted} />
+          <Icon name={icon} size={16} color={isActive ? T.white : mutedColor} />
         </span>
         {!collapsed && (
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
@@ -165,7 +171,7 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                     gap: 5,
                     fontWeight: 400,
                     fontSize: 10,
-                    color: T.muted,
+                    color: isCoach ? COACH_MUTED : T.muted,
                     textTransform: 'uppercase',
                     letterSpacing: '1px',
                   }}
@@ -220,7 +226,7 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                 style={{
                   padding: '4px 22px 6px',
                   fontSize: 9,
-                  color: T.muted,
+                  color: COACH_MUTED,
                   textTransform: 'uppercase',
                   letterSpacing: '1.2px',
                   fontWeight: 700,
@@ -237,10 +243,15 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
                   récente" dans Accueil), donc un lien de nav séparé n'amenait nulle
                   part de nouveau. Offres reste ici car c'est la seule vue qui n'est
                   pas visible par défaut sur l'accueil. */}
-              <NavItem href="/coach" icon="home" collapsed={collapsed}>
+              <NavItem href="/coach" icon="home" collapsed={collapsed} mutedColor={COACH_MUTED}>
                 Accueil
               </NavItem>
-              <NavItem href="/coach?tab=offres" icon="archive" collapsed={collapsed}>
+              <NavItem
+                href="/coach?tab=offres"
+                icon="archive"
+                collapsed={collapsed}
+                mutedColor={COACH_MUTED}
+              >
                 Offres
               </NavItem>
 
@@ -270,14 +281,15 @@ function Sidebar({ isCoach, user, collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         {/* ── Profil & déconnexion ── */}
-        <UserFooter user={user} collapsed={collapsed} />
+        <UserFooter user={user} collapsed={collapsed} isCoach={isCoach} />
       </aside>
     </>
   )
 }
 
 /* ─── UserFooter ─────────────────────────────────────────────────────────── */
-function UserFooter({ user, collapsed }) {
+function UserFooter({ user, collapsed, isCoach }) {
+  const muted = isCoach ? COACH_MUTED : T.muted
   const router = useRouter()
   const initials = user?.email?.[0]?.toUpperCase() || '?'
 
@@ -329,7 +341,7 @@ function UserFooter({ user, collapsed }) {
             style={{
               background: 'none',
               border: 'none',
-              color: T.muted,
+              color: muted,
               cursor: 'pointer',
               fontSize: 11,
               padding: 0,
@@ -815,7 +827,15 @@ export default function AppShell({
             <h1
               style={{
                 margin: 0,
-                color: T.navy,
+                // BUG CONTRASTE (coach) : T.navy = 'var(--navy, #0D1B4E)', un bleu
+                // marine très sombre, pensé pour un fond clair. Or T.bg résout ici
+                // vers #121316 (quasi noir) — collision entre styles/tokens.css
+                // (jamais importé) et le :root sombre de styles/globals.css.
+                // Résultat mesuré : ~1.1:1 de contraste, texte quasi invisible.
+                // Fix ciblé espace coach uniquement (chalk clair, cohérent avec le
+                // reste de l'interface coach qui utilise déjà var(--chalk)) ; le
+                // T.navy d'origine est conservé pour l'espace athlète.
+                color: isCoach ? '#F4F1E9' : T.navy,
                 fontSize: isMobile ? 20 : 24,
                 fontWeight: 800,
                 lineHeight: 1.2,
@@ -827,7 +847,7 @@ export default function AppShell({
                 <span
                   style={{
                     fontWeight: 400,
-                    color: T.muted,
+                    color: isCoach ? COACH_MUTED : T.muted,
                     fontSize: isMobile ? 15 : 17,
                     marginLeft: 8,
                   }}
@@ -837,7 +857,15 @@ export default function AppShell({
               )}
             </h1>
             {subtitle && (
-              <p style={{ margin: '4px 0 0', color: '#6B7A99', fontSize: 13 }}>{subtitle}</p>
+              <p
+                style={{
+                  margin: '4px 0 0',
+                  color: isCoach ? COACH_MUTED : '#6B7A99',
+                  fontSize: 13,
+                }}
+              >
+                {subtitle}
+              </p>
             )}
             {cycleName && (
               <div
