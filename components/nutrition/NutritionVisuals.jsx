@@ -58,12 +58,16 @@ export function NutritionRing({ value, target, label, unit, color }) {
 }
 
 // ─── Grille des 4 anneaux (calories/protéines/glucides/lipides) ────────────
+// Palette harmonisée avec le reste de l'appli (bleu marine → bleu pastel),
+// à la place de l'ancien dégradé rouge/vert/or/bleu. L'alerte "dépassement"
+// (over) reste en var(--danger) : c'est un signal fonctionnel, pas une
+// couleur décorative, donc on la garde pour ne pas perdre l'info.
 export function NutritionRingsRow({ log, plan }) {
   const macros = [
-    { key: 'calories', label: 'Calories', unit: 'kcal', color: 'var(--danger)', target: plan?.target_calories || 0 },
-    { key: 'protein', label: 'Protéines', unit: 'g', color: '#2C8A6E', target: plan?.target_protein || 0 },
-    { key: 'carbs', label: 'Glucides', unit: 'g', color: 'var(--gold)', target: plan?.target_carbs || 0 },
-    { key: 'fat', label: 'Lipides', unit: 'g', color: '#4A6FD4', target: plan?.target_fat || 0 },
+    { key: 'calories', label: 'Calories', unit: 'kcal', color: '#0D1B4E', target: plan?.target_calories || 0 },
+    { key: 'protein', label: 'Protéines', unit: 'g', color: '#2C64E5', target: plan?.target_protein || 0 },
+    { key: 'carbs', label: 'Glucides', unit: 'g', color: '#4A6FD4', target: plan?.target_carbs || 0 },
+    { key: 'fat', label: 'Lipides', unit: 'g', color: '#8FADE8', target: plan?.target_fat || 0 },
   ]
   return (
     <div
