@@ -9,6 +9,7 @@ export default function OfferModal({ client, onClose, onSave }) {
     nextPayment: client.nextPayment || '',
     note: '',
   })
+  const [saving, setSaving] = useState(false)
   return (
     <div
       style={{
@@ -156,23 +157,31 @@ export default function OfferModal({ client, onClose, onSave }) {
             Annuler
           </button>
           <button
-            onClick={() => {
-              onSave(client.id, form)
-              onClose()
+            onClick={async () => {
+              // Attend la confirmation d'enregistrement avant de fermer : si
+              // handleSaveOffer échoue (retourne false), le modal reste
+              // ouvert avec la saisie intacte au lieu de la perdre en
+              // fermant "à l'aveugle" comme avant.
+              setSaving(true)
+              const ok = await onSave(client.id, form)
+              setSaving(false)
+              if (ok) onClose()
             }}
+            disabled={saving}
             style={{
               padding: '9px 18px',
               border: 'none',
               borderRadius: 9,
               background: 'var(--accent)',
               color: 'white',
-              cursor: 'pointer',
+              cursor: saving ? 'default' : 'pointer',
+              opacity: saving ? 0.6 : 1,
               fontSize: 13,
               fontWeight: 700,
               fontFamily: font,
             }}
           >
-            Enregistrer
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>
       </div>
