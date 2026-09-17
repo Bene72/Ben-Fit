@@ -2,10 +2,13 @@
    désormais uniquement de tokens.css, chargé juste avant ce fichier dans
    globals.css. Ne pas redéfinir de :root ici. */
 
-html,
-body {
-  background: var(--bg);
-  color: var(--text);
+/* Scopé à `.athlete-theme` (posé par AppShell côté athlète) plutôt qu'à
+   `html, body` : ce fichier n'est utilisé que par des pages athlète
+   (pages/bilan.js notamment), mais body est partagé avec l'espace coach —
+   un `body { color: var(--text) }` non scopé écraserait le
+   `body { color: var(--chalk) }` sombre de globals.css utilisé par le
+   coach (même spécificité, ce fichier étant importé après). */
+.athlete-theme {
   font-family: var(--font-sans);
 }
 
@@ -379,8 +382,10 @@ a {
    EXTENSION Ben&Fit — classes nouvelles (compatibles avec ui-* existantes)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* --surface-soft n'existe pas comme token de marque (usage ponctuel ici) */
-:root {
+/* --surface-soft n'existe pas comme token de marque (usage ponctuel ici) —
+   scopé à .athlete-theme pour ne pas ajouter de variable au :root partagé
+   avec le coach. */
+.athlete-theme {
   --surface-soft: #F8FAFF;
 }
 
