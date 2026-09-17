@@ -6,6 +6,12 @@
 //   - des alertes automatiques de fin de cycle (vue cycle_alerts,
 //     calculée depuis la table cycles — jamais désynchronisée)
 //
+// Niveaux d'alerte (vue cycle_alerts, cf. migration 17/09/2026) :
+//   - 'renewal_soon' : 3 semaines écoulées depuis le début du cycle
+//     (signal précoce, pour anticiper le changement de programme)
+//   - 'ending_soon'  : ≤ 5 jours avant la fin théorique du cycle
+//   - 'expired'      : date de fin théorique dépassée
+//
 // Props :
 //   coachId  (uuid, requis)
 //   clients  (array [{ id, name }], pour les selects)
@@ -22,6 +28,28 @@ function daysLabel(n) {
   if (n === 0) return "aujourd'hui"
   if (n === 1) return 'demain'
   return `dans ${n} j`
+}
+
+// Style visuel par niveau d'alerte — centralisé ici pour ne pas dupliquer
+// la logique dans le JSX (et pour ajouter facilement un futur niveau).
+const ALERT_STYLES = {
+  expired: { bg: 'var(--danger-dim)', border: 'var(--danger)', icon: '🔴' },
+  ending_soon: { bg: 'var(--gold-dim)', border: 'var(--gold)', icon: '🟡' },
+  renewal_soon: { bg: 'var(--info-dim, rgba(245,158,11,0.12))', border: 'var(--info, #F59E0B)', icon: '🟠' },
+}
+
+function alertStyle(level) {
+  return ALERT_STYLES[level] || ALERT_STYLES.ending_soon
+}
+
+function alertLabel(a) {
+  // 'renewal_soon' : le signal qui compte est le temps écoulé depuis le
+  // début (3 semaines), pas la fin théorique du cycle — le libellé le
+  // reflète pour ne pas induire le coach en erreur.
+  if (a.alert_level === 'renewal_soon') {
+    return `Cycle démarré depuis ${a.days_elapsed} j · fin prévue le ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+  }
+  return `Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
 export default function CycleTasksPanel({ coachId, clients = [] }) {
@@ -59,7 +87,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         .from('cycle_alerts')
         .select('*')
         .eq('coach_id', coachId)
-        .in('alert_level', ['ending_soon', 'expired'])
+        // 'renewal_soon' ajouté (17/09/2026) : signale les cycles ayant
+        // déjà 3 semaines, en plus des alertes de fin de cycle existantes.
+        .in('alert_level', ['renewal_soon', 'ending_soon', 'expired'])
         .order('end_date', { ascending: true }),
       // Cycles actifs, tous niveaux d'alerte confondus — sert à afficher
       // la date de début de cycle de chaque athlète (demande coach).
@@ -210,14 +240,15 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                 value={cycleForm.start_date}
                 onChange={(e) => setCycleForm((f) => ({ ...f, start_date: e.target.value }))}
                 style={{ ...inputStyle(), flex: 1 }}
+                required
               />
               <input
                 type="number"
-                min={1}
+                min="1"
                 value={cycleForm.duration_weeks}
                 onChange={(e) => setCycleForm((f) => ({ ...f, duration_weeks: e.target.value }))}
-                style={{ ...inputStyle(), width: 70 }}
-                title="Durée en semaines"
+                style={{ ...inputStyle(), width: 60 }}
+                required
               />
               <span style={{ fontSize: 11, color: S.muted, alignSelf: 'center' }}>sem.</span>
             </div>
@@ -269,31 +300,32 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
           <div style={{ fontSize: 12, color: S.muted, padding: '8px 0' }}>Aucun suivi à venir.</div>
         ) : alerts.length === 0 ? null : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {alerts.map((a) => (
-              <div
-                key={a.cycle_id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: a.alert_level === 'expired' ? 'var(--danger-dim)' : 'var(--gold-dim)',
-                  border: `1px solid ${a.alert_level === 'expired' ? 'var(--danger)' : 'var(--gold)'}`,
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: S.navy }}>
-                    {a.client_name}
-                    <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name}</span>
+            {alerts.map((a) => {
+              const st = alertStyle(a.alert_level)
+              return (
+                <div
+                  key={a.cycle_id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: st.bg,
+                    border: `1px solid ${st.border}`,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: S.navy }}>
+                      {a.client_name}
+                      <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: S.muted }}>{alertLabel(a)}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: S.muted }}>
-                    Fin de cycle {daysLabel(a.days_remaining)} · {new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-                  </div>
+                  <span style={{ fontSize: 16 }}>{st.icon}</span>
                 </div>
-                <span style={{ fontSize: 16 }}>{a.alert_level === 'expired' ? '🔴' : '🟡'}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
