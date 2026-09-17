@@ -1,10 +1,16 @@
-/* ── tokens.css — Ben&Fit — SOURCE UNIQUE DE VÉRITÉ ─────────────────────────
-   Toutes les couleurs/radius/ombres de l'app passent par ici. Aucune autre
-   feuille de style ne doit redéfinir un :root — voir ui-foundation.css qui
-   ne contient plus que des classes de composants (.ui-*, .btn, .card…).
+/* ── tokens.css — Ben&Fit — SOURCE UNIQUE DE VÉRITÉ (espace ATHLÈTE) ────────
+   Toutes les couleurs/radius/ombres de l'espace athlète (pastel clair / bleu
+   marine) passent par ici. Volontairement scopé à la classe `.athlete-theme`
+   (posée par AppShell sur son wrapper racine quand isCoach === false) plutôt
+   que sur `:root` : l'espace coach reste sur le thème sombre "BOXLOG" défini
+   dans styles/globals.css, sans collision entre les deux jeux de variables
+   (les deux définissent --bg/--border/--gold/--accent/--danger/--success
+   avec des valeurs différentes — d'où le scoping, indispensable ici).
+   Voir ui-foundation.css qui ne contient plus que des classes de composants
+   (.ui-*, .btn, .card…), non utilisées actuellement.
    ────────────────────────────────────────────────────────────────────────── */
 
-:root {
+.athlete-theme {
   /* ── Marque — Navy (intouchable) ──────────────────────────────────── */
   --navy:         #0D1B4E;
   --navy-mid:     #1A2B6B;
@@ -22,6 +28,7 @@
   --surface:         #FFFFFF;
   --surface-muted:   #F7F9FC;
   --surface-strong:  #EEF1F8;
+  --surface-alt:     #EEF1F8;
   --card:            #FFFFFF;
   --card-warm:       #FAFCFF;
   --border:          #E4E9F2;
@@ -32,10 +39,12 @@
   --text:        #0D1B4E;
   --text-soft:   #58628A;
   --text-faint:  #94A0BF;
+  --muted:       #6B7A99;
 
   /* ── Accent fonctionnel (bleu — actions secondaires, PAS la marque) ── */
   --accent:      #3B6BE0;
   --accent-soft: rgba(59, 107, 224, 0.1);
+  --accent-deep: #1E4FC4;
   --accent-2:    #4A6FD4;
 
   /* ── Statuts ─────────────────────────────────────────────────────── */
@@ -80,4 +89,10 @@
   /* ── Typographie ─────────────────────────────────────────────────── */
   --font-display: 'Bebas Neue', sans-serif;
   --font-sans:    'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Base : couleur de fond/texte héritée par tous les descendants (corrige
+     le texte "chalk" quasi blanc hérité de styles/globals.css `body { color:
+     var(--chalk) }`, invisible sur les cartes claires de cet espace). */
+  background: var(--bg);
+  color: var(--text);
 }
