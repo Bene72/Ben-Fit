@@ -6,7 +6,6 @@ export default function OfferModal({ client, onClose, onSave }) {
     offer: client.offer,
     price: OFFERS[client.offer]?.price || 149,
     startDate: client.since,
-    nextPayment: client.nextPayment || '',
     note: '',
   })
   const [saving, setSaving] = useState(false)
@@ -70,7 +69,12 @@ export default function OfferModal({ client, onClose, onSave }) {
           {[
             ['Tarif mensuel (€)', 'price', 'number'],
             ['Début contrat', 'startDate', 'date'],
-            ['Prochain paiement', 'nextPayment', 'date'],
+            // "Prochain paiement" retiré temporairement : la colonne
+            // `next_payment` n'existe pas encore sur `profiles` côté
+            // Supabase (confirmé par l'erreur "Could not find the
+            // 'next_payment' column..."). À réintroduire une fois la
+            // colonne ajoutée en base — voir handleSaveOffer dans
+            // pages/coach.js pour le point de raccord.
           ].map(([lbl, key, type]) => (
             <div key={key}>
               <label
