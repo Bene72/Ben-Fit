@@ -469,7 +469,7 @@ export default function BilanPage() {
 
                 <div className="ui-stack">
                   {BILAN_ITEMS.map((item) => (
-                    <div key={item.key} className="ui-card ui-card--padded">
+                    <div key={item.key} className="ui-card ui-card--soft ui-card--padded">
                       <div style={{ fontWeight: 800, marginBottom: 12 }}>{item.label}</div>
 
                       {!item.noteOnly ? (
