@@ -303,20 +303,37 @@ export default function CoachDashboard() {
   }
 
   const handleSaveOffer = async (clientId, form) => {
-    setClients((prev) =>
-      prev.map((c) =>
-        c.id === clientId
-          ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment }
-          : c
-      )
-    )
+    // BUG signalé : la mise à jour optimiste de `clients` se faisait AVANT
+    // l'écriture Supabase, et une erreur (colonne manquante, RLS, réseau...)
+    // n'était que loggée en console — jamais montrée au coach. L'écran
+    // semblait donc "enregistré" jusqu'au rechargement suivant, où la vraie
+    // valeur (jamais persistée) revenait. On écrit d'abord, on vérifie
+    // qu'une ligne a bien été modifiée (.select() : une RLS qui bloque
+    // silencieusement l'update renvoie 0 ligne, sans erreur), puis seulement
+    // on met à jour l'affichage — même pattern que archiveClient/unarchiveClient.
     try {
-      await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ offer: form.offer, next_payment: form.nextPayment || null })
         .eq('id', clientId)
+        .select()
+      if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error("Aucune ligne modifiée (droits d'accès ?)")
+      }
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === clientId
+            ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment }
+            : c
+        )
+      )
+      showToast('Offre enregistrée', 'success')
+      return true
     } catch (err) {
       console.error('Erreur mise à jour offre:', err)
+      showToast("Erreur : l'offre n'a pas été enregistrée — " + err.message, 'error')
+      return false
     }
   }
 
