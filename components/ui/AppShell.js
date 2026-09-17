@@ -686,14 +686,14 @@ function ClientMoreMenu({ userId, isMobile }) {
                 borderRadius: 11,
                 fontSize: 12,
                 fontWeight: 600,
-                color: T.muted,
+                color: T.navy,
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = 'var(--surface-muted, #F7F9FC)')
               }
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <Icon name="weight" size={15} color={T.muted} />
+              <Icon name="weight" size={15} color={T.navy} />
               <span>Mensurations &amp; profil</span>
             </div>
           </Link>
@@ -767,10 +767,16 @@ export default function AppShell({
 
   return (
     <div
+      className={isCoach ? undefined : 'athlete-theme'}
       style={{
         display: 'flex',
         minHeight: '100dvh',
-        background: T.bg,
+        // Coach : garde le thème sombre de globals.css (T.bg -> #121316,
+        // comportement inchangé). Athlète : bascule sur le pastel clair de
+        // styles/tokens.css via la classe .athlete-theme ci-dessus, qui
+        // redéfinit --bg/--text localement (pas de collision avec le coach).
+        background: isCoach ? T.bg : 'var(--bg, #F3F5FA)',
+        color: isCoach ? undefined : 'var(--text, #0D1B4E)',
         fontFamily: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
       }}
     >
@@ -847,7 +853,12 @@ export default function AppShell({
                 <span
                   style={{
                     fontWeight: 400,
-                    color: isCoach ? COACH_MUTED : T.muted,
+                    // '#6B8ED6' (T.muted) est pensé pour contraster sur fond
+                    // sombre (sidebar/coach) ; sur le nouveau fond pastel
+                    // clair de l'athlète il tombe à ~2.9:1. var(--text-soft)
+                    // (#58628A) est la teinte "grise-bleue" équivalente côté
+                    // thème clair, ~5.4:1.
+                    color: isCoach ? COACH_MUTED : 'var(--text-soft, #58628A)',
                     fontSize: isMobile ? 15 : 17,
                     marginLeft: 8,
                   }}
@@ -860,7 +871,7 @@ export default function AppShell({
               <p
                 style={{
                   margin: '4px 0 0',
-                  color: isCoach ? COACH_MUTED : '#6B7A99',
+                  color: isCoach ? COACH_MUTED : 'var(--text-soft, #58628A)',
                   fontSize: 13,
                 }}
               >
