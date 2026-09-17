@@ -312,9 +312,14 @@ export default function CoachDashboard() {
     // silencieusement l'update renvoie 0 ligne, sans erreur), puis seulement
     // on met à jour l'affichage — même pattern que archiveClient/unarchiveClient.
     try {
+      // "next_payment" retiré : colonne absente de `profiles` côté Supabase
+      // (confirmé par l'erreur "Could not find the 'next_payment' column of
+      // 'profiles' in the schema cache"). À réintroduire une fois la colonne
+      // ajoutée en base — voir components/coach/OfferModal.jsx pour le champ
+      // correspondant, retiré du formulaire pour ne pas induire en erreur.
       const { data, error } = await supabase
         .from('profiles')
-        .update({ offer: form.offer, next_payment: form.nextPayment || null })
+        .update({ offer: form.offer })
         .eq('id', clientId)
         .select()
       if (error) throw error
@@ -323,9 +328,7 @@ export default function CoachDashboard() {
       }
       setClients((prev) =>
         prev.map((c) =>
-          c.id === clientId
-            ? { ...c, offer: form.offer, since: form.startDate, nextPayment: form.nextPayment }
-            : c
+          c.id === clientId ? { ...c, offer: form.offer, since: form.startDate } : c
         )
       )
       showToast('Offre enregistrée', 'success')
