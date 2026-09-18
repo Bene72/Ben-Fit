@@ -109,9 +109,14 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     setTasks(taskData || [])
     setAlerts(alertData || [])
     setUpcomingCycles(upcomingData || [])
-    setActiveCycles(cycleData || [])
+    // Filtre les clients archivés côté client : la liste `clients` (prop)
+    // contient déjà `archived`, pas besoin d'une jointure Supabase de plus.
+    // Corrige le bug où un client archivé avec un cycle encore `status =
+    // 'active'` en base pouvait apparaître dans "Cycles en cours".
+    const archivedIds = new Set(clients.filter((c) => c.archived).map((c) => c.id))
+    setActiveCycles((cycleData || []).filter((c) => !archivedIds.has(c.client_id)))
     setLoading(false)
-  }, [coachId])
+  }, [coachId, clients])
 
   useEffect(() => {
     load()
