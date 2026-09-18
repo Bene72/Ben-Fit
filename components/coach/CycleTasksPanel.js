@@ -55,8 +55,8 @@ function cycleEndLabel(a) {
 
 export default function CycleTasksPanel({ coachId, clients = [] }) {
   const [tasks, setTasks] = useState([])
-  const [alerts, setAlerts] = useState([]) // ending_soon / expired -> encart "Prochains suivis"
-  const [upcomingCycles, setUpcomingCycles] = useState([]) // upcoming -> liste "Tâches à venir"
+  const [rawAlerts, setAlerts] = useState([]) // ending_soon / expired -> encart "Prochains suivis"
+  const [rawUpcomingCycles, setUpcomingCycles] = useState([]) // upcoming -> liste "Tâches à venir"
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
@@ -73,7 +73,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     duration_weeks: 5,
   })
 
-  const [activeCycles, setActiveCycles] = useState([])
+  const [rawActiveCycles, setActiveCycles] = useState([])
 
   const load = useCallback(async () => {
     if (!coachId) return
@@ -216,6 +216,13 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   // Clients archivés : leurs tâches manuelles (ex. "Prog X à changer")
   // ne doivent plus apparaître dans "Tâches à venir".
   const archivedIds = new Set(clients.filter((c) => c.archived).map((c) => c.id))
+
+  // Sécurité côté affichage : quelle que soit la source des données
+  // (vue, table…), une ligne liée à un client archivé n'est jamais affichée.
+  const notArchived = (row) => !archivedIds.has(row.client_id)
+  const alerts = rawAlerts.filter(notArchived)
+  const upcomingCycles = rawUpcomingCycles.filter(notArchived)
+  const activeCycles = rawActiveCycles.filter(notArchived)
 
   // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
   // liste triée par date, pour l'onglet "Tâches à venir".
@@ -464,56 +471,4 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                       {a.client_name}
                       <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name} à préparer</span>
                     </div>
-                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
-                  </div>
-                  <span style={{ fontSize: 14 }}>{st.icon}</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function inputStyle() {
-  return {
-    padding: '8px 10px',
-    borderRadius: 8,
-    border: '1px solid var(--border-hi)',
-    fontSize: 12.5,
-    fontFamily: font,
-    outline: 'none',
-    background: 'var(--bg-input)',
-    color: 'var(--chalk)',
-  }
-}
-function selectStyle() {
-  return { ...inputStyle(), cursor: 'pointer' }
-}
-function primaryBtnStyle() {
-  return {
-    border: 'none',
-    background: '#0D1B4E',
-    color: 'white',
-    borderRadius: 8,
-    padding: '8px 12px',
-    fontSize: 12.5,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: font,
-  }
-}
-function iconBtnStyle() {
-  return {
-    border: 'none',
-    background: 'var(--bg-card-2)',
-    color: 'var(--chalk)',
-    borderRadius: 6,
-    width: 24,
-    height: 24,
-    cursor: 'pointer',
-    fontSize: 12,
-  }
-}
+            
