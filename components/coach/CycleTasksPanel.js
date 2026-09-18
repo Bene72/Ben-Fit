@@ -7,10 +7,13 @@
 //     calculée depuis la table cycles — jamais désynchronisée)
 //
 // Niveaux d'alerte (vue cycle_alerts, cf. migration 17/09/2026) :
-//   - 'renewal_soon' : 3 semaines écoulées depuis le début du cycle
-//     (signal précoce, pour anticiper le changement de programme)
-//   - 'ending_soon'  : ≤ 5 jours avant la fin théorique du cycle
-//   - 'expired'      : date de fin théorique dépassée
+//   - 'upcoming'     : ≤ 21 jours restants avant la fin théorique du
+//                      cycle (ex : J+14 pour un cycle de 5 semaines).
+//                      Alerte précoce → affichée dans "TÂCHES À VENIR",
+//                      mélangée aux tâches manuelles, triée par date.
+//   - 'ending_soon'  : ≤ 5 jours restants. Alerte tardive → affichée
+//                      dans "PROCHAINS SUIVIS" (encart dédié).
+//   - 'expired'      : date de fin théorique dépassée. Même encart.
 //
 // Props :
 //   coachId  (uuid, requis)
@@ -31,30 +34,25 @@ function daysLabel(n) {
 }
 
 // Style visuel par niveau d'alerte — centralisé ici pour ne pas dupliquer
-// la logique dans le JSX (et pour ajouter facilement un futur niveau).
+// la logique dans le JSX.
 const ALERT_STYLES = {
   expired: { bg: 'var(--danger-dim)', border: 'var(--danger)', icon: '🔴' },
   ending_soon: { bg: 'var(--gold-dim)', border: 'var(--gold)', icon: '🟡' },
-  renewal_soon: { bg: 'var(--info-dim, rgba(245,158,11,0.12))', border: 'var(--info, #F59E0B)', icon: '🟠' },
+  upcoming: { bg: 'var(--info-dim, rgba(59,130,246,0.10))', border: 'var(--info, #3B82F6)', icon: '🔵' },
 }
 
 function alertStyle(level) {
   return ALERT_STYLES[level] || ALERT_STYLES.ending_soon
 }
 
-function alertLabel(a) {
-  // 'renewal_soon' : le signal qui compte est le temps écoulé depuis le
-  // début (3 semaines), pas la fin théorique du cycle — le libellé le
-  // reflète pour ne pas induire le coach en erreur.
-  if (a.alert_level === 'renewal_soon') {
-    return `Cycle démarré depuis ${a.days_elapsed} j · fin prévue le ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
-  }
+function cycleEndLabel(a) {
   return `Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
 export default function CycleTasksPanel({ coachId, clients = [] }) {
   const [tasks, setTasks] = useState([])
-  const [alerts, setAlerts] = useState([])
+  const [alerts, setAlerts] = useState([]) // ending_soon / expired -> encart "Prochains suivis"
+  const [upcomingCycles, setUpcomingCycles] = useState([]) // upcoming -> liste "Tâches à venir"
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
@@ -76,23 +74,31 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   const load = useCallback(async () => {
     if (!coachId) return
     setLoading(true)
-    const [{ data: taskData }, { data: alertData }, { data: cycleData }] = await Promise.all([
+    const [{ data: taskData }, { data: alertData }, { data: upcomingData }, { data: cycleData }] = await Promise.all([
       supabase
         .from('coach_tasks')
         .select('*')
         .eq('coach_id', coachId)
         .eq('done', false)
         .order('due_date', { ascending: true }),
+      // Alerte tardive (encart "Prochains suivis") : cycle presque fini
+      // ou déjà dépassé.
       supabase
         .from('cycle_alerts')
         .select('*')
         .eq('coach_id', coachId)
-        // 'renewal_soon' ajouté (17/09/2026) : signale les cycles ayant
-        // déjà 3 semaines, en plus des alertes de fin de cycle existantes.
-        .in('alert_level', ['renewal_soon', 'ending_soon', 'expired'])
+        .in('alert_level', ['ending_soon', 'expired'])
         .order('end_date', { ascending: true }),
-      // Cycles actifs, tous niveaux d'alerte confondus — sert à afficher
-      // la date de début de cycle de chaque athlète (demande coach).
+      // Alerte précoce (liste "Tâches à venir") : ≤ 21 j restants,
+      // pour anticiper le prochain cycle avant que ça devienne urgent.
+      supabase
+        .from('cycle_alerts')
+        .select('*')
+        .eq('coach_id', coachId)
+        .eq('alert_level', 'upcoming')
+        .order('end_date', { ascending: true }),
+      // Cycles actifs, tous niveaux confondus — sert à afficher la date
+      // de début de cycle de chaque athlète (demande coach).
       supabase
         .from('cycles')
         .select('id, client_id, name, start_date, duration_weeks')
@@ -102,6 +108,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     ])
     setTasks(taskData || [])
     setAlerts(alertData || [])
+    setUpcomingCycles(upcomingData || [])
     setActiveCycles(cycleData || [])
     setLoading(false)
   }, [coachId])
@@ -169,6 +176,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     if (!error && cycle) {
       // Crée automatiquement une tâche "Prog <client> à changer" au
       // moment prévu de fin de cycle (start_date + durée en semaines).
+      // L'alerte précoce "upcoming" (3 semaines avant), elle, n'a pas
+      // besoin de tâche insérée : elle est calculée à la volée par la
+      // vue cycle_alerts et injectée dans la liste au chargement.
       const dueDate = new Date(cycleForm.start_date + 'T12:00:00')
       dueDate.setDate(dueDate.getDate() + durationWeeks * 7)
       const dueDateStr = dueDate.toISOString().split('T')[0]
@@ -198,9 +208,16 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
 
   const clientName = (id) => clients.find((c) => c.id === id)?.name || '—'
 
+  // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
+  // liste triée par date, pour l'onglet "Tâches à venir".
+  const upcomingItems = [
+    ...tasks.map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
+    ...upcomingCycles.map((a) => ({ kind: 'cycle', sortDate: a.end_date, data: a })),
+  ].sort((a, b) => a.sortDate.localeCompare(b.sortDate))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* ── PROCHAINS SUIVIS (alertes fin de cycle + suivis manuels) ── */}
+      {/* ── PROCHAINS SUIVIS (alerte tardive : cycle presque fini / dépassé) ── */}
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
@@ -256,9 +273,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
           </form>
         )}
 
-        {/* Cycles en cours — date de début par athlète, pour voir d'un
-            coup d'œil qui a commencé quand (utile pour anticiper le
-            changement de programme toutes les 5 semaines). */}
+        {/* Cycles en cours — date de début par athlète */}
         {!loading && activeCycles.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
@@ -320,7 +335,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                       {a.client_name}
                       <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: S.muted }}>{alertLabel(a)}</div>
+                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
                   </div>
                   <span style={{ fontSize: 16 }}>{st.icon}</span>
                 </div>
@@ -330,7 +345,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         )}
       </div>
 
-      {/* ── TÂCHES À VENIR (manuelles) ── */}
+      {/* ── TÂCHES À VENIR (tâches manuelles + alerte précoce "upcoming") ── */}
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
@@ -378,38 +393,69 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
 
         {loading ? (
           <div style={{ fontSize: 12, color: S.muted }}>Chargement…</div>
-        ) : tasks.length === 0 ? (
+        ) : upcomingItems.length === 0 ? (
           <div style={{ fontSize: 12, color: S.muted, padding: '8px 0' }}>
             Aucune tâche — clique sur "+ Ajouter" pour en créer une.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {tasks.map((t) => {
-              const overdue = t.due_date < new Date().toISOString().split('T')[0]
+            {upcomingItems.map((item) => {
+              if (item.kind === 'task') {
+                const t = item.data
+                const overdue = t.due_date < new Date().toISOString().split('T')[0]
+                return (
+                  <div
+                    key={`task-${t.id}`}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '9px 12px',
+                      borderRadius: 10,
+                      background: overdue ? 'var(--danger-dim)' : 'var(--bg-card-2)',
+                      border: `1px solid ${overdue ? 'var(--danger)' : S.border}`,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: S.muted }}>
+                        {t.client_id ? `${clientName(t.client_id)} · ` : ''}
+                        {new Date(t.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => completeTask(t.id)} title="Marquer comme fait" style={iconBtnStyle()}>✓</button>
+                      <button onClick={() => deleteTask(t.id)} title="Supprimer" style={iconBtnStyle()}>✕</button>
+                    </div>
+                  </div>
+                )
+              }
+              // item.kind === 'cycle' : alerte précoce dérivée de cycle_alerts,
+              // pas une vraie ligne coach_tasks — pas de checkbox/suppression,
+              // juste un badge distinctif et le rappel d'info.
+              const a = item.data
+              const st = alertStyle('upcoming')
               return (
                 <div
-                  key={t.id}
+                  key={`cycle-${a.cycle_id}`}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '9px 12px',
                     borderRadius: 10,
-                    background: overdue ? 'var(--danger-dim)' : 'var(--bg-card-2)',
-                    border: `1px solid ${overdue ? 'var(--danger)' : S.border}`,
+                    background: st.bg,
+                    border: `1px solid ${st.border}`,
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>{t.title}</div>
-                    <div style={{ fontSize: 11, color: S.muted }}>
-                      {t.client_id ? `${clientName(t.client_id)} · ` : ''}
-                      {new Date(t.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>
+                      {a.client_name}
+                      <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name} à préparer</span>
                     </div>
+                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => completeTask(t.id)} title="Marquer comme fait" style={iconBtnStyle()}>✓</button>
-                    <button onClick={() => deleteTask(t.id)} title="Supprimer" style={iconBtnStyle()}>✕</button>
-                  </div>
+                  <span style={{ fontSize: 14 }}>{st.icon}</span>
                 </div>
               )
             })}
