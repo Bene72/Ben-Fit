@@ -15,9 +15,13 @@
 //                      dans "PROCHAINS SUIVIS" (encart dédié).
 //   - 'expired'      : date de fin théorique dépassée. Même encart.
 //
+// Clients archivés : la vue cycle_alerts les exclut déjà (profiles.archived).
+// Le bloc "Cycles en cours" lit donc la vue (et non plus `cycles` en direct),
+// et les tâches manuelles liées à un client archivé sont masquées ici.
+//
 // Props :
 //   coachId  (uuid, requis)
-//   clients  (array [{ id, name }], pour les selects)
+//   clients  (array [{ id, name, archived }], pour les selects)
 //
 // Utilisation dans coach.js, à côté ou à la place du calendrier existant :
 //   <CycleTasksPanel coachId={user?.id} clients={clients} />
@@ -99,24 +103,20 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         .order('end_date', { ascending: true }),
       // Cycles actifs, tous niveaux confondus — sert à afficher la date
       // de début de cycle de chaque athlète (demande coach).
+      // Lu via la vue cycle_alerts pour exclure automatiquement les
+      // clients archivés (source unique du filtre).
       supabase
-        .from('cycles')
-        .select('id, client_id, name, start_date, duration_weeks')
+        .from('cycle_alerts')
+        .select('cycle_id, client_id, client_name, cycle_name, start_date, duration_weeks')
         .eq('coach_id', coachId)
-        .eq('status', 'active')
         .order('start_date', { ascending: false }),
     ])
     setTasks(taskData || [])
     setAlerts(alertData || [])
     setUpcomingCycles(upcomingData || [])
-    // Filtre les clients archivés côté client : la liste `clients` (prop)
-    // contient déjà `archived`, pas besoin d'une jointure Supabase de plus.
-    // Corrige le bug où un client archivé avec un cycle encore `status =
-    // 'active'` en base pouvait apparaître dans "Cycles en cours".
-    const archivedIds = new Set(clients.filter((c) => c.archived).map((c) => c.id))
-    setActiveCycles((cycleData || []).filter((c) => !archivedIds.has(c.client_id)))
+    setActiveCycles(cycleData || [])
     setLoading(false)
-  }, [coachId, clients])
+  }, [coachId])
 
   useEffect(() => {
     load()
@@ -213,10 +213,16 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
 
   const clientName = (id) => clients.find((c) => c.id === id)?.name || '—'
 
+  // Clients archivés : leurs tâches manuelles (ex. "Prog X à changer")
+  // ne doivent plus apparaître dans "Tâches à venir".
+  const archivedIds = new Set(clients.filter((c) => c.archived).map((c) => c.id))
+
   // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
   // liste triée par date, pour l'onglet "Tâches à venir".
   const upcomingItems = [
-    ...tasks.map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
+    ...tasks
+      .filter((t) => !t.client_id || !archivedIds.has(t.client_id))
+      .map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
     ...upcomingCycles.map((a) => ({ kind: 'cycle', sortDate: a.end_date, data: a })),
   ].sort((a, b) => a.sortDate.localeCompare(b.sortDate))
 
@@ -289,7 +295,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               end.setDate(end.getDate() + (c.duration_weeks || 5) * 7)
               return (
                 <div
-                  key={c.id}
+                  key={c.cycle_id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -300,8 +306,8 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                   }}
                 >
                   <div style={{ fontSize: 12, fontWeight: 700, color: S.navy }}>
-                    {clientName(c.client_id)}
-                    <span style={{ fontWeight: 500, color: S.muted }}> · {c.name}</span>
+                    {c.client_name}
+                    <span style={{ fontWeight: 500, color: S.muted }}> · {c.cycle_name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: S.muted, fontFamily: font, whiteSpace: 'nowrap' }}>
                     {new Date(c.start_date + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
