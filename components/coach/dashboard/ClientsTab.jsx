@@ -1,313 +1,519 @@
-// components/coach/dashboard/ClientsTab.jsx
-// Extrait de pages/coach.js (découpage audit 09/09/2026, point 4) — contenu
-// de l'onglet "Clients" : sous-onglets actifs/archivés, recherche/tri,
-// liste de cartes clients, et la colonne de droite (activité, calendrier,
-// tâches de cycle). Aucune logique modifiée, copié tel quel.
-import Avatar from '../Avatar'
-import Badge from '../Badge'
-import ActivityFeed from '../ActivityFeed'
-import CalendarPanel from '../CalendarPanel'
-import CycleTasksPanel from '../CycleTasksPanel'
-import { S, font, bebas, OFFERS, daysAgo } from '../../../lib/coachDashboard/offersAndCompliance'
+// components/coach/CycleTasksPanel.js
+//
+// Remplace/complète les blocs "TÂCHES À VENIR" et "PROCHAINS SUIVIS"
+// du cockpit coach. Combine :
+//   - des tâches manuelles (table coach_tasks)
+//   - des alertes automatiques de fin de cycle (vue cycle_alerts,
+//     calculée depuis la table cycles — jamais désynchronisée)
+//
+// Niveaux d'alerte (vue cycle_alerts, cf. migration 17/09/2026) :
+//   - 'upcoming'     : ≤ 21 jours restants avant la fin théorique du
+//                      cycle (ex : J+14 pour un cycle de 5 semaines).
+//                      Alerte précoce → affichée dans "TÂCHES À VENIR",
+//                      mélangée aux tâches manuelles, triée par date.
+//   - 'ending_soon'  : ≤ 5 jours restants. Alerte tardive → affichée
+//                      dans "PROCHAINS SUIVIS" (encart dédié).
+//   - 'expired'      : date de fin théorique dépassée. Même encart.
+//
+// Clients archivés : la vue cycle_alerts les exclut déjà (profiles.archived).
+// Le bloc "Cycles en cours" lit donc la vue (et non plus `cycles` en direct),
+// et les tâches manuelles liées à un client archivé sont masquées ici.
+//
+// Props :
+//   coachId  (uuid, requis)
+//   clients  (array [{ id, name, archived }], pour les selects)
+//
+// Utilisation dans coach.js, à côté ou à la place du calendrier existant :
+//   <CycleTasksPanel coachId={user?.id} clients={clients} />
 
-export default function ClientsTab({
-  isMobile,
-  clients,
-  archivedClients,
-  clientSubTab,
-  onChangeSubTab,
-  clientSearch,
-  onChangeSearch,
-  clientSort,
-  onChangeSort,
-  displayedClients,
-  onSelectClient,
-  onCreateClient,
-  activity,
-  activityLoading,
-  onSelectActivity,
-  sessions,
-  coachId,
-}) {
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
+import { S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
+
+function daysLabel(n) {
+  if (n < 0) return `en retard de ${Math.abs(n)} j`
+  if (n === 0) return "aujourd'hui"
+  if (n === 1) return 'demain'
+  return `dans ${n} j`
+}
+
+// Style visuel par niveau d'alerte — centralisé ici pour ne pas dupliquer
+// la logique dans le JSX.
+const ALERT_STYLES = {
+  expired: { bg: 'var(--danger-dim)', border: 'var(--danger)', icon: '🔴' },
+  ending_soon: { bg: 'var(--gold-dim)', border: 'var(--gold)', icon: '🟡' },
+  upcoming: { bg: 'var(--info-dim, rgba(59,130,246,0.10))', border: 'var(--info, #3B82F6)', icon: '🔵' },
+}
+
+function alertStyle(level) {
+  return ALERT_STYLES[level] || ALERT_STYLES.ending_soon
+}
+
+function cycleEndLabel(a) {
+  return `Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+}
+
+export default function CycleTasksPanel({ coachId, clients = [] }) {
+  const [tasks, setTasks] = useState([])
+  const [alerts, setAlerts] = useState([]) // ending_soon / expired -> encart "Prochains suivis"
+  const [upcomingCycles, setUpcomingCycles] = useState([]) // upcoming -> liste "Tâches à venir"
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    type: 'task',
+    title: '',
+    due_date: new Date().toISOString().split('T')[0],
+    client_id: '',
+  })
+  const [showCycleForm, setShowCycleForm] = useState(false)
+  const [cycleForm, setCycleForm] = useState({
+    client_id: '',
+    name: '',
+    start_date: new Date().toISOString().split('T')[0],
+    duration_weeks: 5,
+  })
+
+  const [activeCycles, setActiveCycles] = useState([])
+
+  const load = useCallback(async () => {
+    if (!coachId) return
+    setLoading(true)
+    const [{ data: taskData }, { data: alertData }, { data: upcomingData }, { data: cycleData }] = await Promise.all([
+      supabase
+        .from('coach_tasks')
+        .select('*')
+        .eq('coach_id', coachId)
+        .eq('done', false)
+        .order('due_date', { ascending: true }),
+      // Alerte tardive (encart "Prochains suivis") : cycle presque fini
+      // ou déjà dépassé.
+      supabase
+        .from('cycle_alerts')
+        .select('*')
+        .eq('coach_id', coachId)
+        .in('alert_level', ['ending_soon', 'expired'])
+        .order('end_date', { ascending: true }),
+      // Alerte précoce (liste "Tâches à venir") : ≤ 21 j restants,
+      // pour anticiper le prochain cycle avant que ça devienne urgent.
+      supabase
+        .from('cycle_alerts')
+        .select('*')
+        .eq('coach_id', coachId)
+        .eq('alert_level', 'upcoming')
+        .order('end_date', { ascending: true }),
+      // Cycles actifs, tous niveaux confondus — sert à afficher la date
+      // de début de cycle de chaque athlète (demande coach).
+      // Lu via la vue cycle_alerts pour exclure automatiquement les
+      // clients archivés (source unique du filtre).
+      supabase
+        .from('cycle_alerts')
+        .select('cycle_id, client_id, client_name, cycle_name, start_date, duration_weeks')
+        .eq('coach_id', coachId)
+        .order('start_date', { ascending: false }),
+    ])
+    setTasks(taskData || [])
+    setAlerts(alertData || [])
+    setUpcomingCycles(upcomingData || [])
+    setActiveCycles(cycleData || [])
+    setLoading(false)
+  }, [coachId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function createTask(e) {
+    e.preventDefault()
+    if (!form.title || !form.due_date) return
+    const { data, error } = await supabase
+      .from('coach_tasks')
+      .insert({
+        coach_id: coachId,
+        client_id: form.client_id || null,
+        type: form.type,
+        title: form.title,
+        due_date: form.due_date,
+      })
+      .select()
+      .single()
+    if (!error && data) {
+      setTasks((prev) => [...prev, data].sort((a, b) => a.due_date.localeCompare(b.due_date)))
+      setForm({ type: 'task', title: '', due_date: new Date().toISOString().split('T')[0], client_id: '' })
+      setShowForm(false)
+    }
+  }
+
+  async function completeTask(id) {
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+    await supabase.from('coach_tasks').update({ done: true }).eq('id', id)
+  }
+
+  async function deleteTask(id) {
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+    await supabase.from('coach_tasks').delete().eq('id', id)
+  }
+
+  async function createCycle(e) {
+    e.preventDefault()
+    if (!cycleForm.client_id || !cycleForm.name) return
+    // Ferme l'éventuel cycle actif précédent du même client
+    await supabase
+      .from('cycles')
+      .update({ status: 'completed' })
+      .eq('client_id', cycleForm.client_id)
+      .eq('status', 'active')
+
+    const durationWeeks = Number(cycleForm.duration_weeks) || 5
+
+    const { data: cycle, error } = await supabase
+      .from('cycles')
+      .insert({
+        client_id: cycleForm.client_id,
+        coach_id: coachId,
+        name: cycleForm.name,
+        start_date: cycleForm.start_date,
+        duration_weeks: durationWeeks,
+        status: 'active',
+      })
+      .select()
+      .single()
+
+    if (!error && cycle) {
+      // Crée automatiquement une tâche "Prog <client> à changer" au
+      // moment prévu de fin de cycle (start_date + durée en semaines).
+      // L'alerte précoce "upcoming" (3 semaines avant), elle, n'a pas
+      // besoin de tâche insérée : elle est calculée à la volée par la
+      // vue cycle_alerts et injectée dans la liste au chargement.
+      const dueDate = new Date(cycleForm.start_date + 'T12:00:00')
+      dueDate.setDate(dueDate.getDate() + durationWeeks * 7)
+      const dueDateStr = dueDate.toISOString().split('T')[0]
+      const cName = clientName(cycleForm.client_id)
+
+      // Garde le libellé texte à jour pour compat avec l'existant
+      // (lu par bilan.js, nutrition.js et dashboard.js côté client)
+      await supabase
+        .from('profiles')
+        .update({ current_cycle_name: cycleForm.name })
+        .eq('id', cycleForm.client_id)
+
+      await supabase.from('coach_tasks').insert({
+        coach_id: coachId,
+        client_id: cycleForm.client_id,
+        cycle_id: cycle.id,
+        type: 'cycle_reminder',
+        title: `Prog ${cName} à changer`,
+        due_date: dueDateStr,
+      })
+
+      setCycleForm({ client_id: '', name: '', start_date: new Date().toISOString().split('T')[0], duration_weeks: 5 })
+      setShowCycleForm(false)
+      load()
+    }
+  }
+
+  const clientName = (id) => clients.find((c) => c.id === id)?.name || '—'
+
+  // Clients archivés : leurs tâches manuelles (ex. "Prog X à changer")
+  // ne doivent plus apparaître dans "Tâches à venir".
+  const archivedIds = new Set(clients.filter((c) => c.archived).map((c) => c.id))
+
+  // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
+  // liste triée par date, pour l'onglet "Tâches à venir".
+  const upcomingItems = [
+    ...tasks
+      .filter((t) => !t.client_id || !archivedIds.has(t.client_id))
+      .map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
+    ...upcomingCycles.map((a) => ({ kind: 'cycle', sortDate: a.end_date, data: a })),
+  ].sort((a, b) => a.sortDate.localeCompare(b.sortDate))
+
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 300px',
-        gap: 16,
-      }}
-    >
-      <div>
-        {/* CoachHome (risque de décrochage / paiements à venir) retiré en V2 :
-            "paiements à venir" dépendait de client.nextPayment, jamais alimenté
-            dans l'app — et "à risque" faisait doublon avec le tri "Récent" des
-            sous-onglets ci-dessous. */}
-        {/* Sous-onglets Actifs / Anciens clients */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 2,
-            marginBottom: 16,
-            borderBottom: `2px solid ${S.border}`,
-          }}
-        >
-          {[
-            {
-              id: 'actifs',
-              label: `Actifs (${clients.filter((c) => !c.archived).length})`,
-              color: S.navy,
-            },
-            {
-              id: 'archives',
-              label: `Anciens clients (${archivedClients.length})`,
-              color: S.purple,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onChangeSubTab(tab.id)}
-              style={{
-                padding: '8px 18px',
-                border: 'none',
-                background: 'transparent',
-                fontFamily: font,
-                fontSize: 13,
-                fontWeight: clientSubTab === tab.id ? 700 : 500,
-                cursor: 'pointer',
-                color: clientSubTab === tab.id ? tab.color : S.muted,
-                borderBottom: `2px solid ${clientSubTab === tab.id ? tab.color : 'transparent'}`,
-                marginBottom: -2,
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ── PROCHAINS SUIVIS (alerte tardive : cycle presque fini / dépassé) ── */}
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
+            PROCHAINS SUIVIS
+          </div>
+          <button
+            onClick={() => setShowCycleForm((v) => !v)}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: S.blue, fontFamily: font, fontWeight: 700 }}
+          >
+            + Nouveau cycle
+          </button>
         </div>
 
-        {/* Bandeau info archives */}
-        {clientSubTab === 'archives' && archivedClients.length > 0 && (
-          <div
-            style={{
-              background: 'var(--surface-3)',
-              border: `1px solid var(--border-hi)`,
-              borderRadius: 10,
-              padding: '10px 14px',
-              marginBottom: 14,
-              fontSize: 12,
-              color: S.purple,
-            }}
-          >
-            📦 Ces clients sont archivés. Leurs données sont conservées. Clique sur un client pour
-            le réactiver.
-          </div>
+        {showCycleForm && (
+          <form onSubmit={createCycle} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, background: 'var(--bg-card-2)', padding: 12, borderRadius: 10 }}>
+            <select
+              value={cycleForm.client_id}
+              onChange={(e) => setCycleForm((f) => ({ ...f, client_id: e.target.value }))}
+              style={selectStyle()}
+              required
+            >
+              <option value="">Client…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <input
+              value={cycleForm.name}
+              onChange={(e) => setCycleForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Nom du cycle (ex: Bloc Force 1)"
+              style={inputStyle()}
+              required
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="date"
+                value={cycleForm.start_date}
+                onChange={(e) => setCycleForm((f) => ({ ...f, start_date: e.target.value }))}
+                style={{ ...inputStyle(), flex: 1 }}
+                required
+              />
+              <input
+                type="number"
+                min="1"
+                value={cycleForm.duration_weeks}
+                onChange={(e) => setCycleForm((f) => ({ ...f, duration_weeks: e.target.value }))}
+                style={{ ...inputStyle(), width: 60 }}
+                required
+              />
+              <span style={{ fontSize: 11, color: S.muted, alignSelf: 'center' }}>sem.</span>
+            </div>
+            <button type="submit" style={primaryBtnStyle()}>Démarrer le cycle</button>
+          </form>
         )}
 
-        {/* Barre de recherche + tri */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          <input
-            value={clientSearch}
-            onChange={(e) => onChangeSearch(e.target.value)}
-            placeholder="Rechercher un élève…"
-            style={{
-              flex: 1,
-              padding: '9px 14px',
-              borderRadius: 10,
-              border: `1px solid ${S.border}`,
-              fontFamily: font,
-              fontSize: 13,
-              outline: 'none',
-              background: S.card,
-            }}
-          />
-          <select
-            value={clientSort}
-            onChange={(e) => onChangeSort(e.target.value)}
-            style={{
-              padding: '9px 12px',
-              borderRadius: 10,
-              border: `1px solid ${S.border}`,
-              fontFamily: font,
-              fontSize: 12.5,
-              color: S.navy,
-              background: S.card,
-              cursor: 'pointer',
-            }}
-          >
-            <option value="recent">Trier : activité récente</option>
-            <option value="name">Trier : nom (A→Z)</option>
-            <option value="balance">Trier : solde</option>
-          </select>
-        </div>
-
-        {/* Accès rapide : menu déroulant pour sauter directement à un client */}
-        <div style={{ marginBottom: 14 }}>
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) onSelectClient(e.target.value)
-            }}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 10,
-              border: `1px solid ${S.border}`,
-              fontFamily: font,
-              fontSize: 13,
-              color: S.navy,
-              background: S.card,
-              cursor: 'pointer',
-            }}
-          >
-            <option value="">↳ Aller directement à un élève…</option>
-            {displayedClients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.archived ? ' (archivé)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {displayedClients.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '60px 20px',
-              background: 'var(--bg-card)',
-              borderRadius: 20,
-              border: `2px dashed ${S.border}`,
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>
-              {clientSubTab === 'archives' ? '📦' : '🏋️'}
+        {/* Cycles en cours — date de début par athlète */}
+        {!loading && activeCycles.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+              Cycles en cours
             </div>
-            <div style={{ fontFamily: bebas, fontSize: 20, color: S.navy, marginBottom: 8 }}>
-              {clientSubTab === 'archives' ? 'AUCUN ANCIEN CLIENT' : 'AUCUN ÉLÈVE'}
-            </div>
-            <div style={{ fontSize: 13, color: S.muted, marginBottom: 16 }}>
-              {clientSubTab === 'archives'
-                ? 'Les clients archivés apparaîtront ici.'
-                : 'Crée ton premier élève pour commencer.'}
-            </div>
-            {clientSubTab === 'actifs' && (
-              <button
-                onClick={onCreateClient}
-                style={{
-                  padding: '10px 22px',
-                  background: 'var(--accent)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: font,
-                }}
-              >
-                + Nouvel élève
-              </button>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {displayedClients.map((c) => {
-              const offer = OFFERS[c.offer] || OFFERS['tutto_bene']
-              const archived = c.archived
+            {activeCycles.map((c) => {
+              const end = new Date(c.start_date + 'T12:00:00')
+              end.setDate(end.getDate() + (c.duration_weeks || 5) * 7)
               return (
                 <div
-                  key={c.id}
-                  onClick={() => onSelectClient(c.id)}
+                  key={c.cycle_id}
                   style={{
-                    background: archived ? 'var(--bg-card-2)' : S.card,
-                    border: `1px solid ${archived ? 'var(--border-hi)' : S.border}`,
-                    borderRadius: 14,
-                    padding: '14px 18px',
-                    cursor: 'pointer',
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: 14,
-                    transition: 'box-shadow 0.15s, transform 0.15s',
-                    opacity: archived ? 0.85 : 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,27,78,0.1)'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none'
-                    e.currentTarget.style.transform = 'translateY(0)'
+                    padding: '7px 10px',
+                    borderRadius: 8,
+                    background: 'var(--bg-card-2)',
                   }}
                 >
-                  <Avatar initials={c.avatar} size={42} color={offer.color} grayscale={archived} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        marginBottom: 4,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          fontSize: 14,
-                          color: archived ? S.muted : S.navy,
-                        }}
-                      >
-                        {c.name}
-                      </div>
-                      <Badge text={offer.name} color={archived ? S.gray : offer.color} />
-                      {archived ? (
-                        <Badge text="Archivé" color={S.purple} bg="var(--surface-3)" />
-                      ) : (
-                        c.status !== 'actif' && <Badge text="inactif" color={S.red} />
-                      )}
-                      {c.messages > 0 && <Badge text={`${c.messages} msg`} color={S.blue} />}
-                      {c.notes && c.notes.length > 0 && (
-                        <span title={`${c.notes.length} annotation(s)`} style={{ fontSize: 12 }}>
-                          📌
-                        </span>
-                      )}
-                    </div>
-                    {archived && c.archivedAt ? (
-                      <div style={{ fontSize: 11, color: S.purple }}>
-                        Archivé le{' '}
-                        {new Date(c.archivedAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 11, color: S.muted }}>{c.program}</div>
-                    )}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: S.navy }}>
+                    {c.client_name}
+                    <span style={{ fontWeight: 500, color: S.muted }}> · {c.cycle_name}</span>
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontFamily: bebas,
-                        fontSize: 18,
-                        color: c.balance < 0 ? S.red : archived ? S.muted : S.navy,
-                      }}
-                    >
-                      {c.balance === 0 ? (archived ? '—' : '✓') : `${c.balance} €`}
-                    </div>
-                    <div style={{ fontSize: 10, color: S.muted }}>{daysAgo(c.lastBilan)}</div>
+                  <div style={{ fontSize: 11, color: S.muted, fontFamily: font, whiteSpace: 'nowrap' }}>
+                    {new Date(c.start_date + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                    <span style={{ color: 'var(--chalk-muted)' }}> → </span>
+                    {end.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </div>
                 </div>
               )
             })}
           </div>
         )}
+
+        {loading ? (
+          <div style={{ fontSize: 12, color: S.muted }}>Chargement…</div>
+        ) : alerts.length === 0 && activeCycles.length === 0 ? (
+          <div style={{ fontSize: 12, color: S.muted, padding: '8px 0' }}>Aucun suivi à venir.</div>
+        ) : alerts.length === 0 ? null : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {alerts.map((a) => {
+              const st = alertStyle(a.alert_level)
+              return (
+                <div
+                  key={a.cycle_id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: st.bg,
+                    border: `1px solid ${st.border}`,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: S.navy }}>
+                      {a.client_name}
+                      <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
+                  </div>
+                  <span style={{ fontSize: 16 }}>{st.icon}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <ActivityFeed items={activity} loading={activityLoading} onSelect={onSelectActivity} />
-        <CalendarPanel sessions={sessions} coachId={coachId} clients={clients} />
-        <CycleTasksPanel coachId={coachId} clients={clients} />
+
+      {/* ── TÂCHES À VENIR (tâches manuelles + alerte précoce "upcoming") ── */}
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
+            TÂCHES À VENIR
+          </div>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: S.blue, fontFamily: font, fontWeight: 700 }}
+          >
+            + Ajouter
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={createTask} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, background: 'var(--bg-card-2)', padding: 12, borderRadius: 10 }}>
+            <input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              placeholder="Ex : Relancer Clément pour son bilan"
+              style={inputStyle()}
+              required
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select
+                value={form.client_id}
+                onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value }))}
+                style={{ ...selectStyle(), flex: 1 }}
+              >
+                <option value="">Client (optionnel)…</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
+                style={inputStyle()}
+                required
+              />
+            </div>
+            <button type="submit" style={primaryBtnStyle()}>Créer la tâche</button>
+          </form>
+        )}
+
+        {loading ? (
+          <div style={{ fontSize: 12, color: S.muted }}>Chargement…</div>
+        ) : upcomingItems.length === 0 ? (
+          <div style={{ fontSize: 12, color: S.muted, padding: '8px 0' }}>
+            Aucune tâche — clique sur "+ Ajouter" pour en créer une.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {upcomingItems.map((item) => {
+              if (item.kind === 'task') {
+                const t = item.data
+                const overdue = t.due_date < new Date().toISOString().split('T')[0]
+                return (
+                  <div
+                    key={`task-${t.id}`}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '9px 12px',
+                      borderRadius: 10,
+                      background: overdue ? 'var(--danger-dim)' : 'var(--bg-card-2)',
+                      border: `1px solid ${overdue ? 'var(--danger)' : S.border}`,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: S.muted }}>
+                        {t.client_id ? `${clientName(t.client_id)} · ` : ''}
+                        {new Date(t.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => completeTask(t.id)} title="Marquer comme fait" style={iconBtnStyle()}>✓</button>
+                      <button onClick={() => deleteTask(t.id)} title="Supprimer" style={iconBtnStyle()}>✕</button>
+                    </div>
+                  </div>
+                )
+              }
+              // item.kind === 'cycle' : alerte précoce dérivée de cycle_alerts,
+              // pas une vraie ligne coach_tasks — pas de checkbox/suppression,
+              // juste un badge distinctif et le rappel d'info.
+              const a = item.data
+              const st = alertStyle('upcoming')
+              return (
+                <div
+                  key={`cycle-${a.cycle_id}`}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '9px 12px',
+                    borderRadius: 10,
+                    background: st.bg,
+                    border: `1px solid ${st.border}`,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>
+                      {a.client_name}
+                      <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name} à préparer</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
+                  </div>
+                  <span style={{ fontSize: 14 }}>{st.icon}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+function inputStyle() {
+  return {
+    padding: '8px 10px',
+    borderRadius: 8,
+    border: '1px solid var(--border-hi)',
+    fontSize: 12.5,
+    fontFamily: font,
+    outline: 'none',
+    background: 'var(--bg-input)',
+    color: 'var(--chalk)',
+  }
+}
+function selectStyle() {
+  return { ...inputStyle(), cursor: 'pointer' }
+}
+function primaryBtnStyle() {
+  return {
+    border: 'none',
+    background: '#0D1B4E',
+    color: 'white',
+    borderRadius: 8,
+    padding: '8px 12px',
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: font,
+  }
+}
+function iconBtnStyle() {
+  return {
+    border: 'none',
+    background: 'var(--bg-card-2)',
+    color: 'var(--chalk)',
+    borderRadius: 6,
+    width: 24,
+    height: 24,
+    cursor: 'pointer',
+    fontSize: 12,
+  }
 }
