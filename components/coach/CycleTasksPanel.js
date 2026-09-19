@@ -26,7 +26,7 @@
 // Utilisation dans coach.js, à côté ou à la place du calendrier existant :
 //   <CycleTasksPanel coachId={user?.id} clients={clients} />
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
 
@@ -53,6 +53,81 @@ function cycleEndLabel(a) {
   return `Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
+// Délai pendant lequel une ligne "faite" reste visible (avec bouton Annuler)
+// avant de disparaître de la liste.
+const UNDO_MS = 4000
+
+const PANEL_CSS = `
+.btf-check{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--success,#22C55E);background:transparent;color:var(--success,#22C55E);cursor:pointer;font-size:13px;font-weight:800;line-height:1;padding:0;flex-shrink:0;transition:all .15s ease}
+.btf-check:hover{background:var(--success,#22C55E);color:#fff;transform:scale(1.1)}
+.btf-check:active{transform:scale(.94)}
+.btf-x{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border-hi);background:transparent;color:var(--chalk-muted,#8a8f9c);cursor:pointer;font-size:12px;line-height:1;padding:0;flex-shrink:0;transition:all .15s ease}
+.btf-x:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-dim)}
+.btf-undo{border:none;background:transparent;color:var(--chalk-muted,#8a8f9c);cursor:pointer;font-size:11.5px;font-weight:700;text-decoration:underline;padding:4px 2px;flex-shrink:0}
+.btf-undo:hover{color:var(--chalk,#fff)}
+.btf-done-row{position:relative;overflow:hidden;animation:btfFade .25s ease-out}
+.btf-pop{animation:btfPop .4s ease-out}
+.btf-timer{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--success,#22C55E);opacity:.55;transform-origin:left;animation:btfShrink ${UNDO_MS}ms linear forwards}
+@keyframes btfPop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1);opacity:1}}
+@keyframes btfFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes btfShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+`
+
+function CheckButton({ onClick, title }) {
+  return (
+    <button className="btf-check" onClick={onClick} title={title} aria-label={title}>
+      ✓
+    </button>
+  )
+}
+
+// Ligne affichée quelques secondes après validation : fond vert, coche animée,
+// titre barré, barre de temps et lien "Annuler".
+function DoneRow({ title, sub, onUndo }) {
+  return (
+    <div
+      className="btf-done-row"
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: 'var(--success-dim, rgba(34,197,94,0.10))',
+        border: '1px solid var(--success, #22C55E)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <span
+          className="btf-pop"
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            background: 'var(--success, #22C55E)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 13,
+            fontWeight: 800,
+            flexShrink: 0,
+          }}
+        >
+          ✓
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 12.5, color: S.muted, textDecoration: 'line-through' }}>{title}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success, #22C55E)' }}>{sub}</div>
+        </div>
+      </div>
+      <button className="btf-undo" onClick={onUndo}>Annuler</button>
+      <span className="btf-timer" />
+    </div>
+  )
+}
+
 export default function CycleTasksPanel({ coachId, clients = [] }) {
   const [tasks, setTasks] = useState([])
   const [rawAlerts, setAlerts] = useState([]) // ending_soon / expired -> encart "Prochains suivis"
@@ -74,6 +149,17 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   })
 
   const [rawActiveCycles, setActiveCycles] = useState([])
+
+  // Lignes validées : affichées "faites" pendant UNDO_MS (avec Annuler),
+  // puis masquées (gone). Clés : `task-<id>` ou `cycle-<id>`.
+  const [doneMap, setDoneMap] = useState({})
+  const [gone, setGone] = useState(() => new Set())
+  const timers = useRef({})
+
+  useEffect(() => {
+    const t = timers.current
+    return () => Object.values(t).forEach(clearTimeout)
+  }, [])
 
   const load = useCallback(async () => {
     if (!coachId) return
@@ -143,9 +229,67 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     }
   }
 
-  async function completeTask(id) {
-    setTasks((prev) => prev.filter((t) => t.id !== id))
-    await supabase.from('coach_tasks').update({ done: true }).eq('id', id)
+  function scheduleGone(key) {
+    clearTimeout(timers.current[key])
+    timers.current[key] = setTimeout(() => {
+      setGone((prev) => new Set(prev).add(key))
+      setDoneMap((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      delete timers.current[key]
+    }, UNDO_MS)
+  }
+
+  function cancelDone(key) {
+    clearTimeout(timers.current[key])
+    delete timers.current[key]
+    setDoneMap((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  // ✓ sur une tâche : marquée faite en base tout de suite, ligne verte
+  // affichée quelques secondes (Annuler possible), puis retirée de la liste.
+  async function completeTask(t) {
+    const key = `task-${t.id}`
+    setDoneMap((prev) => ({ ...prev, [key]: { title: t.title } }))
+    scheduleGone(key)
+    await supabase.from('coach_tasks').update({ done: true }).eq('id', t.id)
+  }
+
+  async function undoTask(t) {
+    cancelDone(`task-${t.id}`)
+    await supabase.from('coach_tasks').update({ done: false }).eq('id', t.id)
+  }
+
+  // ✓ sur un cycle : le cycle passe en 'completed' (il sort de la vue
+  // cycle_alerts) et sa tâche "Prog X à changer" éventuelle est cochée aussi.
+  async function completeCycle(a) {
+    const key = `cycle-${a.cycle_id}`
+    const taskIds = tasks.filter((t) => t.cycle_id === a.cycle_id).map((t) => t.id)
+    setDoneMap((prev) => ({
+      ...prev,
+      [key]: { title: `${a.client_name} · ${a.cycle_name}`, taskIds },
+    }))
+    scheduleGone(key)
+    await supabase.from('cycles').update({ status: 'completed' }).eq('id', a.cycle_id)
+    if (taskIds.length) {
+      await supabase.from('coach_tasks').update({ done: true }).in('id', taskIds)
+    }
+  }
+
+  async function undoCycle(a) {
+    const key = `cycle-${a.cycle_id}`
+    const taskIds = doneMap[key]?.taskIds || []
+    cancelDone(key)
+    await supabase.from('cycles').update({ status: 'active' }).eq('id', a.cycle_id)
+    if (taskIds.length) {
+      await supabase.from('coach_tasks').update({ done: false }).in('id', taskIds)
+    }
   }
 
   async function deleteTask(id) {
@@ -220,21 +364,36 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   // Sécurité côté affichage : quelle que soit la source des données
   // (vue, table…), une ligne liée à un client archivé n'est jamais affichée.
   const notArchived = (row) => !archivedIds.has(row.client_id)
-  const alerts = rawAlerts.filter(notArchived)
-  const upcomingCycles = rawUpcomingCycles.filter(notArchived)
-  const activeCycles = rawActiveCycles.filter(notArchived)
+  const notGone = (row) => !gone.has(`cycle-${row.cycle_id}`)
+  const alerts = rawAlerts.filter(notArchived).filter(notGone)
+  const upcomingCycles = rawUpcomingCycles.filter(notArchived).filter(notGone)
+  // Un cycle validé disparaît aussitôt de "Cycles en cours" (il n'est plus actif).
+  const activeCycles = rawActiveCycles
+    .filter(notArchived)
+    .filter(notGone)
+    .filter((c) => !doneMap[`cycle-${c.cycle_id}`])
+
+  // Une tâche reste visible tant qu'elle est en cours de validation (ligne
+  // verte + Annuler) ; elle disparaît ensuite, ou dès que son cycle est validé.
+  const taskVisible = (t) => {
+    if (t.client_id && archivedIds.has(t.client_id)) return false
+    if (gone.has(`task-${t.id}`)) return false
+    if (t.cycle_id && (gone.has(`cycle-${t.cycle_id}`) || doneMap[`cycle-${t.cycle_id}`])) return false
+    return true
+  }
 
   // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
   // liste triée par date, pour l'onglet "Tâches à venir".
   const upcomingItems = [
     ...tasks
-      .filter((t) => !t.client_id || !archivedIds.has(t.client_id))
+      .filter(taskVisible)
       .map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
     ...upcomingCycles.map((a) => ({ kind: 'cycle', sortDate: a.end_date, data: a })),
   ].sort((a, b) => a.sortDate.localeCompare(b.sortDate))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <style>{PANEL_CSS}</style>
       {/* ── PROCHAINS SUIVIS (alerte tardive : cycle presque fini / dépassé) ── */}
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -335,9 +494,15 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {alerts.map((a) => {
               const st = alertStyle(a.alert_level)
+              const key = `cycle-${a.cycle_id}`
+              if (doneMap[key]) {
+                return (
+                  <DoneRow key={key} title={doneMap[key].title} sub="Cycle terminé" onUndo={() => undoCycle(a)} />
+                )
+              }
               return (
                 <div
-                  key={a.cycle_id}
+                  key={key}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -355,7 +520,10 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                     </div>
                     <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
                   </div>
-                  <span style={{ fontSize: 16 }}>{st.icon}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>{st.icon}</span>
+                    <CheckButton title="Cycle terminé (programme changé)" onClick={() => completeCycle(a)} />
+                  </div>
                 </div>
               )
             })}
@@ -421,6 +589,10 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               if (item.kind === 'task') {
                 const t = item.data
                 const overdue = t.due_date < new Date().toISOString().split('T')[0]
+                const tKey = `task-${t.id}`
+                if (doneMap[tKey]) {
+                  return <DoneRow key={tKey} title={t.title} sub="Tâche faite" onUndo={() => undoTask(t)} />
+                }
                 return (
                   <div
                     key={`task-${t.id}`}
@@ -441,9 +613,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                         {new Date(t.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => completeTask(t.id)} title="Marquer comme fait" style={iconBtnStyle()}>✓</button>
-                      <button onClick={() => deleteTask(t.id)} title="Supprimer" style={iconBtnStyle()}>✕</button>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <CheckButton title="Marquer comme fait" onClick={() => completeTask(t)} />
+                      <button className="btf-x" onClick={() => deleteTask(t.id)} title="Supprimer la tâche" aria-label="Supprimer la tâche">✕</button>
                     </div>
                   </div>
                 )
@@ -453,9 +625,15 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               // juste un badge distinctif et le rappel d'info.
               const a = item.data
               const st = alertStyle('upcoming')
+              const cKey = `cycle-${a.cycle_id}`
+              if (doneMap[cKey]) {
+                return (
+                  <DoneRow key={cKey} title={doneMap[cKey].title} sub="Cycle terminé" onUndo={() => undoCycle(a)} />
+                )
+              }
               return (
                 <div
-                  key={`cycle-${a.cycle_id}`}
+                  key={cKey}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -471,4 +649,47 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                       {a.client_name}
                       <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name} à préparer</span>
                     </div>
-            
+                    <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 14 }}>{st.icon}</span>
+                    <CheckButton title="Cycle terminé (programme changé)" onClick={() => completeCycle(a)} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function inputStyle() {
+  return {
+    padding: '8px 10px',
+    borderRadius: 8,
+    border: '1px solid var(--border-hi)',
+    fontSize: 12.5,
+    fontFamily: font,
+    outline: 'none',
+    background: 'var(--bg-input)',
+    color: 'var(--chalk)',
+  }
+}
+function selectStyle() {
+  return { ...inputStyle(), cursor: 'pointer' }
+}
+function primaryBtnStyle() {
+  return {
+    border: 'none',
+    background: '#0D1B4E',
+    color: 'white',
+    borderRadius: 8,
+    padding: '8px 12px',
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: font,
+  }
+}
