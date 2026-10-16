@@ -8,6 +8,10 @@ export default function Document() {
   return (
     <Html lang="fr">
       <Head>
+        {/* Favicon (onglet navigateur) */}
+        <link rel="icon" type="image/png" href="/logo-small.png" />
+        <link rel="shortcut icon" type="image/png" href="/logo-small.png" />
+
         {/* PWA */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0D1B4E" />
