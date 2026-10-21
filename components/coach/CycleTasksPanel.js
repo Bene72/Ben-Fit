@@ -19,6 +19,17 @@
 // Le bloc "Cycles en cours" lit donc la vue (et non plus `cycles` en direct),
 // et les tâches manuelles liées à un client archivé sont masquées ici.
 //
+// REFRESH AUTOMATIQUE (21/10/2026) : le panneau se met à jour tout seul
+// quand la table `cycles` ou `coach_tasks` change (ex : le trigger SQL
+// auto_cycle_on_workout crée un cycle dès qu'une prog actuelle est insérée
+// — voir auto-cycles.sql). Trois mécanismes, du plus rapide au plus lent :
+//   1. Supabase Realtime (postgres_changes) sur cycles + coach_tasks ;
+//   2. rechargement au retour sur l'onglet (visibilitychange) ;
+//   3. filet de sécurité : rechargement toutes les 5 minutes.
+// Les rechargements sont "silencieux" (pas de flash "Chargement…") et mis
+// en attente tant qu'une ligne "faite / Annuler" est affichée, pour ne pas
+// la faire disparaître avant la fin du délai d'annulation.
+//
 // Props :
 //   coachId  (uuid, requis)
 //   clients  (array [{ id, name, archived }], pour les selects)
@@ -56,6 +67,10 @@ function cycleEndLabel(a) {
 // Délai pendant lequel une ligne "faite" reste visible (avec bouton Annuler)
 // avant de disparaître de la liste.
 const UNDO_MS = 4000
+
+// Filet de sécurité : rechargement périodique même sans événement temps réel
+// (connexion coupée, Realtime non activé sur les tables…).
+const POLL_MS = 5 * 60 * 1000
 
 const PANEL_CSS = `
 .btf-check{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--success,#22C55E);background:transparent;color:var(--success,#22C55E);cursor:pointer;font-size:13px;font-weight:800;line-height:1;padding:0;flex-shrink:0;transition:all .15s ease}
@@ -156,15 +171,27 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   const [gone, setGone] = useState(() => new Set())
   const timers = useRef({})
 
+  // Copie de doneMap lisible depuis les callbacks temps réel (qui ne
+  // voient pas les mises à jour de state d'un rendu à l'autre).
+  const doneRef = useRef(doneMap)
+  doneRef.current = doneMap
+
   useEffect(() => {
     const t = timers.current
     return () => Object.values(t).forEach(clearTimeout)
   }, [])
 
-  const load = useCallback(async () => {
+  // silent = true : rechargement en arrière-plan, sans repasser par
+  // l'écran "Chargement…" (utilisé par le refresh automatique).
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!coachId) return
-    setLoading(true)
-    const [{ data: taskData }, { data: alertData }, { data: upcomingData }, { data: cycleData }] = await Promise.all([
+    if (!silent) setLoading(true)
+    const [
+      { data: taskData, error: taskErr },
+      { data: alertData, error: alertErr },
+      { data: upcomingData, error: upcomingErr },
+      { data: cycleData, error: cycleErr },
+    ] = await Promise.all([
       supabase
         .from('coach_tasks')
         .select('*')
@@ -197,6 +224,10 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         .eq('coach_id', coachId)
         .order('start_date', { ascending: false }),
     ])
+    // Une erreur (vue absente, RLS…) ne doit pas casser le panneau, mais
+    // elle ne doit plus être invisible : on la log en console.
+    const firstErr = taskErr || alertErr || upcomingErr || cycleErr
+    if (firstErr) console.error('Erreur chargement cycles/tâches:', firstErr)
     setTasks(taskData || [])
     setAlerts(alertData || [])
     setUpcomingCycles(upcomingData || [])
@@ -207,6 +238,61 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   useEffect(() => {
     load()
   }, [load])
+
+  // ── REFRESH AUTOMATIQUE ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!coachId) return undefined
+    let timer = null
+    let disposed = false
+
+    // Regroupe les rafales d'événements (un trigger peut insérer un cycle
+    // + une tâche + des mises à jour d'un coup) en un seul rechargement,
+    // et attend la fin d'une éventuelle ligne "Annuler" en cours.
+    const refresh = () => {
+      clearTimeout(timer)
+      const run = () => {
+        if (disposed) return
+        if (Object.keys(doneRef.current).length > 0) {
+          timer = setTimeout(run, 1000)
+          return
+        }
+        load({ silent: true })
+      }
+      timer = setTimeout(run, 400)
+    }
+
+    // 1. Temps réel : cycles et coach_tasks de ce coach
+    const channel = supabase
+      .channel(`cycle-panel-${coachId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cycles', filter: `coach_id=eq.${coachId}` },
+        refresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'coach_tasks', filter: `coach_id=eq.${coachId}` },
+        refresh
+      )
+      .subscribe()
+
+    // 2. Retour sur l'onglet / la fenêtre
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    // 3. Filet de sécurité périodique
+    const interval = setInterval(refresh, POLL_MS)
+
+    return () => {
+      disposed = true
+      clearTimeout(timer)
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+      supabase.removeChannel(channel)
+    }
+  }, [coachId, load])
 
   async function createTask(e) {
     e.preventDefault()
