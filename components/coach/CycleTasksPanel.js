@@ -39,6 +39,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { toLocalISODate } from '../../lib/dateUtils'
+import { must } from '../../lib/db'
 import { S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
 
 function daysLabel(n) {
@@ -169,14 +171,14 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   const [form, setForm] = useState({
     type: 'task',
     title: '',
-    due_date: new Date().toISOString().split('T')[0],
+    due_date: toLocalISODate(),
     client_id: '',
   })
   const [showCycleForm, setShowCycleForm] = useState(false)
   const [cycleForm, setCycleForm] = useState({
     client_id: '',
     name: '',
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: toLocalISODate(),
     duration_weeks: 5,
   })
 
@@ -186,6 +188,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   // puis masquées (gone). Clés : `task-<id>` ou `cycle-<id>`.
   const [doneMap, setDoneMap] = useState({})
   const [gone, setGone] = useState(() => new Set())
+  // Erreur d'écriture en base : affichée en haut du panneau, et la liste est
+  // rechargée depuis Supabase pour ne jamais montrer un état qui n'existe pas.
+  const [dbError, setDbError] = useState('')
   const timers = useRef({})
 
   // Copie de doneMap lisible depuis les callbacks temps réel (qui ne
@@ -328,12 +333,16 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       })
       .select()
       .single()
-    if (!error && data) {
+    if (error) {
+      handleDbError(error)
+      return
+    }
+    if (data) {
       setTasks((prev) => [...prev, data].sort((a, b) => a.due_date.localeCompare(b.due_date)))
       setForm({
         type: 'task',
         title: '',
-        due_date: new Date().toISOString().split('T')[0],
+        due_date: toLocalISODate(),
         client_id: '',
       })
       setShowForm(false)
@@ -369,12 +378,21 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     const key = `task-${t.id}`
     setDoneMap((prev) => ({ ...prev, [key]: { title: t.title } }))
     scheduleGone(key)
-    await supabase.from('coach_tasks').update({ done: true }).eq('id', t.id)
+    try {
+      await must(supabase.from('coach_tasks').update({ done: true }).eq('id', t.id))
+    } catch (e) {
+      cancelDone(key)
+      handleDbError(e)
+    }
   }
 
   async function undoTask(t) {
     cancelDone(`task-${t.id}`)
-    await supabase.from('coach_tasks').update({ done: false }).eq('id', t.id)
+    try {
+      await must(supabase.from('coach_tasks').update({ done: false }).eq('id', t.id))
+    } catch (e) {
+      handleDbError(e)
+    }
   }
 
   // ✓ sur un cycle : le cycle passe en 'completed' (il sort de la vue
@@ -387,9 +405,14 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       [key]: { title: `${a.client_name} · ${a.cycle_name}`, taskIds },
     }))
     scheduleGone(key)
-    await supabase.from('cycles').update({ status: 'completed' }).eq('id', a.cycle_id)
-    if (taskIds.length) {
-      await supabase.from('coach_tasks').update({ done: true }).in('id', taskIds)
+    try {
+      await must(supabase.from('cycles').update({ status: 'completed' }).eq('id', a.cycle_id))
+      if (taskIds.length) {
+        await must(supabase.from('coach_tasks').update({ done: true }).in('id', taskIds))
+      }
+    } catch (e) {
+      cancelDone(key)
+      handleDbError(e)
     }
   }
 
@@ -397,26 +420,54 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     const key = `cycle-${a.cycle_id}`
     const taskIds = doneMap[key]?.taskIds || []
     cancelDone(key)
-    await supabase.from('cycles').update({ status: 'active' }).eq('id', a.cycle_id)
-    if (taskIds.length) {
-      await supabase.from('coach_tasks').update({ done: false }).in('id', taskIds)
+    try {
+      await must(supabase.from('cycles').update({ status: 'active' }).eq('id', a.cycle_id))
+      if (taskIds.length) {
+        await must(supabase.from('coach_tasks').update({ done: false }).in('id', taskIds))
+      }
+    } catch (e) {
+      handleDbError(e)
     }
   }
 
   async function deleteTask(id) {
     setTasks((prev) => prev.filter((t) => t.id !== id))
-    await supabase.from('coach_tasks').delete().eq('id', id)
+    try {
+      await must(supabase.from('coach_tasks').delete().eq('id', id))
+    } catch (e) {
+      handleDbError(e)
+    }
+  }
+
+  function handleDbError(e) {
+    // eslint-disable-next-line no-console
+    console.error('[CycleTasksPanel]', e)
+    setDbError(
+      `Échec de l'enregistrement (${e?.message || 'erreur inconnue'}). La liste a été rechargée.`
+    )
+    load({ silent: true })
   }
 
   async function createCycle(e) {
     e.preventDefault()
     if (!cycleForm.client_id || !cycleForm.name) return
+    setDbError('')
+    try {
+      await saveCycle()
+    } catch (err) {
+      handleDbError(err)
+    }
+  }
+
+  async function saveCycle() {
     // Ferme l'éventuel cycle actif précédent du même client
-    await supabase
-      .from('cycles')
-      .update({ status: 'completed' })
-      .eq('client_id', cycleForm.client_id)
-      .eq('status', 'active')
+    await must(
+      supabase
+        .from('cycles')
+        .update({ status: 'completed' })
+        .eq('client_id', cycleForm.client_id)
+        .eq('status', 'active')
+    )
 
     const durationWeeks = Number(cycleForm.duration_weeks) || 5
 
@@ -432,8 +483,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       })
       .select()
       .single()
+    if (error) throw error
 
-    if (!error && cycle) {
+    if (cycle) {
       // Crée automatiquement une tâche "Prog <client> à changer" au
       // moment prévu de fin de cycle (start_date + durée en semaines).
       // L'alerte précoce "upcoming" (3 semaines avant), elle, n'a pas
@@ -441,29 +493,33 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       // vue cycle_alerts et injectée dans la liste au chargement.
       const dueDate = new Date(cycleForm.start_date + 'T12:00:00')
       dueDate.setDate(dueDate.getDate() + durationWeeks * 7)
-      const dueDateStr = dueDate.toISOString().split('T')[0]
+      const dueDateStr = toLocalISODate(dueDate)
       const cName = clientName(cycleForm.client_id)
 
       // Garde le libellé texte à jour pour compat avec l'existant
       // (lu par bilan.js, nutrition.js et dashboard.js côté client)
-      await supabase
-        .from('profiles')
-        .update({ current_cycle_name: cycleForm.name })
-        .eq('id', cycleForm.client_id)
+      await must(
+        supabase
+          .from('profiles')
+          .update({ current_cycle_name: cycleForm.name })
+          .eq('id', cycleForm.client_id)
+      )
 
-      await supabase.from('coach_tasks').insert({
-        coach_id: coachId,
-        client_id: cycleForm.client_id,
-        cycle_id: cycle.id,
-        type: 'cycle_reminder',
-        title: `Prog ${cName} à changer`,
-        due_date: dueDateStr,
-      })
+      await must(
+        supabase.from('coach_tasks').insert({
+          coach_id: coachId,
+          client_id: cycleForm.client_id,
+          cycle_id: cycle.id,
+          type: 'cycle_reminder',
+          title: `Prog ${cName} à changer`,
+          due_date: dueDateStr,
+        })
+      )
 
       setCycleForm({
         client_id: '',
         name: '',
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: toLocalISODate(),
         duration_weeks: 5,
       })
       setShowCycleForm(false)
@@ -509,6 +565,23 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{PANEL_CSS}</style>
+      {dbError && (
+        <div
+          role="alert"
+          onClick={() => setDbError('')}
+          style={{
+            background: 'rgba(220, 60, 60, 0.12)',
+            border: '1px solid rgba(220, 60, 60, 0.4)',
+            color: 'var(--danger)',
+            borderRadius: 12,
+            padding: '10px 14px',
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          {dbError} <span style={{ opacity: 0.7 }}>(cliquer pour fermer)</span>
+        </div>
+      )}
       {/* ── PROCHAINS SUIVIS (alerte tardive : cycle presque fini / dépassé) ── */}
       <div
         style={{
@@ -798,7 +871,7 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
             {upcomingItems.map((item) => {
               if (item.kind === 'task') {
                 const t = item.data
-                const overdue = t.due_date < new Date().toISOString().split('T')[0]
+                const overdue = t.due_date < toLocalISODate()
                 const tKey = `task-${t.id}`
                 if (doneMap[tKey]) {
                   return (

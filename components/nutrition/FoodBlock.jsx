@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { must } from '../../lib/db'
 import { sumItems } from '../../lib/nutritionUtils'
 import { ci as coachInputStyle } from '../../lib/coachShared'
 
@@ -161,8 +162,12 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
 
   // ── Supprimer ────────────────────────────────────────────────────────────────
   const deleteItem = async (id) => {
-    await supabase.from('nutrition_log_meals').delete().eq('id', id)
-    setItems((prev) => prev.filter((i) => i.id !== id))
+    try {
+      await must(supabase.from('nutrition_log_meals').delete().eq('id', id))
+      setItems((prev) => prev.filter((i) => i.id !== id))
+    } catch (e) {
+      window.alert('Suppression impossible : ' + e.message)
+    }
   }
 
   const totals = sumItems(items)
@@ -182,6 +187,7 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       query={query}
       setQuery={setQuery}
       results={results}
+      setResults={setResults}
       selected={selected}
       setSelected={setSelected}
       qty={qty}
@@ -205,6 +211,7 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       query={query}
       setQuery={setQuery}
       results={results}
+      setResults={setResults}
       selected={selected}
       setSelected={setSelected}
       qty={qty}
@@ -239,6 +246,7 @@ function ClientLayout({
   query,
   setQuery,
   results,
+  setResults,
   selected,
   setSelected,
   qty,
@@ -684,6 +692,7 @@ function CoachLayout({
   query,
   setQuery,
   results,
+  setResults,
   selected,
   setSelected,
   qty,

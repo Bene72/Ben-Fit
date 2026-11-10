@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { must } from '../../lib/db'
 import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import WorkoutBlockGroup from './WorkoutBlockGroup'
@@ -211,18 +212,25 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setActivating(true)
     try {
       if (workouts.length) {
-        await supabase
-          .from('workouts')
-          .update({ is_archived: true, archived_at: new Date().toISOString() })
-          .eq('client_id', clientId)
-          .eq('is_archived', false)
-          .eq('is_future', false)
+        await must(
+          supabase
+            .from('workouts')
+            .update({ is_archived: true, archived_at: new Date().toISOString() })
+            .eq('client_id', clientId)
+            .eq('is_archived', false)
+            .eq('is_future', false)
+        )
       }
-      await supabase
-        .from('workouts')
-        .update({ is_future: false })
-        .eq('client_id', clientId)
-        .eq('is_future', true)
+      // Si cette 2e étape échoue, l'erreur s'affiche et un nouveau clic sur
+      // "Activer" reprend là où ça s'est arrêté (aucune séance n'est perdue :
+      // elles sont soit archivées, soit encore en "futur").
+      await must(
+        supabase
+          .from('workouts')
+          .update({ is_future: false })
+          .eq('client_id', clientId)
+          .eq('is_future', true)
+      )
       await reloadWorkouts()
       setCycleMode('current')
       showToast('Cycle futur activé ! Le client voit maintenant son nouveau programme.', 'success')
@@ -374,7 +382,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
     if (upErr) console.error('Erreur update exercice:', upErr.message)
     if (imgUrl) {
-      await supabase.from('exercises').update({ image_url: imgUrl }).eq('id', exId)
+      const { error: imgErr } = await supabase
+        .from('exercises')
+        .update({ image_url: imgUrl })
+        .eq('id', exId)
+      if (imgErr) {
+        console.error('Erreur image exercice:', imgErr.message)
+        return
+      }
       setter((prev) =>
         prev.map((w) =>
           w.id !== workoutId
@@ -391,7 +406,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   const deleteExercise = async (workoutId, exId) => {
-    await supabase.from('exercises').delete().eq('id', exId)
+    try {
+      await must(supabase.from('exercises').delete().eq('id', exId))
+    } catch (e) {
+      showToast('Suppression impossible : ' + e.message, 'error')
+      return
+    }
     const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
     setter((prev) =>
       prev.map((w) =>
@@ -448,7 +468,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   const deleteWorkout = async (id) => {
     if (!confirm('Supprimer cette séance ?')) return
-    await supabase.from('workouts').delete().eq('id', id)
+    try {
+      await must(supabase.from('workouts').delete().eq('id', id))
+    } catch (e) {
+      showToast('Suppression impossible : ' + e.message, 'error')
+      return
+    }
     const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
     setter((prev) => prev.filter((w) => w.id !== id))
     if (openWorkout === id) setOpenWorkout(null)
@@ -546,14 +571,20 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const saveCurrentCycleName = async () => {
     if (!currentCycleName.trim()) return
     setSavingCycleName(true)
-    await supabase
-      .from('workouts')
-      .update({ cycle_name: currentCycleName.trim() })
-      .eq('client_id', clientId)
-      .eq('is_archived', false)
-      .eq('is_future', false)
+    try {
+      await must(
+        supabase
+          .from('workouts')
+          .update({ cycle_name: currentCycleName.trim() })
+          .eq('client_id', clientId)
+          .eq('is_archived', false)
+          .eq('is_future', false)
+      )
+      showToast('Nom du cycle sauvegardé !', 'success')
+    } catch (e) {
+      showToast('Erreur : ' + e.message, 'error')
+    }
     setSavingCycleName(false)
-    showToast('Nom du cycle sauvegardé !', 'success')
   }
 
   const archiveCycle = async () => {
@@ -565,16 +596,18 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       return
     setArchiving(true)
     try {
-      await supabase
-        .from('workouts')
-        .update({
-          is_archived: true,
-          cycle_name: cycleName.trim(),
-          archived_at: new Date().toISOString(),
-        })
-        .eq('client_id', clientId)
-        .eq('is_archived', false)
-        .eq('is_future', false)
+      await must(
+        supabase
+          .from('workouts')
+          .update({
+            is_archived: true,
+            cycle_name: cycleName.trim(),
+            archived_at: new Date().toISOString(),
+          })
+          .eq('client_id', clientId)
+          .eq('is_archived', false)
+          .eq('is_future', false)
+      )
       setWorkouts([])
       setCycleName('')
       setCurrentCycleName('')

@@ -4,6 +4,8 @@
 // NutritionTab.jsx — aucune logique changée, juste rendu réutilisable pour
 // que l'onglet athlète ait le même niveau de lisibilité que côté coach.
 
+import { addDaysISO, parseLocalDate } from '../../lib/dateUtils'
+
 // ─── Anneau de progression (calories / macro) ──────────────────────────────
 export function NutritionRing({ value, target, label, unit, color }) {
   const percent = target ? Math.min(100, (value / target) * 100) : 0
@@ -205,9 +207,8 @@ export function NutritionScoreBlock({ log, plan }) {
 // ─── Graphe calories des 7 derniers jours ───────────────────────────────────
 export function NutritionWeekGraph({ logs, plan, today }) {
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - 6 + i)
-    const ds = d.toISOString().split('T')[0]
+    const ds = addDaysISO(today, i - 6)
+    const d = parseLocalDate(ds)
     const log = logs.find((l) => l.date === ds)
     return {
       date: ds,

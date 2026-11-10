@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { toLocalISODate } from '../../lib/dateUtils'
 import { btn, inp, lbl } from '../../lib/coachShared'
 import WeightHistoryChart from '../ui/WeightHistoryChart'
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return toLocalISODate()
 }
 
 /**

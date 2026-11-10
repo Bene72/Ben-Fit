@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { must } from '../../lib/db'
 import { BILAN_ITEMS, getMondayOfWeek, getWeekLabel } from '../../lib/coachShared'
 
 function BilanTab({ clientId, clientName, coachId }) {
@@ -55,14 +56,24 @@ function BilanTab({ clientId, clientName, coachId }) {
 
   const saveBilan = async () => {
     setSaving(true)
-    await supabase.from('bilans').update(editForm).eq('id', openBilan)
-    setBilans((prev) => prev.map((b) => (b.id === openBilan ? { ...b, ...editForm } : b)))
+    try {
+      await must(supabase.from('bilans').update(editForm).eq('id', openBilan))
+      setBilans((prev) => prev.map((b) => (b.id === openBilan ? { ...b, ...editForm } : b)))
+    } catch (e) {
+      // Le formulaire reste rempli : rien n'est perdu, il suffit de réessayer.
+      window.alert("Le bilan n'a pas pu être enregistré : " + e.message)
+    }
     setSaving(false)
   }
 
   const toggleArchive = async (bilanId, archived, e) => {
     e.stopPropagation()
-    await supabase.from('bilans').update({ archived }).eq('id', bilanId)
+    try {
+      await must(supabase.from('bilans').update({ archived }).eq('id', bilanId))
+    } catch (err) {
+      window.alert('Action impossible : ' + err.message)
+      return
+    }
     setBilans((prev) => prev.map((b) => (b.id === bilanId ? { ...b, archived } : b)))
     if (archived && openBilan === bilanId) setOpenBilan(null)
   }

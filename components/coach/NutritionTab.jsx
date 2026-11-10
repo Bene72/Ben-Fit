@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { addDaysISO, parseLocalDate } from '../../lib/dateUtils'
 import { ci, inp, lbl, btn } from '../../lib/coachShared'
 import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
 import { watchBreakpoint } from '../../lib/breakpoints'
@@ -1019,9 +1020,8 @@ function NutritionScoreBlock({ log, plan }) {
 
 function NutritionWeekGraph({ logs, plan, today }) {
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - 6 + i)
-    const ds = d.toISOString().split('T')[0]
+    const ds = addDaysISO(today, i - 6)
+    const d = parseLocalDate(ds)
     const log = logs.find((l) => l.date === ds)
     return {
       date: ds,

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { must } from '../lib/db'
+import { getMondayOfWeekString } from '../lib/dateUtils'
 
 import AppShell from '../components/ui/AppShell'
 import SurfaceCard from '../components/ui/SurfaceCard'
@@ -19,11 +21,11 @@ const BILAN_ITEMS = [
   { key: 'autre', label: 'Autre point', noteOnly: true },
 ]
 
+// Même calcul que la vue coach (BilanTab) : avant le 10/11/2026, les deux
+// côtés calculaient la semaine différemment (lundi ici, dimanche côté coach),
+// d'où des bilans "semaine en cours" qui ne se retrouvaient pas.
 function getMondayOfWeek(date = new Date()) {
-  const d = new Date(date)
-  const day = d.getDay() === 0 ? 7 : d.getDay()
-  d.setDate(d.getDate() - day + 1)
-  return d.toISOString().split('T')[0]
+  return getMondayOfWeekString(date)
 }
 
 function getWeekLabel(dateStr) {
@@ -254,7 +256,7 @@ export default function BilanPage() {
   async function deleteBilan(bilanId) {
     if (!confirm('Supprimer ce bilan ? Cette action est irréversible.')) return
     try {
-      await supabase.from('bilans').delete().eq('id', bilanId)
+      await must(supabase.from('bilans').delete().eq('id', bilanId))
       setBilans((prev) => prev.filter((b) => b.id !== bilanId))
       setSelectedBilanId(null)
       setEditForm({})
@@ -265,7 +267,7 @@ export default function BilanPage() {
 
   async function updateWeekStart(bilanId, newDate) {
     try {
-      await supabase.from('bilans').update({ week_start: newDate }).eq('id', bilanId)
+      await must(supabase.from('bilans').update({ week_start: newDate }).eq('id', bilanId))
       setBilans((prev) => prev.map((b) => (b.id === bilanId ? { ...b, week_start: newDate } : b)))
       setEditForm((prev) => ({ ...prev, week_start: newDate }))
     } catch (e) {

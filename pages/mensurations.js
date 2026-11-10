@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { toLocalISODate, getMondayOfWeekString } from '../lib/dateUtils'
 import { watchBreakpoint } from '../lib/breakpoints'
 import AppShell from '../components/ui/AppShell'
 import { useToast } from '../lib/useToast'
@@ -98,13 +99,14 @@ export default function Mensurations() {
         // On les remappe ici vers les clés courtes utilisées par l'UI existante
         // (m.waist, m.hips...) pour ne pas devoir réécrire tout l'affichage.
         setMeasures((m || []).map(fromDbMeasure))
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+        // getMondayOfWeekString gère le dimanche (l'ancien calcul
+        // getDate() - getDay() + 1 renvoyait le lundi SUIVANT un dimanche).
+        const weekStart = getMondayOfWeekString()
         const { data: s } = await supabase
           .from('workout_sessions')
           .select('*')
           .eq('client_id', user.id)
-          .gte('date', weekStart.toISOString().split('T')[0])
+          .gte('date', weekStart)
         setSessions(s || [])
       } catch (e) {
         show('Erreur de chargement : ' + e.message, 'error')
@@ -160,7 +162,7 @@ export default function Mensurations() {
     if (!weightForm.weight) return
     setSaving(true)
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = toLocalISODate()
       const { data, error } = await supabase
         .from('measures')
         .insert({
