@@ -39,7 +39,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       `img-src 'self' data: blob: https://${SUPABASE_DOMAIN}`,
-      `connect-src 'self' https://${SUPABASE_DOMAIN} wss://${SUPABASE_DOMAIN} https://api.anthropic.com`,
+      `connect-src 'self' https://${SUPABASE_DOMAIN} wss://${SUPABASE_DOMAIN}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -57,20 +57,20 @@ const nextConfig = {
     ]
   },
 
-  // Optimisations images Next.js
+  // Optimisations images Next.js — `remotePatterns` remplace `domains`
+  // (déprécié) et limite l'optimiseur au Storage Supabase.
   images: {
-    domains: [SUPABASE_DOMAIN],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: SUPABASE_DOMAIN,
+        pathname: '/storage/v1/**',
+      },
+    ],
   },
 
-  // Permet les appels API internes
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: '/api/:path*',
-      },
-    ]
-  },
+  // (La règle `rewrites` /api/:path* → /api/:path* a été retirée : elle ne
+  // faisait rien et exposait inutilement à l'advisory Next.js GHSA-ggv3-7p47-pfv8.)
 }
 
 module.exports = nextConfig
