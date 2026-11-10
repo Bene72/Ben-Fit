@@ -15,7 +15,11 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { addDaysISO, parseLocalDate } from '../../lib/dateUtils'
+import {
+  NutritionRing,
+  NutritionScoreBlock,
+  NutritionWeekGraph,
+} from '../nutrition/NutritionVisuals'
 import { ci, inp, lbl, btn } from '../../lib/coachShared'
 import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
 import { watchBreakpoint } from '../../lib/breakpoints'
@@ -704,71 +708,6 @@ function PlanBlock({
 
 // ─── Composants propres au coach ──────────────────────────────────────────────
 
-function NutritionRing({ value, target, label, unit, color }) {
-  const percent = target ? Math.min(100, (value / target) * 100) : 0
-  const over = percent >= 100
-  const R = 42,
-    stroke = 7,
-    nr = R - stroke * 2
-  const circ = nr * 2 * Math.PI
-  const offset = circ - (percent / 100) * circ
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ position: 'relative', display: 'inline-block' }}>
-        <svg height={R * 2} width={R * 2} style={{ transform: 'rotate(-90deg)' }}>
-          <circle
-            stroke="var(--chalk-dim)"
-            fill="transparent"
-            strokeWidth={stroke}
-            r={nr}
-            cx={R}
-            cy={R}
-          />
-          <circle
-            stroke={over ? 'var(--danger)' : color}
-            fill="transparent"
-            strokeWidth={stroke}
-            strokeDasharray={`${circ} ${circ}`}
-            style={{
-              strokeDashoffset: offset,
-              transition: 'stroke-dashoffset 0.5s',
-              strokeLinecap: 'round',
-            }}
-            r={nr}
-            cx={R}
-            cy={R}
-          />
-        </svg>
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%,-50%)',
-            textAlign: 'center',
-            lineHeight: 1.2,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 14,
-              color: over ? 'var(--danger)' : 'var(--chalk)',
-            }}
-          >
-            {value}
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--chalk-dim)' }}>/{target}</div>
-        </div>
-      </div>
-      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: 'var(--chalk)' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--chalk-dim)' }}>{unit}</div>
-    </div>
-  )
-}
-
 function NutritionMacroBlock({ log, plan, date, onSave }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
@@ -917,173 +856,11 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
               label={m.label}
               unit={m.unit}
               color={m.color}
+              variant="coach"
             />
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-function NutritionScoreBlock({ log, plan }) {
-  if (!plan)
-    return (
-      <InfoBox bg="var(--gold-dim)" border="var(--gold)" color="var(--gold)">
-        ⚠️ Aucun plan nutritionnel défini pour ce client
-      </InfoBox>
-    )
-  if (!log || log.calories === 0)
-    return (
-      <InfoBox bg="var(--bg-card-2)" border="var(--border)" color="var(--chalk-dim)">
-        📝 Aucune donnée pour aujourd'hui
-      </InfoBox>
-    )
-
-  const targets = [
-    plan.target_calories || 0,
-    plan.target_protein || 0,
-    plan.target_carbs || 0,
-    plan.target_fat || 0,
-  ]
-  const keys = ['calories', 'protein', 'carbs', 'fat']
-  const score = Math.min(
-    100,
-    Math.round(
-      (keys.reduce(
-        (acc, k, i) => acc + (targets[i] ? Math.min(1, (log[k] || 0) / targets[i]) : 0),
-        0
-      ) /
-        4) *
-        100
-    )
-  )
-  const color = score >= 80 ? 'var(--accent)' : score >= 50 ? 'var(--accent)' : 'var(--danger)'
-
-  const feedback = []
-  if ((log.protein || 0) < (plan.target_protein || 0)) feedback.push('💪 Augmente les protéines')
-  if ((log.calories || 0) < (plan.target_calories || 0) * 0.8)
-    feedback.push('⚡ Trop bas en calories')
-  if ((log.carbs || 0) < (plan.target_carbs || 0) * 0.8) feedback.push('🌾 Manque de glucides')
-  if ((log.fat || 0) < (plan.target_fat || 0) * 0.7) feedback.push('🥑 Lipides bas')
-  if (feedback.length === 0) feedback.push('✅ Objectifs atteints !')
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
-      <div
-        style={{
-          padding: '14px 18px',
-          borderRadius: 12,
-          background: 'var(--bg-card-2)',
-          border: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-        }}
-      >
-        <div style={{ fontSize: 26, fontWeight: 800, color }}>
-          {score}
-          <span style={{ fontSize: 12, color: 'var(--chalk-dim)', fontWeight: 400 }}>/100</span>
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)' }}>
-            Score nutrition
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--chalk-dim)' }}>
-            {score >= 80
-              ? '🟢 Excellente journée'
-              : score >= 50
-                ? '🟡 Peut mieux faire'
-                : '🔴 Objectifs non atteints'}
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          padding: '14px 18px',
-          borderRadius: 12,
-          background: 'var(--accent-dim)',
-          border: '1px solid var(--accent-brd)',
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)', marginBottom: 6 }}>
-          Feedback
-        </div>
-        {feedback.map((f, i) => (
-          <div key={i} style={{ fontSize: 12, color: 'var(--chalk)', marginBottom: 2 }}>
-            {f}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function NutritionWeekGraph({ logs, plan, today }) {
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const ds = addDaysISO(today, i - 6)
-    const d = parseLocalDate(ds)
-    const log = logs.find((l) => l.date === ds)
-    return {
-      date: ds,
-      calories: log?.calories || 0,
-      label: d.toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 2),
-    }
-  })
-  const max = Math.max(...days.map((d) => d.calories), plan?.target_calories || 1)
-  return (
-    <div
-      style={{
-        padding: '14px 18px',
-        borderRadius: 12,
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        marginBottom: 16,
-      }}
-    >
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--chalk)', marginBottom: 14 }}>
-        📈 Calories — 7 derniers jours
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 70 }}>
-        {days.map((d, i) => {
-          const h = max ? Math.max((d.calories / max) * 100, 2) : 2
-          const isToday = d.date === today
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
-              {d.calories > 0 && (
-                <div style={{ fontSize: 8, color: 'var(--chalk-dim)' }}>{d.calories}</div>
-              )}
-              <div
-                style={{
-                  width: '100%',
-                  height: `${h}%`,
-                  background: isToday ? 'var(--accent)' : 'var(--border-hi)',
-                  borderRadius: '3px 3px 0 0',
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 9,
-                  color: isToday ? 'var(--chalk)' : 'var(--chalk-dim)',
-                  fontWeight: isToday ? 700 : 400,
-                }}
-              >
-                {d.label}
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
@@ -1096,27 +873,10 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
         {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </div>
       <NutritionMacroBlock log={log} plan={plan} date={today} onSave={onSave} />
-      <NutritionScoreBlock log={log} plan={plan} />
-      <NutritionWeekGraph logs={logs} plan={plan} today={today} />
+      <NutritionScoreBlock log={log} plan={plan} variant="coach" />
+      <NutritionWeekGraph logs={logs} plan={plan} today={today} variant="coach" />
       {/* FoodBlock coach : pas de onEnsureLog car le log doit être créé via NutritionMacroBlock d'abord */}
       <FoodBlock log={log} mode="coach" />
-    </div>
-  )
-}
-
-function InfoBox({ bg, border, color, children }) {
-  return (
-    <div
-      style={{
-        padding: '14px 18px',
-        borderRadius: 12,
-        background: bg,
-        border: `1px solid ${border}`,
-        marginBottom: 16,
-        textAlign: 'center',
-      }}
-    >
-      <span style={{ fontSize: 13, color }}>{children}</span>
     </div>
   )
 }
