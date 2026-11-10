@@ -143,11 +143,7 @@ function NutritionTab({ clientId, clientName }) {
         await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
         setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
       }
-      const { data } = await supabase
-        .from('nutrition_plans')
-        .insert(planData)
-        .select()
-        .single()
+      const { data } = await supabase.from('nutrition_plans').insert(planData).select().single()
       setPlan(data)
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
@@ -186,7 +182,9 @@ function NutritionTab({ clientId, clientName }) {
   }
 
   if (loading)
-    return <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: 40 }}>Chargement…</div>
+    return (
+      <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: 40 }}>Chargement…</div>
+    )
 
   // ── Liste des mois disponibles dans l'historique du client, pour le filtre ──
   const availableMonths = Array.from(
@@ -344,7 +342,10 @@ function PlanBlock({
           {!editPlan && planHistory.length > 0 && (
             <button
               onClick={() => setShowPlanHistory(!showPlanHistory)}
-              style={btn(showPlanHistory ? 'var(--chalk)' : 'var(--bg-card)', showPlanHistory ? 'var(--bg-card)' : 'var(--chalk)')}
+              style={btn(
+                showPlanHistory ? 'var(--chalk)' : 'var(--bg-card)',
+                showPlanHistory ? 'var(--bg-card)' : 'var(--chalk)'
+              )}
             >
               {showPlanHistory ? '✕ Fermer' : `🕘 Historique (${planHistory.length})`}
             </button>
@@ -361,7 +362,15 @@ function PlanBlock({
       </div>
 
       {showPlanHistory ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 420, overflowY: 'auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            maxHeight: 420,
+            overflowY: 'auto',
+          }}
+        >
           {planHistory.map((p) => (
             <div
               key={p.id}
@@ -395,7 +404,14 @@ function PlanBlock({
                 ))}
               </div>
               {p.coach_note && (
-                <div style={{ fontSize: 11, color: 'var(--chalk-dim)', marginTop: 6, fontStyle: 'italic' }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--chalk-dim)',
+                    marginTop: 6,
+                    fontStyle: 'italic',
+                  }}
+                >
                   💬 {p.coach_note}
                 </div>
               )}
@@ -549,7 +565,11 @@ function PlanBlock({
               style={{ ...inp, resize: 'vertical' }}
             />
           </div>
-          <button onClick={savePlan} disabled={saving} style={btn('var(--chalk)', 'var(--bg-card)')}>
+          <button
+            onClick={savePlan}
+            disabled={saving}
+            style={btn('var(--chalk)', 'var(--bg-card)')}
+          >
             {saving ? 'Sauvegarde…' : '✓ Enregistrer le plan'}
           </button>
         </div>
@@ -695,7 +715,14 @@ function NutritionRing({ value, target, label, unit, color }) {
     <div style={{ textAlign: 'center' }}>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <svg height={R * 2} width={R * 2} style={{ transform: 'rotate(-90deg)' }}>
-          <circle stroke="var(--chalk-dim)" fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
+          <circle
+            stroke="var(--chalk-dim)"
+            fill="transparent"
+            strokeWidth={stroke}
+            r={nr}
+            cx={R}
+            cy={R}
+          />
           <circle
             stroke={over ? 'var(--danger)' : color}
             fill="transparent"
@@ -722,14 +749,20 @@ function NutritionRing({ value, target, label, unit, color }) {
           }}
         >
           <div
-            style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : 'var(--chalk)' }}
+            style={{
+              fontWeight: 800,
+              fontSize: 14,
+              color: over ? 'var(--danger)' : 'var(--chalk)',
+            }}
           >
             {value}
           </div>
           <div style={{ fontSize: 9, color: 'var(--chalk-dim)' }}>/{target}</div>
         </div>
       </div>
-      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: 'var(--chalk)' }}>{label}</div>
+      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: 'var(--chalk)' }}>
+        {label}
+      </div>
       <div style={{ fontSize: 10, color: 'var(--chalk-dim)' }}>{unit}</div>
     </div>
   )
@@ -951,7 +984,9 @@ function NutritionScoreBlock({ log, plan }) {
           <span style={{ fontSize: 12, color: 'var(--chalk-dim)', fontWeight: 400 }}>/100</span>
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)' }}>Score nutrition</div>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)' }}>
+            Score nutrition
+          </div>
           <div style={{ fontSize: 11, color: 'var(--chalk-dim)' }}>
             {score >= 80
               ? '🟢 Excellente journée'
@@ -1025,7 +1060,9 @@ function NutritionWeekGraph({ logs, plan, today }) {
                 justifyContent: 'flex-end',
               }}
             >
-              {d.calories > 0 && <div style={{ fontSize: 8, color: 'var(--chalk-dim)' }}>{d.calories}</div>}
+              {d.calories > 0 && (
+                <div style={{ fontSize: 8, color: 'var(--chalk-dim)' }}>{d.calories}</div>
+              )}
               <div
                 style={{
                   width: '100%',

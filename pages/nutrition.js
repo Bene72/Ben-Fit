@@ -28,7 +28,11 @@ import SegmentTabs from '../components/ui/SegmentTabs'
 import EmptyPanel from '../components/ui/EmptyPanel'
 import FoodBlock from '../components/nutrition/FoodBlock'
 import WeekTable from '../components/nutrition/WeekTable'
-import { NutritionRingsRow, NutritionScoreBlock, NutritionWeekGraph } from '../components/nutrition/NutritionVisuals'
+import {
+  NutritionRingsRow,
+  NutritionScoreBlock,
+  NutritionWeekGraph,
+} from '../components/nutrition/NutritionVisuals'
 
 const NUTRITION_TABS = [
   { label: "Aujourd'hui", value: 'today' },
@@ -266,7 +270,8 @@ function CycleAverages({ logs }) {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
               {NUTRI_FIELDS.filter((f) => cycle.avg[f.key] != null).map((f) => {
-                const delta = prev && prev.avg[f.key] != null ? cycle.avg[f.key] - prev.avg[f.key] : null
+                const delta =
+                  prev && prev.avg[f.key] != null ? cycle.avg[f.key] - prev.avg[f.key] : null
                 return (
                   <div key={f.key} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                     <span style={{ fontSize: 10, color: '#6B7A99' }}>
@@ -274,7 +279,10 @@ function CycleAverages({ logs }) {
                     </span>
                     <span style={{ fontWeight: 900, fontSize: 15, color: f.color }}>
                       {cycle.avg[f.key]}
-                      <span style={{ fontSize: 10, fontWeight: 400, color: '#6B7A99' }}> {f.unit}</span>
+                      <span style={{ fontSize: 10, fontWeight: 400, color: '#6B7A99' }}>
+                        {' '}
+                        {f.unit}
+                      </span>
                     </span>
                     {delta != null && delta !== 0 && (
                       <span

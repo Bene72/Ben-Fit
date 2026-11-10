@@ -23,4 +23,3 @@ export default function Avatar({ initials, size = 36, color = S.navy, grayscale 
     </div>
   )
 }
-

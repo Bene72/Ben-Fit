@@ -146,7 +146,13 @@ export default function ExRow({
                 type={f.type || 'text'}
                 value={ex[f.key]}
                 onChange={(e) => onUpdate(wId, ex.id, f.key, e.target.value)}
-                style={{ ...ci, textAlign: f.align, fontSize: 14, fontWeight: 700, padding: '8px 4px' }}
+                style={{
+                  ...ci,
+                  textAlign: f.align,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: '8px 4px',
+                }}
               />
             </div>
           ))}
@@ -210,7 +216,14 @@ export default function ExRow({
             onChange={(e) => onUpdate(wId, ex.id, 'note', e.target.value)}
             placeholder="Tempo, consigne, point d'attention…"
             rows={3}
-            style={{ ...ci, resize: 'vertical', minHeight: 80, lineHeight: 1.6, fontSize: 14, padding: '10px 12px' }}
+            style={{
+              ...ci,
+              resize: 'vertical',
+              minHeight: 80,
+              lineHeight: 1.6,
+              fontSize: 14,
+              padding: '10px 12px',
+            }}
           />
         </div>
       </div>
@@ -239,7 +252,15 @@ export default function ExRow({
               alt={ex.name}
               style={{ width: '100%', borderRadius: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.35)' }}
             />
-            <div style={{ textAlign: 'center', color: 'white', marginTop: 12, fontWeight: 600, fontSize: 16 }}>
+            <div
+              style={{
+                textAlign: 'center',
+                color: 'white',
+                marginTop: 12,
+                fontWeight: 600,
+                fontSize: 16,
+              }}
+            >
               {ex.name}
             </div>
             <button
@@ -294,7 +315,13 @@ export default function ExRow({
                 overflow: 'hidden',
               }}
             >
-              <Image src={ex.image_url} alt={ex.name} fill sizes="60px" style={{ objectFit: 'cover' }} />
+              <Image
+                src={ex.image_url}
+                alt={ex.name}
+                fill
+                sizes="60px"
+                style={{ objectFit: 'cover' }}
+              />
             </div>
           ) : (
             <div
@@ -342,9 +369,15 @@ export default function ExRow({
             )}
           </div>
         </div>
-        <div style={{ fontSize: 13, textAlign: 'center', fontWeight: 700, color: 'var(--chalk)' }}>{ex.sets}</div>
-        <div style={{ fontSize: 13, textAlign: 'center', fontWeight: 700, color: 'var(--chalk)' }}>{ex.reps}</div>
-        <div style={{ fontSize: 12, textAlign: 'center', color: 'var(--chalk-dim)' }}>⏱ {ex.rest}</div>
+        <div style={{ fontSize: 13, textAlign: 'center', fontWeight: 700, color: 'var(--chalk)' }}>
+          {ex.sets}
+        </div>
+        <div style={{ fontSize: 13, textAlign: 'center', fontWeight: 700, color: 'var(--chalk)' }}>
+          {ex.reps}
+        </div>
+        <div style={{ fontSize: 12, textAlign: 'center', color: 'var(--chalk-dim)' }}>
+          ⏱ {ex.rest}
+        </div>
         <div style={{ fontSize: 12, textAlign: 'center', color: 'var(--chalk-dim)' }}>
           {ex.target_weight ? `${ex.target_weight} kg` : '—'}
         </div>

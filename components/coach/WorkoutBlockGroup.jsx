@@ -47,11 +47,27 @@ function parseMeta(noteRaw) {
       uiVersion: 2,
     }
   } catch {
-    return { type: 'For Time', rounds: '', cap: '', rest: '', objective: '', coachNote: '', uiVersion: 2 }
+    return {
+      type: 'For Time',
+      rounds: '',
+      cap: '',
+      rest: '',
+      objective: '',
+      coachNote: '',
+      uiVersion: 2,
+    }
   }
 }
 
-export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete, onMove, onAddExercise }) {
+export default function WorkoutBlockGroup({
+  group,
+  wId,
+  edit,
+  onUpdate,
+  onDelete,
+  onMove,
+  onAddExercise,
+}) {
   const exercises = group.exercises || []
   const first = exercises[0]
 
@@ -75,15 +91,44 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
   if (!edit) {
     const readMeta = parseMeta(first?.note)
     return (
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: `2px solid ${tc}`, boxShadow: '0 4px 12px rgba(13,27,78,0.1)', margin: '8px 10px' }}>
-        <div style={{ background: tc, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ color: 'white', fontWeight: 800, fontSize: 11, letterSpacing: '0.5px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div
+        style={{
+          borderRadius: 10,
+          overflow: 'hidden',
+          border: `2px solid ${tc}`,
+          boxShadow: '0 4px 12px rgba(13,27,78,0.1)',
+          margin: '8px 10px',
+        }}
+      >
+        <div
+          style={{
+            background: tc,
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div
+            style={{
+              color: 'white',
+              fontWeight: 800,
+              fontSize: 11,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
             <span style={{ fontSize: 14 }}>🔥</span>
             {readMeta.type}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {readMeta.rounds && readMeta.rounds > 1 && (
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{readMeta.rounds} rounds</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+                {readMeta.rounds} rounds
+              </div>
             )}
             {readMeta.cap && (
               <div
@@ -99,24 +144,56 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
                   padding: '3px 10px 4px',
                 }}
               >
-                <span style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1 }}>{readMeta.cap}</span>
-                <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>min</span>
+                <span style={{ fontSize: 15, fontWeight: 900, color: 'white', lineHeight: 1 }}>
+                  {readMeta.cap}
+                </span>
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: 'rgba(255,255,255,0.9)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  min
+                </span>
               </div>
             )}
           </div>
         </div>
         <div style={{ background: 'var(--bg-card)', padding: '4px 12px 10px' }}>
           {exercises.map((e) => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+            <div
+              key={e.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 0',
+                fontSize: 12,
+                color: 'rgba(255,255,255,0.85)',
+              }}
+            >
               <span style={{ color: tc, fontWeight: 800 }}>•</span>
               <span style={{ flex: 1 }}>{e.name}</span>
             </div>
           ))}
         </div>
         {(readMeta.objective || readMeta.coachNote) && (
-          <div style={{ background: 'var(--bg-card-2)', padding: '8px 12px', borderTop: '1px solid var(--border-hi)', fontSize: 11, color: 'var(--chalk-dim)' }}>
+          <div
+            style={{
+              background: 'var(--bg-card-2)',
+              padding: '8px 12px',
+              borderTop: '1px solid var(--border-hi)',
+              fontSize: 11,
+              color: 'var(--chalk-dim)',
+            }}
+          >
             {readMeta.objective && <div>🎯 {readMeta.objective}</div>}
-            {readMeta.coachNote && <div style={{ marginTop: readMeta.objective ? 3 : 0 }}>📋 {readMeta.coachNote}</div>}
+            {readMeta.coachNote && (
+              <div style={{ marginTop: readMeta.objective ? 3 : 0 }}>📋 {readMeta.coachNote}</div>
+            )}
           </div>
         )}
       </div>
@@ -125,12 +202,41 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
 
   // ── Mode édition ──
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${tc}55`, margin: '8px 10px', background: 'var(--bg-card-2)' }}>
-      <div style={{ padding: '7px 12px', background: tc, color: 'white', fontSize: 11, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div
+      style={{
+        borderRadius: 12,
+        overflow: 'hidden',
+        border: `1.5px solid ${tc}55`,
+        margin: '8px 10px',
+        background: 'var(--bg-card-2)',
+      }}
+    >
+      <div
+        style={{
+          padding: '7px 12px',
+          background: tc,
+          color: 'white',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <span>🔥 Workout Block</span>
         <button
           onClick={() => onAddExercise(wId, 'Workout Block', group.groupId)}
-          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', fontSize: 11 }}
+          style={{
+            background: 'rgba(255,255,255,0.2)',
+            border: 'none',
+            color: 'white',
+            borderRadius: 5,
+            padding: '2px 8px',
+            cursor: 'pointer',
+            fontSize: 11,
+          }}
         >
           + Mouvement
         </button>
@@ -141,7 +247,11 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
             <label style={lbl}>Format</label>
-            <select value={meta.type} onChange={(e) => updateMeta('type', e.target.value)} style={inp}>
+            <select
+              value={meta.type}
+              onChange={(e) => updateMeta('type', e.target.value)}
+              style={inp}
+            >
               {FORMATS.map((t) => (
                 <option key={t}>{t}</option>
               ))}
@@ -150,7 +260,12 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
           {['AMRAP', 'EMOM', 'Tabata'].includes(meta.type) ? (
             <div>
               <label style={lbl}>Durée (min)</label>
-              <input value={meta.cap} onChange={(e) => updateMeta('cap', e.target.value)} placeholder="ex: 6" style={inp} />
+              <input
+                value={meta.cap}
+                onChange={(e) => updateMeta('cap', e.target.value)}
+                placeholder="ex: 6"
+                style={inp}
+              />
               <div style={{ fontSize: 10, color: 'var(--chalk-dim)', marginTop: 3 }}>
                 C'est cette durée que l'athlète verra en gros sur son écran.
               </div>
@@ -159,26 +274,49 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
             <>
               <div>
                 <label style={lbl}>Rounds / durée</label>
-                <input value={meta.rounds} onChange={(e) => updateMeta('rounds', e.target.value)} style={inp} />
+                <input
+                  value={meta.rounds}
+                  onChange={(e) => updateMeta('rounds', e.target.value)}
+                  style={inp}
+                />
               </div>
               <div>
                 <label style={lbl}>Cap (min)</label>
-                <input value={meta.cap} onChange={(e) => updateMeta('cap', e.target.value)} placeholder="ex: 20" style={inp} />
+                <input
+                  value={meta.cap}
+                  onChange={(e) => updateMeta('cap', e.target.value)}
+                  placeholder="ex: 20"
+                  style={inp}
+                />
               </div>
             </>
           )}
           <div>
             <label style={lbl}>Repos entre rounds</label>
-            <input value={meta.rest} onChange={(e) => updateMeta('rest', e.target.value)} style={inp} />
+            <input
+              value={meta.rest}
+              onChange={(e) => updateMeta('rest', e.target.value)}
+              style={inp}
+            />
           </div>
         </div>
         <div style={{ marginBottom: 8 }}>
           <label style={lbl}>Objectif athlète</label>
-          <input value={meta.objective} onChange={(e) => updateMeta('objective', e.target.value)} placeholder="Ex: finir en moins de 15 min" style={inp} />
+          <input
+            value={meta.objective}
+            onChange={(e) => updateMeta('objective', e.target.value)}
+            placeholder="Ex: finir en moins de 15 min"
+            style={inp}
+          />
         </div>
         <div style={{ marginBottom: 12 }}>
           <label style={lbl}>Note coach</label>
-          <input value={meta.coachNote} onChange={(e) => updateMeta('coachNote', e.target.value)} placeholder="Consigne technique…" style={inp} />
+          <input
+            value={meta.coachNote}
+            onChange={(e) => updateMeta('coachNote', e.target.value)}
+            placeholder="Consigne technique…"
+            style={inp}
+          />
         </div>
 
         {/* ── Mouvements ── */}
@@ -190,13 +328,43 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
                 <button
                   onClick={() => i > 0 && onMove(wId, ex.id, -1)}
                   disabled={i === 0}
-                  style={{ width: 20, height: 16, border: '1px solid var(--border-hi)', borderRadius: 3, background: i === 0 ? 'var(--surface-3)' : 'var(--bg-card)', color: i === 0 ? 'var(--chalk-muted)' : 'var(--chalk)', cursor: i === 0 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >▲</button>
+                  style={{
+                    width: 20,
+                    height: 16,
+                    border: '1px solid var(--border-hi)',
+                    borderRadius: 3,
+                    background: i === 0 ? 'var(--surface-3)' : 'var(--bg-card)',
+                    color: i === 0 ? 'var(--chalk-muted)' : 'var(--chalk)',
+                    cursor: i === 0 ? 'default' : 'pointer',
+                    fontSize: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  ▲
+                </button>
                 <button
                   onClick={() => i < exercises.length - 1 && onMove(wId, ex.id, 1)}
                   disabled={i === exercises.length - 1}
-                  style={{ width: 20, height: 16, border: '1px solid var(--border-hi)', borderRadius: 3, background: i === exercises.length - 1 ? 'var(--surface-3)' : 'var(--bg-card)', color: i === exercises.length - 1 ? 'var(--chalk-muted)' : 'var(--chalk)', cursor: i === exercises.length - 1 ? 'default' : 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >▼</button>
+                  style={{
+                    width: 20,
+                    height: 16,
+                    border: '1px solid var(--border-hi)',
+                    borderRadius: 3,
+                    background: i === exercises.length - 1 ? 'var(--surface-3)' : 'var(--bg-card)',
+                    color: i === exercises.length - 1 ? 'var(--chalk-muted)' : 'var(--chalk)',
+                    cursor: i === exercises.length - 1 ? 'default' : 'pointer',
+                    fontSize: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  ▼
+                </button>
               </div>
               <input
                 value={ex.name}
@@ -206,12 +374,29 @@ export default function WorkoutBlockGroup({ group, wId, edit, onUpdate, onDelete
               />
               <button
                 onClick={() => onDelete(wId, ex.id)}
-                style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'var(--danger-dim)', color: 'var(--danger)', cursor: 'pointer', fontSize: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >×</button>
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'var(--danger-dim)',
+                  color: 'var(--danger)',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ×
+              </button>
             </div>
           ))}
           {exercises.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--chalk-muted)', fontStyle: 'italic' }}>Aucun mouvement — clique "+ Mouvement".</div>
+            <div style={{ fontSize: 12, color: 'var(--chalk-muted)', fontStyle: 'italic' }}>
+              Aucun mouvement — clique "+ Mouvement".
+            </div>
           )}
         </div>
       </div>

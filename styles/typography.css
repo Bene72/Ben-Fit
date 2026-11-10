@@ -47,9 +47,24 @@
 }
 
 /* ── Corps ─────────────────────────────────────────────────────────────── */
-.body     { font-size: 14px; font-weight: 400; color: var(--text);      line-height: 1.65; }
-.body-sm  { font-size: 13px; font-weight: 400; color: var(--text);      line-height: 1.6;  }
-.body-xs  { font-size: 12px; font-weight: 400; color: var(--text-soft); line-height: 1.5;  }
+.body {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.65;
+}
+.body-sm {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.6;
+}
+.body-xs {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
 
 /* ── Labels ────────────────────────────────────────────────────────────── */
 .label-upper {
@@ -94,7 +109,13 @@
 
 /* ── Règles responsive ─────────────────────────────────────────────────── */
 @media (max-width: 979px) {
-  .h1     { font-size: 26px; }
-  .h2     { font-size: 18px; }
-  .stat-num { font-size: 22px; }
+  .h1 {
+    font-size: 26px;
+  }
+  .h2 {
+    font-size: 18px;
+  }
+  .stat-num {
+    font-size: 22px;
+  }
 }

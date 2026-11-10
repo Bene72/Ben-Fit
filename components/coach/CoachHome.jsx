@@ -122,24 +122,21 @@ export default function CoachHome({ clients, onSelectClient }) {
 
   return (
     <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-      <SectionCard
-        title="À RISQUE DE DÉCROCHAGE"
-        icon="⚠️"
-        count={atRisk.length}
-        accent={S.red}
-      >
+      <SectionCard title="À RISQUE DE DÉCROCHAGE" icon="⚠️" count={atRisk.length} accent={S.red}>
         {atRisk.length === 0 ? (
           <EmptyRow text="Personne — tout le monde a un bilan récent. 👍" />
         ) : (
-          atRisk.slice(0, 5).map((c) => (
-            <ClientRow
-              key={c.id}
-              client={c}
-              rightLabel={c.inactiveDays === Infinity ? 'Jamais' : `${daysAgo(c.lastBilan)}`}
-              rightColor={S.red}
-              onClick={() => onSelectClient(c.id)}
-            />
-          ))
+          atRisk
+            .slice(0, 5)
+            .map((c) => (
+              <ClientRow
+                key={c.id}
+                client={c}
+                rightLabel={c.inactiveDays === Infinity ? 'Jamais' : `${daysAgo(c.lastBilan)}`}
+                rightColor={S.red}
+                onClick={() => onSelectClient(c.id)}
+              />
+            ))
         )}
       </SectionCard>
 

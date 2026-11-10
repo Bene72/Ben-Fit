@@ -10,7 +10,7 @@ import { Toast, useToast } from '../Toast'
 // (1993 lignes). Extraites tel quel, sans changement de comportement. Le
 // reste du fichier (éditeur de cycle/workouts, ~30 états imbriqués) est
 // resté en place : trop couplé pour être découpé sans risque de régression
-// sans pouvoir retester contre un vrai Supabase. Voir CHANGELOG-AUDIT-DECOUPAGE.md.
+// sans pouvoir retester contre un vrai Supabase. Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE.md.
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import DuplicateCycleModal from './programme/DuplicateCycleModal'
 import CycleHistoryModal from './programme/CycleHistoryModal'
@@ -18,7 +18,15 @@ import CycleHistoryModal from './programme/CycleHistoryModal'
 // ── Toggle Actuel / Futur ──────────────────────────────────────
 function CycleToggle({ mode, onChange }) {
   return (
-    <div style={{ display: 'flex', background: 'var(--accent-dim)', borderRadius: 10, padding: 3, gap: 2 }}>
+    <div
+      style={{
+        display: 'flex',
+        background: 'var(--accent-dim)',
+        borderRadius: 10,
+        padding: 3,
+        gap: 2,
+      }}
+    >
       {[
         { id: 'current', label: '🟢 Cycle actuel' },
         { id: 'future', label: '🔵 Cycle futur' },
@@ -31,7 +39,8 @@ function CycleToggle({ mode, onChange }) {
             borderRadius: 8,
             border: 'none',
             cursor: 'pointer',
-            background: mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
+            background:
+              mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
             color: mode === id ? 'var(--chalk)' : 'var(--chalk-dim)',
             fontWeight: 700,
             fontSize: 13,
@@ -1202,7 +1211,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
       {/* ── Liste vide ── */}
       {displayedWorkouts.length === 0 && !showAdd && (
-        <div style={{ textAlign: 'center', color: 'var(--chalk-dim)', padding: '40px 0', fontSize: 15 }}>
+        <div
+          style={{
+            textAlign: 'center',
+            color: 'var(--chalk-dim)',
+            padding: '40px 0',
+            fontSize: 15,
+          }}
+        >
           {cycleMode === 'future'
             ? 'Aucune séance dans le cycle futur — clique sur "+ Séance" pour commencer'
             : 'Aucune séance — clique sur "+ Séance" pour commencer'}
@@ -1235,7 +1251,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 alignItems: 'center',
                 padding: '14px 16px',
                 cursor: isRenaming ? 'default' : 'pointer',
-                background: isOpen ? (cycleMode === 'future' ? 'var(--accent-dim)' : 'var(--accent-dim)') : 'var(--bg-card)',
+                background: isOpen
+                  ? cycleMode === 'future'
+                    ? 'var(--accent-dim)'
+                    : 'var(--accent-dim)'
+                  : 'var(--bg-card)',
                 transition: 'background 0.15s',
               }}
             >
@@ -1268,7 +1288,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     border: 'none',
                     background: 'transparent',
                     cursor: wIdx === displayedWorkouts.length - 1 ? 'default' : 'pointer',
-                    color: wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
+                    color:
+                      wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
                     fontSize: 12,
                     padding: 2,
                     lineHeight: 1,
@@ -1365,7 +1386,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   {workout.exercises?.length || 0} exercice
                   {(workout.exercises?.length || 0) > 1 ? 's' : ''}
                   {workout.cycle_name && (
-                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {workout.cycle_name}</span>
+                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>
+                      · {workout.cycle_name}
+                    </span>
                   )}
                 </div>
               </div>
@@ -1398,7 +1421,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 >
                   🗑
                 </button>
-                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>{isOpen ? '▲' : '▼'}</span>
+                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>
+                  {isOpen ? '▲' : '▼'}
+                </span>
               </div>
             </div>
 
@@ -1607,19 +1632,31 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Giant Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--rx)', color: 'var(--rx)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--rx)',
+                        color: 'var(--rx)',
+                      }}
                     >
                       + Giant Set
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Drop Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--accent)',
+                        color: 'var(--accent)',
+                      }}
                     >
                       + Drop Set
                     </button>
                     <button
                       onClick={() => addWorkoutBlock(workout.id)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--border)', color: 'var(--chalk)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--border)',
+                        color: 'var(--chalk)',
+                      }}
                     >
                       + WOD Block
                     </button>

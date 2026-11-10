@@ -271,7 +271,9 @@ export default function OverviewTab({
           >
             👤 Informations
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>Email</div>
+          <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '4px' }}>
+            Email
+          </div>
           <div
             style={{
               fontSize: '14px',

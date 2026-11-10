@@ -13,8 +13,8 @@ const BILAN_ITEMS = [
   { key: 'moral', label: 'Moral', hasScore: true },
   { key: 'assiduite_diete', label: 'Assiduité diète', hasScore: true },
   { key: 'problemes_diete', label: 'Problèmes diète', noteOnly: true },
-  { key: 'assiduite_training', label: "Assiduité entraînement", hasScore: true },
-  { key: 'problemes_training', label: "Problèmes entraînement", noteOnly: true },
+  { key: 'assiduite_training', label: 'Assiduité entraînement', hasScore: true },
+  { key: 'problemes_training', label: 'Problèmes entraînement', noteOnly: true },
   { key: 'neat', label: 'NEAT / activité quotidienne', hasScore: true },
   { key: 'autre', label: 'Autre point', noteOnly: true },
 ]
@@ -224,9 +224,7 @@ export default function BilanPage() {
 
       if (updateError) throw updateError
 
-      setBilans((prev) =>
-        prev.map((b) => (b.id === selectedBilanId ? { ...b, ...payload } : b))
-      )
+      setBilans((prev) => prev.map((b) => (b.id === selectedBilanId ? { ...b, ...payload } : b)))
       setSuccess('Bilan enregistré.')
     } catch (e) {
       setError(e.message || 'Impossible d’enregistrer le bilan')
@@ -257,10 +255,10 @@ export default function BilanPage() {
     if (!confirm('Supprimer ce bilan ? Cette action est irréversible.')) return
     try {
       await supabase.from('bilans').delete().eq('id', bilanId)
-      setBilans(prev => prev.filter(b => b.id !== bilanId))
+      setBilans((prev) => prev.filter((b) => b.id !== bilanId))
       setSelectedBilanId(null)
       setEditForm({})
-    } catch(e) {
+    } catch (e) {
       setError(e.message || 'Impossible de supprimer le bilan')
     }
   }
@@ -268,9 +266,9 @@ export default function BilanPage() {
   async function updateWeekStart(bilanId, newDate) {
     try {
       await supabase.from('bilans').update({ week_start: newDate }).eq('id', bilanId)
-      setBilans(prev => prev.map(b => b.id === bilanId ? { ...b, week_start: newDate } : b))
-      setEditForm(prev => ({ ...prev, week_start: newDate }))
-    } catch(e) {
+      setBilans((prev) => prev.map((b) => (b.id === bilanId ? { ...b, week_start: newDate } : b)))
+      setEditForm((prev) => ({ ...prev, week_start: newDate }))
+    } catch (e) {
       setError(e.message || 'Impossible de modifier la date')
     }
   }
@@ -306,18 +304,30 @@ export default function BilanPage() {
     >
       {error ? (
         <div style={{ marginBottom: 16 }}>
-          <SurfaceCard padded style={{ borderColor: 'var(--danger)', background: 'var(--danger-soft)' }}>
+          <SurfaceCard
+            padded
+            style={{ borderColor: 'var(--danger)', background: 'var(--danger-soft)' }}
+          >
             <strong style={{ display: 'block', marginBottom: 6 }}>Erreur</strong>
-            <div className="ui-muted" style={{ color: 'var(--danger)' }}>{error}</div>
+            <div className="ui-muted" style={{ color: 'var(--danger)' }}>
+              {error}
+            </div>
           </SurfaceCard>
         </div>
       ) : null}
 
       {success ? (
         <div style={{ marginBottom: 16 }}>
-          <SurfaceCard padded style={{ borderColor: 'var(--success)', background: 'var(--success-soft)' }}>
-            <strong style={{ display: 'block', marginBottom: 6, color: 'var(--success)' }}>OK</strong>
-            <div className="ui-muted" style={{ color: 'var(--success)' }}>{success}</div>
+          <SurfaceCard
+            padded
+            style={{ borderColor: 'var(--success)', background: 'var(--success-soft)' }}
+          >
+            <strong style={{ display: 'block', marginBottom: 6, color: 'var(--success)' }}>
+              OK
+            </strong>
+            <div className="ui-muted" style={{ color: 'var(--success)' }}>
+              {success}
+            </div>
           </SurfaceCard>
         </div>
       ) : null}
@@ -331,9 +341,20 @@ export default function BilanPage() {
               action={<StatusBadge tone="default">{visibleBilans.length} semaine(s)</StatusBadge>}
             />
 
-            <div style={{ display: 'flex', gap: 2, marginBottom: 14, borderBottom: '2px solid var(--border, #EAF0F8)' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 2,
+                marginBottom: 14,
+                borderBottom: '2px solid var(--border, #EAF0F8)',
+              }}
+            >
               {[
-                { id: 'actifs', label: `Actifs (${bilans.length - archivedBilans.length})`, value: false },
+                {
+                  id: 'actifs',
+                  label: `Actifs (${bilans.length - archivedBilans.length})`,
+                  value: false,
+                },
                 { id: 'archives', label: `Archivés (${archivedBilans.length})`, value: true },
               ].map((tab) => (
                 <button
@@ -393,7 +414,13 @@ export default function BilanPage() {
                         </div>
                         <div className="ui-cluster">
                           {isCurrent ? <StatusBadge tone="accent">Semaine</StatusBadge> : null}
-                          {avg ? <StatusBadge tone={avg >= 7 ? 'success' : avg >= 4 ? 'warning' : 'danger'}>{avg}/10</StatusBadge> : null}
+                          {avg ? (
+                            <StatusBadge
+                              tone={avg >= 7 ? 'success' : avg >= 4 ? 'warning' : 'danger'}
+                            >
+                              {avg}/10
+                            </StatusBadge>
+                          ) : null}
                         </div>
                       </button>
                       <button
@@ -476,7 +503,7 @@ export default function BilanPage() {
                         <div style={{ marginBottom: 14 }}>
                           <div className="ui-label">Note /10</div>
                           <div className="ui-cluster">
-                            {[1,2,3,4,5,6,7,8,9,10].map((n) => {
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
                               const active = editForm?.[`${item.key}_score`] === n
                               return (
                                 <button
@@ -527,20 +554,48 @@ export default function BilanPage() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid #EAEAEA' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                      paddingTop: '12px',
+                      borderTop: '1px solid #EAEAEA',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label style={{ fontSize: '12px', color: '#999', fontWeight: '600' }}>Corriger la semaine :</label>
+                      <label style={{ fontSize: '12px', color: '#999', fontWeight: '600' }}>
+                        Corriger la semaine :
+                      </label>
                       <input
                         type="date"
                         value={editForm.week_start || ''}
-                        onChange={e => updateWeekStart(selectedBilanId, e.target.value)}
-                        style={{ padding: '6px 10px', border: '1.5px solid #E8E8E8', borderRadius: '7px', fontSize: '13px', outline: 'none', color: '#0D1B4E' }}
+                        onChange={(e) => updateWeekStart(selectedBilanId, e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1.5px solid #E8E8E8',
+                          borderRadius: '7px',
+                          fontSize: '13px',
+                          outline: 'none',
+                          color: '#0D1B4E',
+                        }}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => deleteBilan(selectedBilanId)}
-                      style={{ marginLeft: 'auto', padding: '7px 14px', background: 'rgba(196,92,58,0.08)', color: '#C45C3A', border: '1.5px solid #C45C3A', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '7px 14px',
+                        background: 'rgba(196,92,58,0.08)',
+                        color: '#C45C3A',
+                        border: '1.5px solid #C45C3A',
+                        borderRadius: '7px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
                     >
                       🗑 Supprimer ce bilan
                     </button>
@@ -553,7 +608,10 @@ export default function BilanPage() {
 
         <div className="ui-stack">
           <SurfaceCard padded sticky>
-            <SectionHead title="Contexte" caption="Une lecture rapide de ta semaine sélectionnée." />
+            <SectionHead
+              title="Contexte"
+              caption="Une lecture rapide de ta semaine sélectionnée."
+            />
             {!selectedBilan ? (
               <EmptyPanel
                 title="Aucun contexte"
@@ -571,9 +629,20 @@ export default function BilanPage() {
                   <div className="ui-stack" style={{ gap: 10 }}>
                     {BILAN_ITEMS.filter((item) => !item.noteOnly).map((item) => {
                       const score = selectedBilan?.[`${item.key}_score`]
-                      const tone = score >= 7 ? 'success' : score >= 4 ? 'warning' : score ? 'danger' : 'default'
+                      const tone =
+                        score >= 7
+                          ? 'success'
+                          : score >= 4
+                            ? 'warning'
+                            : score
+                              ? 'danger'
+                              : 'default'
                       return (
-                        <div key={item.key} className="ui-list-item" style={{ padding: '10px 12px' }}>
+                        <div
+                          key={item.key}
+                          className="ui-list-item"
+                          style={{ padding: '10px 12px' }}
+                        >
                           <span>{item.label}</span>
                           <StatusBadge tone={tone}>{score ? `${score}/10` : '—'}</StatusBadge>
                         </div>
@@ -585,8 +654,9 @@ export default function BilanPage() {
                 <div className="ui-card ui-card--padded">
                   <div style={{ fontWeight: 800, marginBottom: 8 }}>Conseil</div>
                   <div className="ui-muted" style={{ lineHeight: 1.65 }}>
-                    Utilise les commentaires pour donner du contexte : sommeil réel, écarts alimentaires, douleurs,
-                    difficultés sur certaines séances, fatigue mentale, contraintes perso.
+                    Utilise les commentaires pour donner du contexte : sommeil réel, écarts
+                    alimentaires, douleurs, difficultés sur certaines séances, fatigue mentale,
+                    contraintes perso.
                   </div>
                 </div>
               </div>

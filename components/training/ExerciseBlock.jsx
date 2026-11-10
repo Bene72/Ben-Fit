@@ -17,11 +17,32 @@
  *    libre. Rendu uniquement si meta.uiVersion === 2, posé à la création
  *    par ProgrammeTab.jsx — aucun block existant n'est donc affecté.
  */
-import { WORKOUT_BLOCK_COLORS, GROUP_COLORS, scoreFieldsForFormat, findGroupMeta } from '../../lib/trainingUtils'
+import {
+  WORKOUT_BLOCK_COLORS,
+  GROUP_COLORS,
+  scoreFieldsForFormat,
+  findGroupMeta,
+} from '../../lib/trainingUtils'
 import CompactExerciseRow from './CompactExerciseRow'
-import ExerciseWorkspace  from './ExerciseWorkspace'
+import ExerciseWorkspace from './ExerciseWorkspace'
 
-export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, loggingIds, logsByName, onLogInput, onLog, onImageOpen, isMobile, blockInputs, loggingBlockIds, blockResults, onBlockInput, onLogBlock }) {
+export default function ExerciseBlock({
+  block,
+  selectedId,
+  onSelect,
+  logInputs,
+  loggingIds,
+  logsByName,
+  onLogInput,
+  onLog,
+  onImageOpen,
+  isMobile,
+  blockInputs,
+  loggingBlockIds,
+  blockResults,
+  onBlockInput,
+  onLogBlock,
+}) {
   if (block.kind === 'group' && block.groupType === 'Workout Block') {
     const meta = findGroupMeta(block.exercises)
     const tc = WORKOUT_BLOCK_COLORS[meta.type] || 'var(--chalk)'
@@ -29,11 +50,16 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
     if (meta.uiVersion === 2) {
       return (
         <WorkoutBlockV2
-          block={block} meta={meta} tc={tc}
+          block={block}
+          meta={meta}
+          tc={tc}
           groupId={block.exercises[0]?.group_id}
           workoutId={block.exercises[0]?.workout_id}
-          blockInputs={blockInputs} loggingBlockIds={loggingBlockIds} blockResults={blockResults}
-          onBlockInput={onBlockInput} onLogBlock={onLogBlock}
+          blockInputs={blockInputs}
+          loggingBlockIds={loggingBlockIds}
+          blockResults={blockResults}
+          onBlockInput={onBlockInput}
+          onLogBlock={onLogBlock}
         />
       )
     }
@@ -58,9 +84,19 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
           ))}
         </div>
         {(meta.objective || meta.coachNote) && (
-          <div style={{ background: 'var(--bg-card-2)', padding: '8px 12px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--chalk-dim)' }}>
+          <div
+            style={{
+              background: 'var(--bg-card-2)',
+              padding: '8px 12px',
+              borderTop: '1px solid var(--border)',
+              fontSize: 11,
+              color: 'var(--chalk-dim)',
+            }}
+          >
             {meta.objective && <div>🎯 {meta.objective}</div>}
-            {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
+            {meta.coachNote && (
+              <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>
+            )}
           </div>
         )}
       </div>
@@ -71,27 +107,83 @@ export default function ExerciseBlock({ block, selectedId, onSelect, logInputs, 
     const gc = GROUP_COLORS[block.groupType] || 'var(--accent)'
     return (
       <div className="tp-group" style={{ borderColor: `${gc}22` }}>
-        <div className="tp-group-head" style={{ background: gc }}>⚡ {block.groupType}</div>
+        <div className="tp-group-head" style={{ background: gc }}>
+          ⚡ {block.groupType}
+        </div>
         <div style={{ padding: isMobile ? 8 : 10 }}>
           {block.exercises.map((exercise) => (
-            <ExerciseRow key={exercise.id} exercise={exercise} selectedId={selectedId} onSelect={onSelect} logInputs={logInputs} loggingIds={loggingIds} logsByName={logsByName} onLogInput={onLogInput} onLog={onLog} onImageOpen={onImageOpen} isMobile={isMobile} mb={8} />
+            <ExerciseRow
+              key={exercise.id}
+              exercise={exercise}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              logInputs={logInputs}
+              loggingIds={loggingIds}
+              logsByName={logsByName}
+              onLogInput={onLogInput}
+              onLog={onLog}
+              onImageOpen={onImageOpen}
+              isMobile={isMobile}
+              mb={8}
+            />
           ))}
         </div>
       </div>
     )
   }
 
-  return <ExerciseRow exercise={block.exercise} selectedId={selectedId} onSelect={onSelect} logInputs={logInputs} loggingIds={loggingIds} logsByName={logsByName} onLogInput={onLogInput} onLog={onLog} onImageOpen={onImageOpen} isMobile={isMobile} />
+  return (
+    <ExerciseRow
+      exercise={block.exercise}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      logInputs={logInputs}
+      loggingIds={loggingIds}
+      logsByName={logsByName}
+      onLogInput={onLogInput}
+      onLog={onLog}
+      onImageOpen={onImageOpen}
+      isMobile={isMobile}
+    />
+  )
 }
 
-function ExerciseRow({ exercise, selectedId, onSelect, logInputs, loggingIds, logsByName, onLogInput, onLog, onImageOpen, isMobile, mb }) {
+function ExerciseRow({
+  exercise,
+  selectedId,
+  onSelect,
+  logInputs,
+  loggingIds,
+  logsByName,
+  onLogInput,
+  onLog,
+  onImageOpen,
+  isMobile,
+  mb,
+}) {
   const isSelected = selectedId === exercise.id
   return (
     <div style={mb ? { marginBottom: mb } : undefined}>
-      <CompactExerciseRow exercise={exercise} selected={isSelected} latestLog={(logsByName[exercise.name] || [])[0]} onSelect={() => onSelect(isSelected ? null : exercise.id)} isMobile={isMobile} />
+      <CompactExerciseRow
+        exercise={exercise}
+        selected={isSelected}
+        latestLog={(logsByName[exercise.name] || [])[0]}
+        onSelect={() => onSelect(isSelected ? null : exercise.id)}
+        isMobile={isMobile}
+      />
       {isSelected && (
         <div style={{ marginTop: 2 }}>
-          <ExerciseWorkspace exercise={exercise} input={logInputs[exercise.id] || {}} onInput={(field, value) => onLogInput(exercise.id, field, value)} onLog={() => onLog(exercise)} logging={!!loggingIds[exercise.id]} onImageOpen={onImageOpen} latestLog={(logsByName[exercise.name] || [])[0]} recentLogs={logsByName[exercise.name] || []} isMobile={isMobile} />
+          <ExerciseWorkspace
+            exercise={exercise}
+            input={logInputs[exercise.id] || {}}
+            onInput={(field, value) => onLogInput(exercise.id, field, value)}
+            onLog={() => onLog(exercise)}
+            logging={!!loggingIds[exercise.id]}
+            onImageOpen={onImageOpen}
+            latestLog={(logsByName[exercise.name] || [])[0]}
+            recentLogs={logsByName[exercise.name] || []}
+            isMobile={isMobile}
+          />
         </div>
       )}
     </div>
@@ -99,7 +191,18 @@ function ExerciseRow({ exercise, selectedId, onSelect, logInputs, loggingIds, lo
 }
 
 // ─── Workout Block v2 ───────────────────────────────────────────────────────
-function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, loggingBlockIds, blockResults, onBlockInput, onLogBlock }) {
+function WorkoutBlockV2({
+  block,
+  meta,
+  tc,
+  groupId,
+  workoutId,
+  blockInputs,
+  loggingBlockIds,
+  blockResults,
+  onBlockInput,
+  onLogBlock,
+}) {
   const input = (blockInputs && blockInputs[groupId]) || {}
   const fields = scoreFieldsForFormat(meta.type)
   const logging = !!(loggingBlockIds && loggingBlockIds[groupId])
@@ -128,9 +231,19 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
       </div>
 
       {(meta.objective || meta.coachNote) && (
-        <div style={{ background: 'var(--bg-card-2)', padding: '8px 12px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--chalk-dim)' }}>
+        <div
+          style={{
+            background: 'var(--bg-card-2)',
+            padding: '8px 12px',
+            borderTop: '1px solid var(--border)',
+            fontSize: 11,
+            color: 'var(--chalk-dim)',
+          }}
+        >
           {meta.objective && <div>🎯 {meta.objective}</div>}
-          {meta.coachNote && <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>}
+          {meta.coachNote && (
+            <div style={{ marginTop: meta.objective ? 3 : 0 }}>📋 {meta.coachNote}</div>
+          )}
         </div>
       )}
 
@@ -145,31 +258,55 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
         )}
 
         <div className="tp-wblock-sectlabel">SCORE DE LA SÉANCE</div>
-        <div className="tp-score-grid" style={{ gridTemplateColumns: `repeat(${fields.length + 1}, 1fr)` }}>
+        <div
+          className="tp-score-grid"
+          style={{ gridTemplateColumns: `repeat(${fields.length + 1}, 1fr)` }}
+        >
           {fields.includes('time') && (
             <ScoreField label="Temps">
-              <input className="tp-score-input" value={input.time || ''} onChange={(e) => onBlockInput(groupId, 'time', e.target.value)} placeholder="12:34" />
+              <input
+                className="tp-score-input"
+                value={input.time || ''}
+                onChange={(e) => onBlockInput(groupId, 'time', e.target.value)}
+                placeholder="12:34"
+              />
             </ScoreField>
           )}
           {fields.includes('rounds') && (
             <ScoreField label="Rounds">
-              <input className="tp-score-input" value={input.rounds || ''} onChange={(e) => onBlockInput(groupId, 'rounds', e.target.value)} placeholder="5" />
+              <input
+                className="tp-score-input"
+                value={input.rounds || ''}
+                onChange={(e) => onBlockInput(groupId, 'rounds', e.target.value)}
+                placeholder="5"
+              />
             </ScoreField>
           )}
           {fields.includes('reps') && (
             <ScoreField label="Reps +">
-              <input className="tp-score-input" value={input.reps || ''} onChange={(e) => onBlockInput(groupId, 'reps', e.target.value)} placeholder="0" />
+              <input
+                className="tp-score-input"
+                value={input.reps || ''}
+                onChange={(e) => onBlockInput(groupId, 'reps', e.target.value)}
+                placeholder="0"
+              />
             </ScoreField>
           )}
           <ScoreField label="Niveau">
-            <select className="tp-score-input" value={input.level || 'rx'} onChange={(e) => onBlockInput(groupId, 'level', e.target.value)}>
+            <select
+              className="tp-score-input"
+              value={input.level || 'rx'}
+              onChange={(e) => onBlockInput(groupId, 'level', e.target.value)}
+            >
               <option value="rx">RX'd</option>
               <option value="scaled">Scaled</option>
             </select>
           </ScoreField>
         </div>
 
-        <div className="tp-wblock-sectlabel" style={{ marginBottom: 6 }}>JOURNAL DE SÉANCE</div>
+        <div className="tp-wblock-sectlabel" style={{ marginBottom: 6 }}>
+          JOURNAL DE SÉANCE
+        </div>
         <textarea
           className="tp-wblock-note"
           value={input.note || ''}
@@ -178,7 +315,12 @@ function WorkoutBlockV2({ block, meta, tc, groupId, workoutId, blockInputs, logg
           rows={3}
         />
 
-        <button type="button" className="tp-wblock-submit" onClick={() => onLogBlock(groupId, workoutId, meta)} disabled={logging}>
+        <button
+          type="button"
+          className="tp-wblock-submit"
+          onClick={() => onLogBlock(groupId, workoutId, meta)}
+          disabled={logging}
+        >
           {logging ? '...' : '✓ Enregistrer'}
         </button>
       </div>

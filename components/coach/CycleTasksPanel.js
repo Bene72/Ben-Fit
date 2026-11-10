@@ -53,7 +53,11 @@ function daysLabel(n) {
 const ALERT_STYLES = {
   expired: { bg: 'var(--danger-dim)', border: 'var(--danger)', icon: '🔴' },
   ending_soon: { bg: 'var(--gold-dim)', border: 'var(--gold)', icon: '🟡' },
-  upcoming: { bg: 'var(--info-dim, rgba(59,130,246,0.10))', border: 'var(--info, #3B82F6)', icon: '🔵' },
+  upcoming: {
+    bg: 'var(--info-dim, rgba(59,130,246,0.10))',
+    border: 'var(--info, #3B82F6)',
+    icon: '🔵',
+  },
 }
 
 function alertStyle(level) {
@@ -133,11 +137,24 @@ function DoneRow({ title, sub, onUndo }) {
           ✓
         </span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 12.5, color: S.muted, textDecoration: 'line-through' }}>{title}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success, #22C55E)' }}>{sub}</div>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 12.5,
+              color: S.muted,
+              textDecoration: 'line-through',
+            }}
+          >
+            {title}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success, #22C55E)' }}>
+            {sub}
+          </div>
         </div>
       </div>
-      <button className="btf-undo" onClick={onUndo}>Annuler</button>
+      <button className="btf-undo" onClick={onUndo}>
+        Annuler
+      </button>
       <span className="btf-timer" />
     </div>
   )
@@ -183,57 +200,60 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
 
   // silent = true : rechargement en arrière-plan, sans repasser par
   // l'écran "Chargement…" (utilisé par le refresh automatique).
-  const load = useCallback(async ({ silent = false } = {}) => {
-    if (!coachId) return
-    if (!silent) setLoading(true)
-    const [
-      { data: taskData, error: taskErr },
-      { data: alertData, error: alertErr },
-      { data: upcomingData, error: upcomingErr },
-      { data: cycleData, error: cycleErr },
-    ] = await Promise.all([
-      supabase
-        .from('coach_tasks')
-        .select('*')
-        .eq('coach_id', coachId)
-        .eq('done', false)
-        .order('due_date', { ascending: true }),
-      // Alerte tardive (encart "Prochains suivis") : cycle presque fini
-      // ou déjà dépassé.
-      supabase
-        .from('cycle_alerts')
-        .select('*')
-        .eq('coach_id', coachId)
-        .in('alert_level', ['ending_soon', 'expired'])
-        .order('end_date', { ascending: true }),
-      // Alerte précoce (liste "Tâches à venir") : ≤ 21 j restants,
-      // pour anticiper le prochain cycle avant que ça devienne urgent.
-      supabase
-        .from('cycle_alerts')
-        .select('*')
-        .eq('coach_id', coachId)
-        .eq('alert_level', 'upcoming')
-        .order('end_date', { ascending: true }),
-      // Cycles actifs, tous niveaux confondus — sert à afficher la date
-      // de début de cycle de chaque athlète (demande coach).
-      // Lu via la vue cycle_alerts pour exclure automatiquement les
-      // clients archivés (source unique du filtre).
-      supabase
-        .from('cycle_alerts')
-        .select('cycle_id, client_id, client_name, cycle_name, start_date, duration_weeks')
-        .eq('coach_id', coachId)
-        .order('start_date', { ascending: false }),
-    ])
-    // Une erreur (vue absente, RLS…) ne doit pas casser le panneau, mais
-    // elle ne doit plus être invisible : on la log en console.
-    const firstErr = taskErr || alertErr || upcomingErr || cycleErr
-    if (firstErr) console.error('Erreur chargement cycles/tâches:', firstErr)
-    setTasks(taskData || [])
-    setAlerts(alertData || [])
-    setUpcomingCycles(upcomingData || [])
-    setActiveCycles(cycleData || [])
-    setLoading(false)
-  }, [coachId])
+  const load = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!coachId) return
+      if (!silent) setLoading(true)
+      const [
+        { data: taskData, error: taskErr },
+        { data: alertData, error: alertErr },
+        { data: upcomingData, error: upcomingErr },
+        { data: cycleData, error: cycleErr },
+      ] = await Promise.all([
+        supabase
+          .from('coach_tasks')
+          .select('*')
+          .eq('coach_id', coachId)
+          .eq('done', false)
+          .order('due_date', { ascending: true }),
+        // Alerte tardive (encart "Prochains suivis") : cycle presque fini
+        // ou déjà dépassé.
+        supabase
+          .from('cycle_alerts')
+          .select('*')
+          .eq('coach_id', coachId)
+          .in('alert_level', ['ending_soon', 'expired'])
+          .order('end_date', { ascending: true }),
+        // Alerte précoce (liste "Tâches à venir") : ≤ 21 j restants,
+        // pour anticiper le prochain cycle avant que ça devienne urgent.
+        supabase
+          .from('cycle_alerts')
+          .select('*')
+          .eq('coach_id', coachId)
+          .eq('alert_level', 'upcoming')
+          .order('end_date', { ascending: true }),
+        // Cycles actifs, tous niveaux confondus — sert à afficher la date
+        // de début de cycle de chaque athlète (demande coach).
+        // Lu via la vue cycle_alerts pour exclure automatiquement les
+        // clients archivés (source unique du filtre).
+        supabase
+          .from('cycle_alerts')
+          .select('cycle_id, client_id, client_name, cycle_name, start_date, duration_weeks')
+          .eq('coach_id', coachId)
+          .order('start_date', { ascending: false }),
+      ])
+      // Une erreur (vue absente, RLS…) ne doit pas casser le panneau, mais
+      // elle ne doit plus être invisible : on la log en console.
+      const firstErr = taskErr || alertErr || upcomingErr || cycleErr
+      if (firstErr) console.error('Erreur chargement cycles/tâches:', firstErr)
+      setTasks(taskData || [])
+      setAlerts(alertData || [])
+      setUpcomingCycles(upcomingData || [])
+      setActiveCycles(cycleData || [])
+      setLoading(false)
+    },
+    [coachId]
+  )
 
   useEffect(() => {
     load()
@@ -310,7 +330,12 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       .single()
     if (!error && data) {
       setTasks((prev) => [...prev, data].sort((a, b) => a.due_date.localeCompare(b.due_date)))
-      setForm({ type: 'task', title: '', due_date: new Date().toISOString().split('T')[0], client_id: '' })
+      setForm({
+        type: 'task',
+        title: '',
+        due_date: new Date().toISOString().split('T')[0],
+        client_id: '',
+      })
       setShowForm(false)
     }
   }
@@ -435,7 +460,12 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
         due_date: dueDateStr,
       })
 
-      setCycleForm({ client_id: '', name: '', start_date: new Date().toISOString().split('T')[0], duration_weeks: 5 })
+      setCycleForm({
+        client_id: '',
+        name: '',
+        start_date: new Date().toISOString().split('T')[0],
+        duration_weeks: 5,
+      })
       setShowCycleForm(false)
       load()
     }
@@ -464,16 +494,15 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
   const taskVisible = (t) => {
     if (t.client_id && archivedIds.has(t.client_id)) return false
     if (gone.has(`task-${t.id}`)) return false
-    if (t.cycle_id && (gone.has(`cycle-${t.cycle_id}`) || doneMap[`cycle-${t.cycle_id}`])) return false
+    if (t.cycle_id && (gone.has(`cycle-${t.cycle_id}`) || doneMap[`cycle-${t.cycle_id}`]))
+      return false
     return true
   }
 
   // Fusionne tâches manuelles + alertes de cycle "upcoming" en une seule
   // liste triée par date, pour l'onglet "Tâches à venir".
   const upcomingItems = [
-    ...tasks
-      .filter(taskVisible)
-      .map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
+    ...tasks.filter(taskVisible).map((t) => ({ kind: 'task', sortDate: t.due_date, data: t })),
     ...upcomingCycles.map((a) => ({ kind: 'cycle', sortDate: a.end_date, data: a })),
   ].sort((a, b) => a.sortDate.localeCompare(b.sortDate))
 
@@ -481,21 +510,54 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{PANEL_CSS}</style>
       {/* ── PROCHAINS SUIVIS (alerte tardive : cycle presque fini / dépassé) ── */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          borderRadius: 16,
+          padding: 16,
+          border: `1px solid ${S.border}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
           <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
             PROCHAINS SUIVIS
           </div>
           <button
             onClick={() => setShowCycleForm((v) => !v)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: S.blue, fontFamily: font, fontWeight: 700 }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: S.blue,
+              fontFamily: font,
+              fontWeight: 700,
+            }}
           >
             + Nouveau cycle
           </button>
         </div>
 
         {showCycleForm && (
-          <form onSubmit={createCycle} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, background: 'var(--bg-card-2)', padding: 12, borderRadius: 10 }}>
+          <form
+            onSubmit={createCycle}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              marginBottom: 14,
+              background: 'var(--bg-card-2)',
+              padding: 12,
+              borderRadius: 10,
+            }}
+          >
             <select
               value={cycleForm.client_id}
               onChange={(e) => setCycleForm((f) => ({ ...f, client_id: e.target.value }))}
@@ -504,7 +566,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
             >
               <option value="">Client…</option>
               {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
             <input
@@ -532,14 +596,24 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               />
               <span style={{ fontSize: 11, color: S.muted, alignSelf: 'center' }}>sem.</span>
             </div>
-            <button type="submit" style={primaryBtnStyle()}>Démarrer le cycle</button>
+            <button type="submit" style={primaryBtnStyle()}>
+              Démarrer le cycle
+            </button>
           </form>
         )}
 
         {/* Cycles en cours — date de début par athlète */}
         {!loading && activeCycles.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: S.muted, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: S.muted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.6px',
+              }}
+            >
               Cycles en cours
             </div>
             {activeCycles.map((c) => {
@@ -561,8 +635,13 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                     {c.client_name}
                     <span style={{ fontWeight: 500, color: S.muted }}> · {c.cycle_name}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: S.muted, fontFamily: font, whiteSpace: 'nowrap' }}>
-                    {new Date(c.start_date + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                  <div
+                    style={{ fontSize: 11, color: S.muted, fontFamily: font, whiteSpace: 'nowrap' }}
+                  >
+                    {new Date(c.start_date + 'T12:00:00').toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                    })}
                     <span style={{ color: 'var(--chalk-muted)' }}> → </span>
                     {end.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </div>
@@ -583,7 +662,12 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               const key = `cycle-${a.cycle_id}`
               if (doneMap[key]) {
                 return (
-                  <DoneRow key={key} title={doneMap[key].title} sub="Cycle terminé" onUndo={() => undoCycle(a)} />
+                  <DoneRow
+                    key={key}
+                    title={doneMap[key].title}
+                    sub="Cycle terminé"
+                    onUndo={() => undoCycle(a)}
+                  />
                 )
               }
               return (
@@ -608,7 +692,10 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 16 }}>{st.icon}</span>
-                    <CheckButton title="Cycle terminé (programme changé)" onClick={() => completeCycle(a)} />
+                    <CheckButton
+                      title="Cycle terminé (programme changé)"
+                      onClick={() => completeCycle(a)}
+                    />
                   </div>
                 </div>
               )
@@ -618,21 +705,54 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
       </div>
 
       {/* ── TÂCHES À VENIR (tâches manuelles + alerte précoce "upcoming") ── */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: `1px solid ${S.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          borderRadius: 16,
+          padding: 16,
+          border: `1px solid ${S.border}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
           <div style={{ fontFamily: bebas, fontSize: 15, color: S.navy, letterSpacing: 0.5 }}>
             TÂCHES À VENIR
           </div>
           <button
             onClick={() => setShowForm((v) => !v)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: S.blue, fontFamily: font, fontWeight: 700 }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: S.blue,
+              fontFamily: font,
+              fontWeight: 700,
+            }}
           >
             + Ajouter
           </button>
         </div>
 
         {showForm && (
-          <form onSubmit={createTask} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, background: 'var(--bg-card-2)', padding: 12, borderRadius: 10 }}>
+          <form
+            onSubmit={createTask}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              marginBottom: 14,
+              background: 'var(--bg-card-2)',
+              padding: 12,
+              borderRadius: 10,
+            }}
+          >
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -648,7 +768,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               >
                 <option value="">Client (optionnel)…</option>
                 {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
               <input
@@ -659,7 +781,9 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                 required
               />
             </div>
-            <button type="submit" style={primaryBtnStyle()}>Créer la tâche</button>
+            <button type="submit" style={primaryBtnStyle()}>
+              Créer la tâche
+            </button>
           </form>
         )}
 
@@ -677,7 +801,14 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                 const overdue = t.due_date < new Date().toISOString().split('T')[0]
                 const tKey = `task-${t.id}`
                 if (doneMap[tKey]) {
-                  return <DoneRow key={tKey} title={t.title} sub="Tâche faite" onUndo={() => undoTask(t)} />
+                  return (
+                    <DoneRow
+                      key={tKey}
+                      title={t.title}
+                      sub="Tâche faite"
+                      onUndo={() => undoTask(t)}
+                    />
+                  )
                 }
                 return (
                   <div
@@ -693,15 +824,27 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>{t.title}</div>
+                      <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>
+                        {t.title}
+                      </div>
                       <div style={{ fontSize: 11, color: S.muted }}>
                         {t.client_id ? `${clientName(t.client_id)} · ` : ''}
-                        {new Date(t.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                        {new Date(t.due_date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <CheckButton title="Marquer comme fait" onClick={() => completeTask(t)} />
-                      <button className="btf-x" onClick={() => deleteTask(t.id)} title="Supprimer la tâche" aria-label="Supprimer la tâche">✕</button>
+                      <button
+                        className="btf-x"
+                        onClick={() => deleteTask(t.id)}
+                        title="Supprimer la tâche"
+                        aria-label="Supprimer la tâche"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 )
@@ -714,7 +857,12 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
               const cKey = `cycle-${a.cycle_id}`
               if (doneMap[cKey]) {
                 return (
-                  <DoneRow key={cKey} title={doneMap[cKey].title} sub="Cycle terminé" onUndo={() => undoCycle(a)} />
+                  <DoneRow
+                    key={cKey}
+                    title={doneMap[cKey].title}
+                    sub="Cycle terminé"
+                    onUndo={() => undoCycle(a)}
+                  />
                 )
               }
               return (
@@ -733,13 +881,19 @@ export default function CycleTasksPanel({ coachId, clients = [] }) {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 12.5, color: S.navy }}>
                       {a.client_name}
-                      <span style={{ fontWeight: 500, color: S.muted }}> · {a.cycle_name} à préparer</span>
+                      <span style={{ fontWeight: 500, color: S.muted }}>
+                        {' '}
+                        · {a.cycle_name} à préparer
+                      </span>
                     </div>
                     <div style={{ fontSize: 11, color: S.muted }}>{cycleEndLabel(a)}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 14 }}>{st.icon}</span>
-                    <CheckButton title="Cycle terminé (programme changé)" onClick={() => completeCycle(a)} />
+                    <CheckButton
+                      title="Cycle terminé (programme changé)"
+                      onClick={() => completeCycle(a)}
+                    />
                   </div>
                 </div>
               )

@@ -5,16 +5,15 @@
 > mentionne n'existent plus (`pages/api/generate-programme.js`,
 > `pages/api/exercise-images.js`, `pages/today-view.js`), et certains
 > mécanismes ont bougé depuis :
-> - Le Content-Security-Policy n'est plus dans `next.config.js` mais généré
->   par requête (nonce) dans `middleware.js`.
+>
+> - Le Content-Security-Policy est (de nouveau) statique dans `next.config.js` :
+>   la version par nonce dans `middleware.js` a été annulée le 09/09/2026.
 > - `apiFetch()` existe réellement désormais dans `lib/api.js` (ce guide le
 >   présentait comme "à ajouter").
-> - `pages/api/generate-cycle.js` est verrouillé aux coachs uniquement
->   (`requireCoach: true`).
+> - `pages/api/generate-cycle.js` a été retirée le 10/11/2026 (inutilisée).
 >
 > **Pour l'état de sécurité actuel, voir plutôt :**
-> `CHANGELOG-AUDIT-2026-09-09.md` (correctifs S1 à S5) et
-> `CHANGELOG-AUDIT-POINT3-TESTS.md` (tests unitaires).
+> `docs/SECURITE-2026-11-10.md`, puis `docs/historique/CHANGELOG-AUDIT-2026-09-09.md`.
 >
 > Ce fichier est conservé tel quel comme trace historique du raisonnement
 > de l'époque — ne pas l'utiliser comme référence pour le comportement
@@ -23,23 +22,26 @@
 ---
 
 ## Score avant → après
-| Axe | Avant | Après |
-|-----|-------|-------|
-| Sécurité | 4/10 | 9.5/10 |
-| Design | 6/10 | 8.5/10 |
-| Qualité code | 6/10 | 9/10 |
+
+| Axe          | Avant | Après  |
+| ------------ | ----- | ------ |
+| Sécurité     | 4/10  | 9.5/10 |
+| Design       | 6/10  | 8.5/10 |
+| Qualité code | 6/10  | 9/10   |
 
 ---
 
 ## ✅ Fichiers modifiés / créés
 
 ### Nouveaux
+
 - `lib/withAuth.js` — middleware d'auth + rate limiter réutilisable
 - `components/ErrorBoundary.jsx` — capture d'erreurs React globale
 - `MIGRATION-foods.md` — plan migration 847 Ko vers Supabase
 - `GUIDE-SECURITE.md` — ce fichier
 
 ### Modifiés
+
 - `pages/api/generate-programme.js` → auth + system prompt hardcodé + rate limit
 - `pages/api/generate-cycle` → auth + template prompt serveur + rate limit
 - `pages/api/exercise-images.js` → auth + rate limit
@@ -51,6 +53,7 @@
 - `pages/today-view.js` → renommé depuis "taday view.js" (espace supprimé)
 
 ### Supprimés
+
 - `pagescoach[clientId].js` — doublon à la racine (inutile, non routé)
 
 ---
@@ -80,7 +83,9 @@ Chaque fetch vers `/api/...` doit inclure le header Authorization :
 ```js
 // Utilitaire à ajouter dans lib/api.js
 export async function apiFetch(path, options = {}) {
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   const token = session?.access_token
   return fetch(path, {
     ...options,
@@ -94,6 +99,7 @@ export async function apiFetch(path, options = {}) {
 ```
 
 Puis dans les pages :
+
 ```js
 // Avant
 const res = await fetch('/api/generate-programme', { method: 'POST', body: ... })
@@ -130,14 +136,14 @@ body: JSON.stringify({ context: clientContextString })
 
 ## 🔒 Résumé des protections en place
 
-| Menace | Protection |
-|--------|-----------|
-| Accès API sans compte | `withAuth` → 401 si pas de session Supabase valide |
-| Prompt injection | System prompt hardcodé côté serveur, pas accessible au client |
-| Burn de crédits IA | Rate limit : 10 req/min (Groq), 5 req/min (Anthropic), 30 req/min (images) |
-| XSS | CSP strict dans next.config.js |
-| Clickjacking | X-Frame-Options: DENY |
-| MITM / downgrade HTTP | HSTS avec preload (1 an) |
-| MIME sniffing | X-Content-Type-Options: nosniff |
-| Accès admin Supabase | SERVICE_ROLE_KEY utilisée côté serveur uniquement (jamais NEXT_PUBLIC_) |
-| Crash UI silencieux | ErrorBoundary global + page de fallback |
+| Menace                | Protection                                                                 |
+| --------------------- | -------------------------------------------------------------------------- |
+| Accès API sans compte | `withAuth` → 401 si pas de session Supabase valide                         |
+| Prompt injection      | System prompt hardcodé côté serveur, pas accessible au client              |
+| Burn de crédits IA    | Rate limit : 10 req/min (Groq), 5 req/min (Anthropic), 30 req/min (images) |
+| XSS                   | CSP strict dans next.config.js                                             |
+| Clickjacking          | X-Frame-Options: DENY                                                      |
+| MITM / downgrade HTTP | HSTS avec preload (1 an)                                                   |
+| MIME sniffing         | X-Content-Type-Options: nosniff                                            |
+| Accès admin Supabase  | SERVICE_ROLE_KEY utilisée côté serveur uniquement (jamais NEXT_PUBLIC_)    |
+| Crash UI silencieux   | ErrorBoundary global + page de fallback                                    |

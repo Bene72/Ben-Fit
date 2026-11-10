@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 
 /**
  * components/ui/SurfaceCard.jsx
@@ -48,10 +48,17 @@ const VARIANTS = {
     borderRadius: 'var(--r-md, 16px)',
     boxShadow: 'var(--shadow-lg)',
   },
-};
+}
 
-export default function SurfaceCard({ children, variant = 'default', padded = true, sticky = false, style = {}, onClick }) {
-  const baseStyle = VARIANTS[variant] || VARIANTS.default;
+export default function SurfaceCard({
+  children,
+  variant = 'default',
+  padded = true,
+  sticky = false,
+  style = {},
+  onClick,
+}) {
+  const baseStyle = VARIANTS[variant] || VARIANTS.default
 
   return (
     <div
@@ -68,18 +75,18 @@ export default function SurfaceCard({ children, variant = 'default', padded = tr
       }}
       onMouseEnter={(e) => {
         if (onClick) {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
         }
       }}
       onMouseLeave={(e) => {
         if (onClick) {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = baseStyle.boxShadow || 'none';
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = baseStyle.boxShadow || 'none'
         }
       }}
     >
       {children}
     </div>
-  );
+  )
 }

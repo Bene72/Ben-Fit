@@ -56,4 +56,3 @@ export default function KpiCard({ icon, label, value, sub, accent = S.navy, onCl
     </div>
   )
 }
-

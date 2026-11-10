@@ -174,7 +174,10 @@ export default function WeightHistoryPanel({ clientId, measures, onChange }) {
           <button
             onClick={addMeasure}
             disabled={saving}
-            style={btn(saving ? 'var(--bg-card-2)' : 'var(--success)', saving ? 'var(--chalk-muted)' : 'white')}
+            style={btn(
+              saving ? 'var(--bg-card-2)' : 'var(--success)',
+              saving ? 'var(--chalk-muted)' : 'white'
+            )}
           >
             {saving ? '...' : '✓ Enregistrer'}
           </button>

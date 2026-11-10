@@ -13,14 +13,16 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
   ]
 
   // Menu client (si on est sur une page client)
-  const clientMenu = clientId ? [
-    { label: '📊 Aperçu', href: `/coach/${clientId}?tab=overview` },
-    { label: '💪 Programme', href: `/coach/${clientId}?tab=programme` },
-    { label: '🍽️ Nutrition', href: `/coach/${clientId}?tab=nutrition` },
-    { label: '⚙️ Gestion', href: `/coach/${clientId}?tab=gestion` },
-    { label: '💬 Messages', href: `/coach/${clientId}?tab=messages` },
-    { label: '📈 Bilan', href: `/coach/${clientId}?tab=bilan` },
-  ] : []
+  const clientMenu = clientId
+    ? [
+        { label: '📊 Aperçu', href: `/coach/${clientId}?tab=overview` },
+        { label: '💪 Programme', href: `/coach/${clientId}?tab=programme` },
+        { label: '🍽️ Nutrition', href: `/coach/${clientId}?tab=nutrition` },
+        { label: '⚙️ Gestion', href: `/coach/${clientId}?tab=gestion` },
+        { label: '💬 Messages', href: `/coach/${clientId}?tab=messages` },
+        { label: '📈 Bilan', href: `/coach/${clientId}?tab=bilan` },
+      ]
+    : []
 
   return (
     <nav
@@ -40,7 +42,7 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
         transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.25s ease',
         zIndex: 100,
-        boxShadow: '2px 0 12px rgba(0,0,0,0.15)'
+        boxShadow: '2px 0 12px rgba(0,0,0,0.15)',
       }}
     >
       {/* Logo */}
@@ -52,35 +54,48 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
           color: 'white',
           paddingBottom: '20px',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
-          marginBottom: '20px'
+          marginBottom: '20px',
         }}
       >
         BEN&FIT
-        <span style={{ fontSize: '11px', display: 'block', color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>
+        <span
+          style={{
+            fontSize: '11px',
+            display: 'block',
+            color: 'rgba(255,255,255,0.4)',
+            letterSpacing: '1px',
+          }}
+        >
           Coach
         </span>
       </div>
 
       {/* Info coach */}
       {user && (
-        <div style={{
-          padding: '12px',
-          background: 'rgba(255,255,255,0.06)',
-          borderRadius: '10px',
-          marginBottom: '20px'
-        }}>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>
-            {user.email}
-          </div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-            Coach
-          </div>
+        <div
+          style={{
+            padding: '12px',
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: '10px',
+            marginBottom: '20px',
+          }}
+        >
+          <div style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>{user.email}</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Coach</div>
         </div>
       )}
 
       {/* Menu principal */}
       <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+        <div
+          style={{
+            fontSize: '10px',
+            color: 'rgba(255,255,255,0.3)',
+            textTransform: 'uppercase',
+            letterSpacing: '1.5px',
+            marginBottom: '8px',
+          }}
+        >
           Navigation
         </div>
         {mainMenu.map((item) => {
@@ -100,7 +115,7 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
                 fontSize: '14px',
                 fontWeight: isActive ? '600' : '400',
                 marginBottom: '4px',
-                transition: 'all 0.15s'
+                transition: 'all 0.15s',
               }}
               onMouseEnter={(e) => {
                 if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
@@ -118,7 +133,15 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
       {/* Menu client (si on est sur une page client) */}
       {clientId && clientMenu.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+          <div
+            style={{
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.3)',
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              marginBottom: '8px',
+            }}
+          >
             Suivi client
           </div>
           {clientMenu.map((item) => {
@@ -138,7 +161,7 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
                   fontSize: '13px',
                   fontWeight: isActive ? '600' : '400',
                   marginBottom: '2px',
-                  transition: 'all 0.15s'
+                  transition: 'all 0.15s',
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
@@ -155,7 +178,13 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
       )}
 
       {/* Déconnexion */}
-      <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+      <div
+        style={{
+          marginTop: 'auto',
+          paddingTop: '20px',
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
         <button
           onClick={() => {
             onLogout()
@@ -171,7 +200,7 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
             cursor: 'pointer',
             fontSize: '13px',
             fontFamily: "'DM Sans',sans-serif",
-            transition: 'all 0.15s'
+            transition: 'all 0.15s',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(196,92,58,0.2)'
@@ -202,7 +231,7 @@ export default function AppNav({ user, onLogout, mobileOpen, setMobileOpen, curr
           fontSize: '20px',
           cursor: 'pointer',
           padding: '4px 8px',
-          borderRadius: '6px'
+          borderRadius: '6px',
         }}
         className="mobile-close-btn"
       >

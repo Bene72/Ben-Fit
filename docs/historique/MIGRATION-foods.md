@@ -1,6 +1,7 @@
 # Migration foods.js → Supabase
 
 ## Problème
+
 `lib/foods.js` pèse **847 Ko** et est actuellement inclus dans le bundle JS client.
 Sur mobile 3G, c'est ~4 secondes de chargement supplémentaires rien que pour la nutrition.
 
@@ -85,13 +86,14 @@ export default withAuth(handler)
 const searchFoods = async (query) => {
   const token = (await supabase.auth.getSession()).data.session?.access_token
   const res = await fetch(`/api/foods-search?q=${encodeURIComponent(query)}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
   return res.json()
 }
 ```
 
 ## Gain estimé
+
 - Bundle JS : -847 Ko (soit ~70% du bundle actuel)
 - LCP mobile : -3 à 5 secondes
 - Recherche fulltext : bien meilleure qu'un `.filter()` sur 10 000 entrées

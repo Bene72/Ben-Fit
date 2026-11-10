@@ -241,7 +241,8 @@ export default function ClientPage() {
                 fontWeight: activeTab === t.id ? '700' : '500',
                 fontSize: '13px',
                 cursor: 'pointer',
-                borderBottom: activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
+                borderBottom:
+                  activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
                 transition: 'all 0.15s',
                 fontFamily: "'DM Sans',sans-serif",
                 whiteSpace: 'nowrap',

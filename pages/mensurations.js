@@ -12,7 +12,7 @@ import { useToast } from '../lib/useToast'
 // désactivé ("masqué pour le moment", cf. commentaire plus bas) et n'a
 // aucun point d'appel — son code reste disponible dans
 // components/mensurations/RecipeOfTheDay.jsx pour une réactivation future.
-// Voir CHANGELOG-AUDIT-DECOUPAGE-3.md.
+// Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE-3.md.
 import BodyTracker from '../components/mensurations/BodyTracker'
 
 // pages/mensurations.js

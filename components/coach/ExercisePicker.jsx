@@ -295,7 +295,9 @@ export default function ExercisePicker({
             fontFamily: "'DM Sans',sans-serif",
           }}
         >
-          {addedNames.length > 0 ? `✓ Terminé (${addedNames.length} ajouté${addedNames.length > 1 ? 's' : ''})` : 'Annuler'}
+          {addedNames.length > 0
+            ? `✓ Terminé (${addedNames.length} ajouté${addedNames.length > 1 ? 's' : ''})`
+            : 'Annuler'}
         </button>
       </div>
     </div>

@@ -8,8 +8,18 @@ import { useMemo, useState } from 'react'
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const MONTH_NAMES = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  'Janvier',
+  'Février',
+  'Mars',
+  'Avril',
+  'Mai',
+  'Juin',
+  'Juillet',
+  'Août',
+  'Septembre',
+  'Octobre',
+  'Novembre',
+  'Décembre',
 ]
 
 // Clé locale YYYY-MM-DD (évite les décalages UTC de toISOString()).
@@ -67,16 +77,48 @@ export default function WeekStrip({ selectedKey, onSelect, dotsForDate }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 8,
+          padding: '0 2px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button type="button" onClick={() => goToWeek(weekOffset - 1)} aria-label="Semaine précédente" style={arrowStyle}>‹</button>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+          <button
+            type="button"
+            onClick={() => goToWeek(weekOffset - 1)}
+            aria-label="Semaine précédente"
+            style={arrowStyle}
+          >
+            ‹
+          </button>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--text-soft)',
+              textTransform: 'uppercase',
+              letterSpacing: '.5px',
+            }}
+          >
             {monthLabel}
           </span>
-          <button type="button" onClick={() => goToWeek(weekOffset + 1)} aria-label="Semaine suivante" style={arrowStyle}>›</button>
+          <button
+            type="button"
+            onClick={() => goToWeek(weekOffset + 1)}
+            aria-label="Semaine suivante"
+            style={arrowStyle}
+          >
+            ›
+          </button>
         </div>
         {weekOffset !== 0 && (
-          <button type="button" onClick={() => goToWeek(0)} style={jumpStyle}>Aujourd&apos;hui</button>
+          <button type="button" onClick={() => goToWeek(0)} style={jumpStyle}>
+            Aujourd&apos;hui
+          </button>
         )}
       </div>
 
@@ -93,21 +135,41 @@ export default function WeekStrip({ selectedKey, onSelect, dotsForDate }) {
               type="button"
               onClick={() => onSelect(key)}
               style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                padding: '9px 2px 8px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 5,
+                padding: '9px 2px 8px',
+                borderRadius: 14,
+                border: 'none',
+                cursor: 'pointer',
                 background: isToday ? 'var(--navy)' : 'var(--surface, #fff)',
-                boxShadow: isSelected && !isToday ? '0 0 0 2px var(--accent) inset' : 'var(--shadow-sm)',
+                boxShadow:
+                  isSelected && !isToday ? '0 0 0 2px var(--accent) inset' : 'var(--shadow-sm)',
               }}
             >
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: isToday ? 'rgba(255,255,255,.55)' : 'var(--text-faint)' }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: isToday ? 'rgba(255,255,255,.55)' : 'var(--text-faint)',
+                }}
+              >
                 {DAY_NAMES[i]}
               </span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: isToday ? '#fff' : 'var(--navy)' }}>
+              <span
+                style={{ fontSize: 14, fontWeight: 800, color: isToday ? '#fff' : 'var(--navy)' }}
+              >
                 {date.getDate()}
               </span>
               <span style={{ display: 'flex', gap: 2, height: 6, alignItems: 'center' }}>
                 {dots.map((d, di) => (
-                  <span key={di} style={{ width: 5, height: 5, borderRadius: '50%', background: d.color }} />
+                  <span
+                    key={di}
+                    style={{ width: 5, height: 5, borderRadius: '50%', background: d.color }}
+                  />
                 ))}
               </span>
             </button>
@@ -119,11 +181,27 @@ export default function WeekStrip({ selectedKey, onSelect, dotsForDate }) {
 }
 
 const arrowStyle = {
-  width: 22, height: 22, borderRadius: 7, border: 'none', background: 'var(--surface-muted, #F7F9FC)',
-  color: 'var(--navy)', fontSize: 15, fontWeight: 700, cursor: 'pointer', lineHeight: 1,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  width: 22,
+  height: 22,
+  borderRadius: 7,
+  border: 'none',
+  background: 'var(--surface-muted, #F7F9FC)',
+  color: 'var(--navy)',
+  fontSize: 15,
+  fontWeight: 700,
+  cursor: 'pointer',
+  lineHeight: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 }
 const jumpStyle = {
-  fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-soft)',
-  border: 'none', padding: '4px 10px', borderRadius: 100, cursor: 'pointer',
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--accent)',
+  background: 'var(--accent-soft)',
+  border: 'none',
+  padding: '4px 10px',
+  borderRadius: 100,
+  cursor: 'pointer',
 }

@@ -363,7 +363,6 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
           </div>
         </div>
       )}
-
     </div>
   )
 }

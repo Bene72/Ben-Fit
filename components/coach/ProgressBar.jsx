@@ -3,7 +3,13 @@
 export default function ProgressBar({ value, color, height = 5 }) {
   return (
     <div
-      style={{ height, background: 'var(--bg-card-2)', borderRadius: 99, overflow: 'hidden', width: '100%' }}
+      style={{
+        height,
+        background: 'var(--bg-card-2)',
+        borderRadius: 99,
+        overflow: 'hidden',
+        width: '100%',
+      }}
     >
       <div
         style={{
@@ -16,4 +22,3 @@ export default function ProgressBar({ value, color, height = 5 }) {
     </div>
   )
 }
-

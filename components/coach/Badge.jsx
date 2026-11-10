@@ -18,4 +18,3 @@ export default function Badge({ text, color, bg }) {
     </span>
   )
 }
-

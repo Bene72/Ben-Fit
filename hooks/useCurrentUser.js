@@ -41,18 +41,20 @@ export function useCurrentUser({
   requireCoach = false,
   profileSelect = '*',
 } = {}) {
-  const router  = useRouter()
-  const [user,    setUser]    = useState(null)
+  const router = useRouter()
+  const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
 
     const load = async () => {
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
 
         if (!currentUser) {
           if (redirectIfUnauthenticated) router.replace(redirectIfUnauthenticated)
@@ -85,7 +87,9 @@ export function useCurrentUser({
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { user, profile, loading, error }

@@ -24,7 +24,12 @@ function timeAgo(dateStr) {
 }
 
 const EVENT_META = {
-  measure: { icon: '⚖️', color: 'var(--danger)', bg: 'var(--danger-dim)', verb: 'a enregistré une mesure' },
+  measure: {
+    icon: '⚖️',
+    color: 'var(--danger)',
+    bg: 'var(--danger-dim)',
+    verb: 'a enregistré une mesure',
+  },
   session: {
     icon: '💪',
     color: 'var(--success)',
@@ -187,7 +192,14 @@ export default function ActivitePage() {
   if (loading || !user) {
     return (
       <AppShell title="Activité">
-        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            minHeight: '60vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <LoadingSpinner gold message="Chargement" />
         </div>
       </AppShell>

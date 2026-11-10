@@ -22,4 +22,3 @@ export default function NavBtn({ onClick, children }) {
     </button>
   )
 }
-

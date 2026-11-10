@@ -2,7 +2,15 @@ import { useState } from 'react'
 import CoachMiniChart from './CoachMiniChart'
 import { S, font, bebas, mono } from '../../lib/coachDashboard/offersAndCompliance'
 
-export default function TrackerPanel({ title, icon, subtitle, entries, fields, defaultField, emptyLabel }) {
+export default function TrackerPanel({
+  title,
+  icon,
+  subtitle,
+  entries,
+  fields,
+  defaultField,
+  emptyLabel,
+}) {
   const [subTab, setSubTab] = useState('list')
   const [field, setField] = useState(defaultField)
   const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -193,7 +201,9 @@ export default function TrackerPanel({ title, icon, subtitle, entries, fields, d
                   </button>
                 ))}
               </div>
-              <div style={{ background: 'var(--bg-card-2)', borderRadius: 12, padding: '16px 14px' }}>
+              <div
+                style={{ background: 'var(--bg-card-2)', borderRadius: 12, padding: '16px 14px' }}
+              >
                 <div style={{ fontWeight: 800, fontSize: 13, color: S.navy, marginBottom: 12 }}>
                   {fields.find((f) => f.key === field)?.icon}{' '}
                   {fields.find((f) => f.key === field)?.label}{' '}

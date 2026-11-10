@@ -19,7 +19,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 // row, et les 3 onglets clients/offres/calendrier) a été extrait dans
 // components/coach/dashboard/*, tel quel, sans changement de comportement.
 // Ce fichier ne garde que l'état, le chargement de données et les handlers —
-// l'orchestration. Voir CHANGELOG-AUDIT-DECOUPAGE.md pour le détail.
+// l'orchestration. Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE.md pour le détail.
 import CoachSidebar from '../components/coach/dashboard/CoachSidebar'
 import CoachMobileNav from '../components/coach/dashboard/CoachMobileNav'
 import KpiRow from '../components/coach/dashboard/KpiRow'

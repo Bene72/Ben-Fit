@@ -64,9 +64,27 @@ export function NutritionRing({ value, target, label, unit, color }) {
 // couleur décorative, donc on la garde pour ne pas perdre l'info.
 export function NutritionRingsRow({ log, plan }) {
   const macros = [
-    { key: 'calories', label: 'Calories', unit: 'kcal', color: '#0D1B4E', target: plan?.target_calories || 0 },
-    { key: 'protein', label: 'Protéines', unit: 'g', color: '#2C64E5', target: plan?.target_protein || 0 },
-    { key: 'carbs', label: 'Glucides', unit: 'g', color: '#4A6FD4', target: plan?.target_carbs || 0 },
+    {
+      key: 'calories',
+      label: 'Calories',
+      unit: 'kcal',
+      color: '#0D1B4E',
+      target: plan?.target_calories || 0,
+    },
+    {
+      key: 'protein',
+      label: 'Protéines',
+      unit: 'g',
+      color: '#2C64E5',
+      target: plan?.target_protein || 0,
+    },
+    {
+      key: 'carbs',
+      label: 'Glucides',
+      unit: 'g',
+      color: '#4A6FD4',
+      target: plan?.target_carbs || 0,
+    },
     { key: 'fat', label: 'Lipides', unit: 'g', color: '#8FADE8', target: plan?.target_fat || 0 },
   ]
   return (

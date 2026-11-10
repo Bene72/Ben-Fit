@@ -61,7 +61,14 @@ function GestionTab({ client, onDelete }) {
           marginBottom: '16px',
         }}
       >
-        <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '6px', color: 'var(--chalk)' }}>
+        <div
+          style={{
+            fontWeight: '700',
+            fontSize: '15px',
+            marginBottom: '6px',
+            color: 'var(--chalk)',
+          }}
+        >
           🔑 Réinitialisation du mot de passe
         </div>
         <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '16px' }}>
@@ -111,7 +118,14 @@ function GestionTab({ client, onDelete }) {
           padding: '24px',
         }}
       >
-        <div style={{ fontWeight: '700', fontSize: '15px', marginBottom: '6px', color: 'var(--danger)' }}>
+        <div
+          style={{
+            fontWeight: '700',
+            fontSize: '15px',
+            marginBottom: '6px',
+            color: 'var(--danger)',
+          }}
+        >
           🗑 Supprimer le compte client
         </div>
         <div style={{ fontSize: '13px', color: 'var(--chalk-dim)', marginBottom: '16px' }}>
