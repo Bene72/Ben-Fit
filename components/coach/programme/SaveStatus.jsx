@@ -29,7 +29,7 @@ export default function SaveStatus({ status }) {
         position: 'fixed',
         right: 20,
         bottom: 20,
-        zIndex: 50,
+        zIndex: 300,
         background: 'var(--bg-card-2)',
         border: '1px solid var(--border-hi)',
         borderRadius: 999,

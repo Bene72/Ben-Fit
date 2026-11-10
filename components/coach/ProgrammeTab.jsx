@@ -23,6 +23,8 @@ import WorkoutCard from './programme/WorkoutCard'
 import CycleToggle from './programme/CycleToggle'
 import SaveStatus from './programme/SaveStatus'
 import NextCycleModal from './programme/NextCycleModal'
+import WeekBoard from './programme/WeekBoard'
+import WorkoutPanel from './programme/WorkoutPanel'
 import ProgrammeToolbar from './programme/ProgrammeToolbar'
 import CycleNameBar from './programme/CycleNameBar'
 import NewWorkoutForm from './programme/NewWorkoutForm'
@@ -60,6 +62,31 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [renameValue, setRenameValue] = useState('')
   const [reordering, setReordering] = useState(false)
   const [showNextCycle, setShowNextCycle] = useState(false)
+  // Vue Semaine (par défaut) ou Liste (l'ancienne vue, gardée en secours)
+  const [view, setView] = useState(() => {
+    try {
+      return window.localStorage.getItem('benfit:programmeView') || 'week'
+    } catch {
+      return 'week'
+    }
+  })
+  const [panelWorkoutId, setPanelWorkoutId] = useState(null)
+  const [isNarrow, setIsNarrow] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia?.('(max-width: 760px)')
+    if (!mq) return
+    const update = () => setIsNarrow(mq.matches)
+    update()
+    mq.addEventListener?.('change', update)
+    return () => mq.removeEventListener?.('change', update)
+  }, [])
+  const changeView = (v) => {
+    setView(v)
+    setPanelWorkoutId(null)
+    try {
+      window.localStorage.setItem('benfit:programmeView', v)
+    } catch {}
+  }
   const [preparingNext, setPreparingNext] = useState(false)
   // État de l'enregistrement des champs : 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   const [saveStatus, setSaveStatus] = useState('idle')
@@ -419,6 +446,42 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       supabase.from('exercises').update({ order_index: order2 }).eq('id', ex1.id),
       supabase.from('exercises').update({ order_index: order1 }).eq('id', ex2.id),
     ])
+  }
+
+  // Glisser-déposer d'un exercice sur un autre (même séance, même groupe) :
+  // l'exercice déplacé prend la place de la cible, les autres se décalent.
+  const reorderExercise = async (workoutId, draggedId, targetId) => {
+    if (draggedId === targetId) return
+    const list = cycleMode === 'future' ? futureWorkouts : workouts
+    const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
+    const w = list.find((x) => x.id === workoutId)
+    if (!w) return
+    const exs = [...w.exercises].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+    const dragged = exs.find((e) => e.id === draggedId)
+    const target = exs.find((e) => e.id === targetId)
+    if (!dragged || !target) return
+    if ((dragged.group_id || null) !== (target.group_id || null)) {
+      showToast('Déplace cet exercice avec les flèches : il fait partie d’un bloc.', 'info')
+      return
+    }
+    const without = exs.filter((e) => e.id !== draggedId)
+    const at = without.findIndex((e) => e.id === targetId)
+    const fromIdx = exs.findIndex((e) => e.id === draggedId)
+    const toIdx = exs.findIndex((e) => e.id === targetId)
+    without.splice(fromIdx < toIdx ? at + 1 : at, 0, dragged)
+    const reordered = without.map((e, i) => ({ ...e, order_index: i }))
+    const changed = reordered.filter(
+      (e) => exs.find((o) => o.id === e.id)?.order_index !== e.order_index
+    )
+    setter((prev) => prev.map((x) => (x.id === workoutId ? { ...x, exercises: reordered } : x)))
+    const results = await Promise.all(
+      changed.map((e) =>
+        supabase.from('exercises').update({ order_index: e.order_index }).eq('id', e.id)
+      )
+    )
+    if (results.some((r) => r.error)) {
+      showToast("L'ordre n'a pas pu être enregistré entièrement — recharge la page.", 'error')
+    }
   }
 
   // ── Workout CRUD ───────────────────────────────────────────
@@ -857,6 +920,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     editMode,
     groupColors,
     moveExercise,
+    reorderExercise,
     moveWorkout,
     openWorkout,
     renameValue,
@@ -962,6 +1026,46 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
+      {/* ── Vue Semaine / Liste ── */}
+      <div
+        role="tablist"
+        aria-label="Affichage du programme"
+        style={{
+          display: 'inline-flex',
+          gap: 4,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: 3,
+          marginBottom: 12,
+        }}
+      >
+        {[
+          { id: 'week', label: '📅 Semaine' },
+          { id: 'list', label: '☰ Liste' },
+        ].map((v) => (
+          <button
+            key={v.id}
+            role="tab"
+            aria-selected={view === v.id}
+            onClick={() => changeView(v.id)}
+            style={{
+              border: 0,
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              background: view === v.id ? 'var(--bg-card-2)' : 'transparent',
+              color: view === v.id ? 'var(--chalk)' : 'var(--chalk-dim)',
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       <ProgrammeToolbar ctx={programmeCtx} />
 
       <CycleNameBar ctx={programmeCtx} />
@@ -984,16 +1088,51 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
-      {/* ── Liste des séances ── */}
-      {displayedWorkouts.map((workout, wIdx) => (
-        <WorkoutCard
-          key={workout.id}
-          workout={workout}
-          wIdx={wIdx}
-          workoutCount={displayedWorkouts.length}
-          ctx={workoutCtx}
-        />
-      ))}
+      {/* ── Séances : vue Semaine (planning + panneau latéral) ou Liste ── */}
+      {view === 'week' ? (
+        <>
+          <WeekBoard
+            workouts={displayedWorkouts}
+            future={cycleMode === 'future'}
+            selectedId={panelWorkoutId}
+            onOpen={(id) => {
+              setPanelWorkoutId(id)
+              setOpenWorkout(id)
+            }}
+            onMoveToDay={updateWorkoutDay}
+            onAddForDay={(day) => {
+              setNewW((p) => ({ ...p, day_of_week: day }))
+              setShowAdd(true)
+              window.scrollTo?.({ top: 0, behavior: 'smooth' })
+            }}
+          />
+          <WorkoutPanel
+            open={Boolean(panelWorkoutId && displayedWorkouts.find((w) => w.id === panelWorkoutId))}
+            isMobile={isNarrow}
+            title="Modifier la séance"
+            onClose={() => setPanelWorkoutId(null)}
+          >
+            {panelWorkoutId && displayedWorkouts.find((w) => w.id === panelWorkoutId) && (
+              <WorkoutCard
+                workout={displayedWorkouts.find((w) => w.id === panelWorkoutId)}
+                wIdx={displayedWorkouts.findIndex((w) => w.id === panelWorkoutId)}
+                workoutCount={displayedWorkouts.length}
+                ctx={{ ...workoutCtx, openWorkout: panelWorkoutId, setOpenWorkout: () => {} }}
+              />
+            )}
+          </WorkoutPanel>
+        </>
+      ) : (
+        displayedWorkouts.map((workout, wIdx) => (
+          <WorkoutCard
+            key={workout.id}
+            workout={workout}
+            wIdx={wIdx}
+            workoutCount={displayedWorkouts.length}
+            ctx={workoutCtx}
+          />
+        ))
+      )}
 
       {/* ── Modal picker exercice ── */}
       {exPicker && (
