@@ -1,5 +1,3 @@
-import { S, font } from '../../lib/coachDashboard/offersAndCompliance'
-
 export default function Badge({ text, color, bg }) {
   return (
     <span
@@ -18,4 +16,3 @@ export default function Badge({ text, color, bg }) {
     </span>
   )
 }
-

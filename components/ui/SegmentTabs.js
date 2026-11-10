@@ -6,15 +6,17 @@
  */
 export default function SegmentTabs({ items = [], value, onChange }) {
   return (
-    <div style={{
-      display: 'inline-flex',
-      background: 'var(--surface-alt, #EEF1F8)',
-      border: '1px solid var(--border-strong, #DCE5F3)',
-      borderRadius: 13,
-      padding: 4,
-      gap: 4,
-      boxShadow: '0 6px 18px rgba(13,27,78,0.04)',
-    }}>
+    <div
+      style={{
+        display: 'inline-flex',
+        background: 'var(--surface-alt, #EEF1F8)',
+        border: '1px solid var(--border-strong, #DCE5F3)',
+        borderRadius: 13,
+        padding: 4,
+        gap: 4,
+        boxShadow: '0 6px 18px rgba(13,27,78,0.04)',
+      }}
+    >
       {items.map((item) => {
         const active = item.value === value
         return (

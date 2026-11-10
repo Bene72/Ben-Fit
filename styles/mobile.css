@@ -5,16 +5,16 @@
 
 /* ── Safe areas (iPhone notch + home indicator) ─────────────────────────── */
 :root {
-  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left:   env(safe-area-inset-left,   0px);
-  --safe-right:  env(safe-area-inset-right,  0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 /* ── Touch targets — tous les boutons sont au moins 44px ───────────────── */
 @media (max-width: 979px) {
   button,
-  [role="button"],
+  [role='button'],
   a.btn,
   .btn {
     min-height: 44px;
@@ -73,7 +73,9 @@
     flex-wrap: nowrap !important;
     gap: 4px !important;
   }
-  .coach-tabs-bar::-webkit-scrollbar { display: none; }
+  .coach-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
   .coach-tabs-bar button {
     white-space: nowrap;
     flex-shrink: 0;
@@ -111,7 +113,9 @@
 
 /* ── iPhone SE spécifique (375px) ──────────────────────────────────────── */
 @media (max-width: 390px) {
-  .h2 { font-size: 16px !important; }
+  .h2 {
+    font-size: 16px !important;
+  }
 
   .action-toolbar button,
   .action-toolbar .btn {
@@ -147,19 +151,30 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.card, .ui-card, .workout-card, .modal {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+.card,
+.ui-card,
+.workout-card,
+.modal {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 @media (max-width: 979px) {
-  .card:active, .ui-card:active, .workout-card:active {
+  .card:active,
+  .ui-card:active,
+  .workout-card:active {
     transform: scale(0.98);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

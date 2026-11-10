@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { toLocalISODate } from '../../lib/dateUtils'
 import { btn, inp, lbl } from '../../lib/coachShared'
 import WeightHistoryChart from '../ui/WeightHistoryChart'
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return toLocalISODate()
 }
 
 /**
@@ -174,7 +175,10 @@ export default function WeightHistoryPanel({ clientId, measures, onChange }) {
           <button
             onClick={addMeasure}
             disabled={saving}
-            style={btn(saving ? 'var(--bg-card-2)' : 'var(--success)', saving ? 'var(--chalk-muted)' : 'white')}
+            style={btn(
+              saving ? 'var(--bg-card-2)' : 'var(--success)',
+              saving ? 'var(--chalk-muted)' : 'white'
+            )}
           >
             {saving ? '...' : '✓ Enregistrer'}
           </button>

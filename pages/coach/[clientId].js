@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
+import { getMondayOfWeekString } from '../../lib/dateUtils'
 import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -86,13 +87,12 @@ export default function ClientPage() {
           .order('date', { ascending: false })
           .limit(500)
 
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+        const weekStart = getMondayOfWeekString()
         const { data: sessions } = await supabase
           .from('workout_sessions')
           .select('id')
           .eq('client_id', clientId)
-          .gte('date', weekStart.toISOString().split('T')[0])
+          .gte('date', weekStart)
 
         setClient({
           ...profile,
@@ -241,7 +241,8 @@ export default function ClientPage() {
                 fontWeight: activeTab === t.id ? '700' : '500',
                 fontSize: '13px',
                 cursor: 'pointer',
-                borderBottom: activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
+                borderBottom:
+                  activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
                 transition: 'all 0.15s',
                 fontFamily: "'DM Sans',sans-serif",
                 whiteSpace: 'nowrap',

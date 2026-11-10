@@ -26,36 +26,43 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          minHeight: '200px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '12px',
-          padding: '40px',
-          background: '#FEE8E0',
-          border: '1px solid #C45C3A',
-          borderRadius: '16px',
-          margin: '24px',
-        }}>
+        <div
+          style={{
+            minHeight: '200px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '40px',
+            background: '#FEE8E0',
+            border: '1px solid #C45C3A',
+            borderRadius: '16px',
+            margin: '24px',
+          }}
+        >
           <div style={{ fontSize: '32px' }}>⚠️</div>
-          <div style={{
-            fontFamily: "'DM Sans',sans-serif",
-            fontWeight: '700',
-            fontSize: '16px',
-            color: '#7A2010',
-          }}>
+          <div
+            style={{
+              fontFamily: "'DM Sans',sans-serif",
+              fontWeight: '700',
+              fontSize: '16px',
+              color: '#7A2010',
+            }}
+          >
             Une erreur est survenue
           </div>
-          <div style={{
-            fontSize: '13px',
-            color: '#A03020',
-            textAlign: 'center',
-            maxWidth: '320px',
-            lineHeight: 1.5,
-          }}>
-            {this.props.fallbackMessage || 'Recharge la page. Si le problème persiste, contacte le coach.'}
+          <div
+            style={{
+              fontSize: '13px',
+              color: '#A03020',
+              textAlign: 'center',
+              maxWidth: '320px',
+              lineHeight: 1.5,
+            }}
+          >
+            {this.props.fallbackMessage ||
+              'Recharge la page. Si le problème persiste, contacte le coach.'}
           </div>
           <button
             onClick={() => {

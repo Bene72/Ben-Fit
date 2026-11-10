@@ -1,11 +1,68 @@
 // components/nutrition/NutritionVisuals.jsx
 // Visuels nutrition partagés entre la vue coach (components/coach/NutritionTab.jsx)
-// et la vue athlète (pages/nutrition.js). Extrait à l'identique de
-// NutritionTab.jsx — aucune logique changée, juste rendu réutilisable pour
-// que l'onglet athlète ait le même niveau de lisibilité que côté coach.
+// et la vue athlète (pages/nutrition.js).
+//
+// `variant` : 'client' (thème clair, défaut) ou 'coach' (thème sombre du
+// cockpit). Avant le 10/11/2026, NutritionTab.jsx en gardait une copie
+// complète ne différant que par les couleurs.
+
+import { addDaysISO, parseLocalDate } from '../../lib/dateUtils'
+
+const THEMES = {
+  client: {
+    track: '#EEE',
+    strong: 'var(--navy)',
+    text: '#333',
+    textSoft: '#444',
+    textBody: '#555',
+    muted: '#999',
+    faint: '#AAA',
+    panelBg: '#F7F7F7',
+    panelBorder: '#EAEAEA',
+    cardBg: 'white',
+    feedbackBg: '#EEF4FF',
+    feedbackBorder: '#B8CBF5',
+    feedbackTitle: '#1A3580',
+    scoreGood: '#3A7BD5',
+    scoreMid: '#2A50B0',
+    barToday: 'var(--navy)',
+    bar: '#C5CEEA',
+    warnBg: '#FFF8E1',
+    warnBorder: '#FFD54F',
+    warnText: '#7B6000',
+    noPlan: '⚠️ Aucun plan nutritionnel défini',
+    noData: '📝 Aucune donnée pour ce jour',
+  },
+  coach: {
+    track: 'var(--chalk-dim)',
+    strong: 'var(--chalk)',
+    text: 'var(--chalk)',
+    textSoft: 'var(--chalk)',
+    textBody: 'var(--chalk)',
+    muted: 'var(--chalk-dim)',
+    faint: 'var(--chalk-dim)',
+    panelBg: 'var(--bg-card-2)',
+    panelBorder: 'var(--border)',
+    cardBg: 'var(--bg-card)',
+    feedbackBg: 'var(--accent-dim)',
+    feedbackBorder: 'var(--accent-brd)',
+    feedbackTitle: 'var(--chalk)',
+    scoreGood: 'var(--accent)',
+    scoreMid: 'var(--accent)',
+    barToday: 'var(--accent)',
+    bar: 'var(--border-hi)',
+    warnBg: 'var(--gold-dim)',
+    warnBorder: 'var(--gold)',
+    warnText: 'var(--gold)',
+    noPlan: '⚠️ Aucun plan nutritionnel défini pour ce client',
+    noData: "📝 Aucune donnée pour aujourd'hui",
+  },
+}
+const themeOf = (variant) => THEMES[variant] || THEMES.client
 
 // ─── Anneau de progression (calories / macro) ──────────────────────────────
-export function NutritionRing({ value, target, label, unit, color }) {
+export function NutritionRing({ value, target, label, unit, color, variant }) {
+  const t = themeOf(variant)
   const percent = target ? Math.min(100, (value / target) * 100) : 0
   const over = percent >= 100
   const R = 42,
@@ -17,7 +74,7 @@ export function NutritionRing({ value, target, label, unit, color }) {
     <div style={{ textAlign: 'center' }}>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <svg height={R * 2} width={R * 2} style={{ transform: 'rotate(-90deg)' }}>
-          <circle stroke="#EEE" fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
+          <circle stroke={t.track} fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
           <circle
             stroke={over ? 'var(--danger)' : color}
             fill="transparent"
@@ -43,16 +100,14 @@ export function NutritionRing({ value, target, label, unit, color }) {
             lineHeight: 1.2,
           }}
         >
-          <div
-            style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : 'var(--navy)' }}
-          >
+          <div style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : t.strong }}>
             {value}
           </div>
-          <div style={{ fontSize: 9, color: '#AAA' }}>/{target}</div>
+          <div style={{ fontSize: 9, color: t.faint }}>/{target}</div>
         </div>
       </div>
-      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: '#444' }}>{label}</div>
-      <div style={{ fontSize: 10, color: '#AAA' }}>{unit}</div>
+      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: t.textSoft }}>{label}</div>
+      <div style={{ fontSize: 10, color: t.faint }}>{unit}</div>
     </div>
   )
 }
@@ -64,9 +119,27 @@ export function NutritionRing({ value, target, label, unit, color }) {
 // couleur décorative, donc on la garde pour ne pas perdre l'info.
 export function NutritionRingsRow({ log, plan }) {
   const macros = [
-    { key: 'calories', label: 'Calories', unit: 'kcal', color: '#0D1B4E', target: plan?.target_calories || 0 },
-    { key: 'protein', label: 'Protéines', unit: 'g', color: '#2C64E5', target: plan?.target_protein || 0 },
-    { key: 'carbs', label: 'Glucides', unit: 'g', color: '#4A6FD4', target: plan?.target_carbs || 0 },
+    {
+      key: 'calories',
+      label: 'Calories',
+      unit: 'kcal',
+      color: '#0D1B4E',
+      target: plan?.target_calories || 0,
+    },
+    {
+      key: 'protein',
+      label: 'Protéines',
+      unit: 'g',
+      color: '#2C64E5',
+      target: plan?.target_protein || 0,
+    },
+    {
+      key: 'carbs',
+      label: 'Glucides',
+      unit: 'g',
+      color: '#4A6FD4',
+      target: plan?.target_carbs || 0,
+    },
     { key: 'fat', label: 'Lipides', unit: 'g', color: '#8FADE8', target: plan?.target_fat || 0 },
   ]
   return (
@@ -93,17 +166,18 @@ export function NutritionRingsRow({ log, plan }) {
 }
 
 // ─── Score du jour (0-100) + feedback textuel ───────────────────────────────
-export function NutritionScoreBlock({ log, plan }) {
+export function NutritionScoreBlock({ log, plan, variant }) {
+  const t = themeOf(variant)
   if (!plan)
     return (
-      <InfoBox bg="#FFF8E1" border="#FFD54F" color="#7B6000">
-        ⚠️ Aucun plan nutritionnel défini
+      <InfoBox bg={t.warnBg} border={t.warnBorder} color={t.warnText}>
+        {t.noPlan}
       </InfoBox>
     )
   if (!log || log.calories === 0)
     return (
-      <InfoBox bg="#F7F7F7" border="#EAEAEA" color="#999">
-        📝 Aucune donnée pour ce jour
+      <InfoBox bg={t.panelBg} border={t.panelBorder} color={t.muted}>
+        {t.noData}
       </InfoBox>
     )
 
@@ -125,7 +199,7 @@ export function NutritionScoreBlock({ log, plan }) {
         100
     )
   )
-  const color = score >= 80 ? '#3A7BD5' : score >= 50 ? '#2A50B0' : 'var(--danger)'
+  const color = score >= 80 ? t.scoreGood : score >= 50 ? t.scoreMid : 'var(--danger)'
 
   const feedback = []
   if ((log.protein || 0) < (plan.target_protein || 0)) feedback.push('💪 Augmente les protéines')
@@ -141,8 +215,8 @@ export function NutritionScoreBlock({ log, plan }) {
         style={{
           padding: '14px 18px',
           borderRadius: 12,
-          background: '#F7F7F7',
-          border: '1px solid #EAEAEA',
+          background: t.panelBg,
+          border: `1px solid ${t.panelBorder}`,
           display: 'flex',
           alignItems: 'center',
           gap: 14,
@@ -150,11 +224,11 @@ export function NutritionScoreBlock({ log, plan }) {
       >
         <div style={{ fontSize: 26, fontWeight: 800, color }}>
           {score}
-          <span style={{ fontSize: 12, color: '#999', fontWeight: 400 }}>/100</span>
+          <span style={{ fontSize: 12, color: t.muted, fontWeight: 400 }}>/100</span>
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: '#333' }}>Score nutrition</div>
-          <div style={{ fontSize: 11, color: '#999' }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: t.text }}>Score nutrition</div>
+          <div style={{ fontSize: 11, color: t.muted }}>
             {score >= 80
               ? '🟢 Excellente journée'
               : score >= 50
@@ -167,15 +241,15 @@ export function NutritionScoreBlock({ log, plan }) {
         style={{
           padding: '14px 18px',
           borderRadius: 12,
-          background: '#EEF4FF',
-          border: '1px solid #B8CBF5',
+          background: t.feedbackBg,
+          border: `1px solid ${t.feedbackBorder}`,
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 12, color: '#1A3580', marginBottom: 6 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: t.feedbackTitle, marginBottom: 6 }}>
           Feedback
         </div>
         {feedback.map((f, i) => (
-          <div key={i} style={{ fontSize: 12, color: '#555', marginBottom: 2 }}>
+          <div key={i} style={{ fontSize: 12, color: t.textBody, marginBottom: 2 }}>
             {f}
           </div>
         ))}
@@ -185,11 +259,11 @@ export function NutritionScoreBlock({ log, plan }) {
 }
 
 // ─── Graphe calories des 7 derniers jours ───────────────────────────────────
-export function NutritionWeekGraph({ logs, plan, today }) {
+export function NutritionWeekGraph({ logs, plan, today, variant }) {
+  const t = themeOf(variant)
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - 6 + i)
-    const ds = d.toISOString().split('T')[0]
+    const ds = addDaysISO(today, i - 6)
+    const d = parseLocalDate(ds)
     const log = logs.find((l) => l.date === ds)
     return {
       date: ds,
@@ -203,12 +277,12 @@ export function NutritionWeekGraph({ logs, plan, today }) {
       style={{
         padding: '14px 18px',
         borderRadius: 12,
-        background: 'white',
-        border: '1px solid #EAEAEA',
+        background: t.cardBg,
+        border: `1px solid ${t.panelBorder}`,
         marginBottom: 16,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 13, color: '#333', marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 14 }}>
         📈 Calories — 7 derniers jours
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 70 }}>
@@ -228,19 +302,19 @@ export function NutritionWeekGraph({ logs, plan, today }) {
                 justifyContent: 'flex-end',
               }}
             >
-              {d.calories > 0 && <div style={{ fontSize: 8, color: '#999' }}>{d.calories}</div>}
+              {d.calories > 0 && <div style={{ fontSize: 8, color: t.muted }}>{d.calories}</div>}
               <div
                 style={{
                   width: '100%',
                   height: `${h}%`,
-                  background: isToday ? 'var(--navy)' : '#C5CEEA',
+                  background: isToday ? t.barToday : t.bar,
                   borderRadius: '3px 3px 0 0',
                 }}
               />
               <div
                 style={{
                   fontSize: 9,
-                  color: isToday ? 'var(--navy)' : '#999',
+                  color: isToday ? t.strong : t.muted,
                   fontWeight: isToday ? 700 : 400,
                 }}
               >

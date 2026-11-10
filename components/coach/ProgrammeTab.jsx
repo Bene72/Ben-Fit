@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
+import { must } from '../../lib/db'
+import { escapeHtml, safeImageSrc } from '../../lib/html'
+import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
+import { btnVariant, lbl, inp, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import WorkoutBlockGroup from './WorkoutBlockGroup'
 import ExercisePicker from './ExercisePicker'
@@ -10,7 +13,7 @@ import { Toast, useToast } from '../Toast'
 // (1993 lignes). Extraites tel quel, sans changement de comportement. Le
 // reste du fichier (éditeur de cycle/workouts, ~30 états imbriqués) est
 // resté en place : trop couplé pour être découpé sans risque de régression
-// sans pouvoir retester contre un vrai Supabase. Voir CHANGELOG-AUDIT-DECOUPAGE.md.
+// sans pouvoir retester contre un vrai Supabase. Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE.md.
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import DuplicateCycleModal from './programme/DuplicateCycleModal'
 import CycleHistoryModal from './programme/CycleHistoryModal'
@@ -18,7 +21,15 @@ import CycleHistoryModal from './programme/CycleHistoryModal'
 // ── Toggle Actuel / Futur ──────────────────────────────────────
 function CycleToggle({ mode, onChange }) {
   return (
-    <div style={{ display: 'flex', background: 'var(--accent-dim)', borderRadius: 10, padding: 3, gap: 2 }}>
+    <div
+      style={{
+        display: 'flex',
+        background: 'var(--accent-dim)',
+        borderRadius: 10,
+        padding: 3,
+        gap: 2,
+      }}
+    >
       {[
         { id: 'current', label: '🟢 Cycle actuel' },
         { id: 'future', label: '🔵 Cycle futur' },
@@ -31,7 +42,8 @@ function CycleToggle({ mode, onChange }) {
             borderRadius: 8,
             border: 'none',
             cursor: 'pointer',
-            background: mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
+            background:
+              mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
             color: mode === id ? 'var(--chalk)' : 'var(--chalk-dim)',
             fontWeight: 700,
             fontSize: 13,
@@ -69,7 +81,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [exporting, setExporting] = useState(false)
   const [imageSyncing, setImageSyncing] = useState(false)
   const [exerciseImageFiles, setExerciseImageFiles] = useState([])
-  const [imageFilesLoading, setImageFilesLoading] = useState(true)
   const [athleteLogs, setAthleteLogs] = useState({})
   const [activating, setActivating] = useState(false)
   const [currentCycleName, setCurrentCycleName] = useState('')
@@ -202,18 +213,25 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setActivating(true)
     try {
       if (workouts.length) {
-        await supabase
-          .from('workouts')
-          .update({ is_archived: true, archived_at: new Date().toISOString() })
-          .eq('client_id', clientId)
-          .eq('is_archived', false)
-          .eq('is_future', false)
+        await must(
+          supabase
+            .from('workouts')
+            .update({ is_archived: true, archived_at: new Date().toISOString() })
+            .eq('client_id', clientId)
+            .eq('is_archived', false)
+            .eq('is_future', false)
+        )
       }
-      await supabase
-        .from('workouts')
-        .update({ is_future: false })
-        .eq('client_id', clientId)
-        .eq('is_future', true)
+      // Si cette 2e étape échoue, l'erreur s'affiche et un nouveau clic sur
+      // "Activer" reprend là où ça s'est arrêté (aucune séance n'est perdue :
+      // elles sont soit archivées, soit encore en "futur").
+      await must(
+        supabase
+          .from('workouts')
+          .update({ is_future: false })
+          .eq('client_id', clientId)
+          .eq('is_future', true)
+      )
       await reloadWorkouts()
       setCycleMode('current')
       showToast('Cycle futur activé ! Le client voit maintenant son nouveau programme.', 'success')
@@ -237,7 +255,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setExerciseImageFiles(files)
       }
     } catch {}
-    setImageFilesLoading(false)
   }
 
   useEffect(() => {
@@ -332,40 +349,21 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
     let payload = { [field]: value }
     if (field === 'name') {
-      try {
-        const exNorm = value
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9 ]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-        const nf = exerciseImageFiles.map((fname) => ({
-          normalized: fname
-            .toLowerCase()
-            .replace(/\.[^.]+$/, '')
-            .replace(/[-_]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim(),
-          url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-        }))
-        let match = nf.find((f) => f.normalized === exNorm)
-        if (!match)
-          match = nf.find((f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
-        if (!match) {
-          const words = exNorm.split(' ').filter((w) => w.length > 2)
-          match = nf.find(
-            (f) => words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-          )
-        }
-        if (match) payload.image_url = match.url
-      } catch {}
+      const imageUrl = findExerciseImage(value, buildImageIndex(exerciseImageFiles))
+      if (imageUrl) payload.image_url = imageUrl
     }
     const { image_url: imgUrl, ...payloadCore } = payload
     const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
     if (upErr) console.error('Erreur update exercice:', upErr.message)
     if (imgUrl) {
-      await supabase.from('exercises').update({ image_url: imgUrl }).eq('id', exId)
+      const { error: imgErr } = await supabase
+        .from('exercises')
+        .update({ image_url: imgUrl })
+        .eq('id', exId)
+      if (imgErr) {
+        console.error('Erreur image exercice:', imgErr.message)
+        return
+      }
       setter((prev) =>
         prev.map((w) =>
           w.id !== workoutId
@@ -382,7 +380,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   const deleteExercise = async (workoutId, exId) => {
-    await supabase.from('exercises').delete().eq('id', exId)
+    try {
+      await must(supabase.from('exercises').delete().eq('id', exId))
+    } catch (e) {
+      showToast('Suppression impossible : ' + e.message, 'error')
+      return
+    }
     const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
     setter((prev) =>
       prev.map((w) =>
@@ -422,11 +425,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const isFuture = cycleMode === 'future'
     const list = isFuture ? futureWorkouts : workouts
     const nextOrder = list.reduce((max, w) => Math.max(max, w.order_index ?? 0), 0) + 1
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('workouts')
       .insert({ ...newW, client_id: clientId, is_future: isFuture, order_index: nextOrder })
       .select()
       .single()
+    if (error) {
+      showToast('Séance non créée : ' + error.message, 'error')
+      return
+    }
     if (data) {
       const setter = isFuture ? setFutureWorkouts : setWorkouts
       setter((prev) => [...prev, { ...data, exercises: [] }])
@@ -439,7 +446,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   const deleteWorkout = async (id) => {
     if (!confirm('Supprimer cette séance ?')) return
-    await supabase.from('workouts').delete().eq('id', id)
+    try {
+      await must(supabase.from('workouts').delete().eq('id', id))
+    } catch (e) {
+      showToast('Suppression impossible : ' + e.message, 'error')
+      return
+    }
     const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
     setter((prev) => prev.filter((w) => w.id !== id))
     if (openWorkout === id) setOpenWorkout(null)
@@ -537,14 +549,20 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const saveCurrentCycleName = async () => {
     if (!currentCycleName.trim()) return
     setSavingCycleName(true)
-    await supabase
-      .from('workouts')
-      .update({ cycle_name: currentCycleName.trim() })
-      .eq('client_id', clientId)
-      .eq('is_archived', false)
-      .eq('is_future', false)
+    try {
+      await must(
+        supabase
+          .from('workouts')
+          .update({ cycle_name: currentCycleName.trim() })
+          .eq('client_id', clientId)
+          .eq('is_archived', false)
+          .eq('is_future', false)
+      )
+      showToast('Nom du cycle sauvegardé !', 'success')
+    } catch (e) {
+      showToast('Erreur : ' + e.message, 'error')
+    }
     setSavingCycleName(false)
-    showToast('Nom du cycle sauvegardé !', 'success')
   }
 
   const archiveCycle = async () => {
@@ -556,16 +574,18 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       return
     setArchiving(true)
     try {
-      await supabase
-        .from('workouts')
-        .update({
-          is_archived: true,
-          cycle_name: cycleName.trim(),
-          archived_at: new Date().toISOString(),
-        })
-        .eq('client_id', clientId)
-        .eq('is_archived', false)
-        .eq('is_future', false)
+      await must(
+        supabase
+          .from('workouts')
+          .update({
+            is_archived: true,
+            cycle_name: cycleName.trim(),
+            archived_at: new Date().toISOString(),
+          })
+          .eq('client_id', clientId)
+          .eq('is_archived', false)
+          .eq('is_future', false)
+      )
       setWorkouts([])
       setCycleName('')
       setCurrentCycleName('')
@@ -640,6 +660,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         return
       }
       let totalExInserted = 0
+      const imageIndex = buildImageIndex(exerciseImageFiles)
       for (const workout of sourceWorkouts) {
         const { data: exData } = await supabase
           .from('exercises')
@@ -670,54 +691,24 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           if (ex.group_id && !groupIdMap[ex.group_id])
             groupIdMap[ex.group_id] = `dup_${newWorkout.id.slice(0, 8)}_g${gIdx++}`
         })
-        for (const ex of exs) {
-          // ── Synchro image : réutiliser l'image source ou matcher depuis la bibliothèque ──
-          let resolvedImageUrl = ex.image_url || null
-          if (!resolvedImageUrl && exerciseImageFiles.length) {
-            const exNorm = String(ex.name || '')
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/[^a-z0-9 ]/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim()
-            const nf = exerciseImageFiles.map((fname) => ({
-              normalized: fname
-                .toLowerCase()
-                .replace(/\.[^.]+$/, '')
-                .replace(/[-_]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim(),
-              url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-            }))
-            let match = nf.find((f) => f.normalized === exNorm)
-            if (!match)
-              match = nf.find((f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
-            if (!match) {
-              const words = exNorm.split(' ').filter((w) => w.length > 2)
-              match = nf.find(
-                (f) =>
-                  words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-              )
-            }
-            if (match) resolvedImageUrl = match.url
-          }
-          const { error: exErr } = await supabase.from('exercises').insert({
-            workout_id: newWorkout.id,
-            name: String(ex.name || ''),
-            sets: ex.sets != null ? parseInt(ex.sets) || null : null,
-            reps: ex.reps != null ? String(ex.reps) : null,
-            rest: ex.rest || null,
-            note: ex.note || null,
-            target_weight: resetWeights ? null : ex.target_weight || null,
-            order_index: parseInt(ex.order_index) || 0,
-            group_type: ex.group_type || 'Normal',
-            group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
-            image_url: resolvedImageUrl,
-          })
-          if (exErr) console.error('Erreur insert exercice', ex.name, exErr.message)
-          else totalExInserted++
-        }
+        // Une seule requête par séance pour tous ses exercices (au lieu d'une
+        // par exercice). Image : celle de la source, sinon match bibliothèque.
+        const rows = exs.map((ex) => ({
+          workout_id: newWorkout.id,
+          name: String(ex.name || ''),
+          sets: ex.sets != null ? parseInt(ex.sets) || null : null,
+          reps: ex.reps != null ? String(ex.reps) : null,
+          rest: ex.rest || null,
+          note: ex.note || null,
+          target_weight: resetWeights ? null : ex.target_weight || null,
+          order_index: parseInt(ex.order_index) || 0,
+          group_type: ex.group_type || 'Normal',
+          group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
+          image_url: ex.image_url || findExerciseImage(ex.name, imageIndex) || null,
+        }))
+        const { error: exErr } = await supabase.from('exercises').insert(rows)
+        if (exErr) throw new Error(`Exercices de « ${workout.name} » : ${exErr.message}`)
+        totalExInserted += rows.length
       }
       setShowDuplicate(false)
       setDuplicateTarget('')
@@ -784,7 +775,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       group_type: 'Workout Block',
       group_id: gid,
     }))
-    const { data } = await supabase.from('exercises').insert(rows).select()
+    const { data, error } = await supabase.from('exercises').insert(rows).select()
+    if (error) {
+      showToast('Bloc non créé : ' + error.message, 'error')
+      return
+    }
     if (data) {
       const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
       setter((prev) =>
@@ -811,15 +806,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setImageSyncing(false)
         return
       }
-      const normalizedFiles = files.map((fname) => ({
-        normalized: fname
-          .toLowerCase()
-          .replace(/\.[^.]+$/, '')
-          .replace(/[-_]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim(),
-        url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-      }))
+      const imageIndex = buildImageIndex(files)
       const toSync = displayedWorkouts.flatMap((workout) =>
         (workout.exercises || []).filter((ex) => forceAll || !ex.image_url)
       )
@@ -828,27 +815,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setImageSyncing(false)
         return
       }
-      for (const ex of toSync) {
-        const exNorm = ex.name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9 ]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-        let match = normalizedFiles.find((f) => f.normalized === exNorm)
-        if (!match)
-          match = normalizedFiles.find(
-            (f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized)
-          )
-        if (!match) {
-          const words = exNorm.split(' ').filter((w) => w.length > 2)
-          match = normalizedFiles.find(
-            (f) => words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-          )
-        }
-        if (match) await supabase.from('exercises').update({ image_url: match.url }).eq('id', ex.id)
-      }
+      // Mises à jour en parallèle (au lieu d'une requête après l'autre)
+      const updates = toSync
+        .map((ex) => ({ id: ex.id, url: findExerciseImage(ex.name, imageIndex) }))
+        .filter((u) => u.url)
+      const results = await Promise.all(
+        updates.map((u) => supabase.from('exercises').update({ image_url: u.url }).eq('id', u.id))
+      )
+      const failed = results.filter((r) => r.error).length
+      if (failed) throw new Error(`${failed} image(s) non enregistrée(s)`)
       await reloadWorkouts()
       showToast('Images synchronisées !', 'success')
     } catch (e) {
@@ -888,35 +863,36 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         .map((workout) => {
           const exercises = (workout.exercises || [])
             .map((ex) => {
-              const img =
-                ex.image_url && imgCache[ex.image_url]
-                  ? `<img src="${imgCache[ex.image_url]}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
-                  : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
+              const imgSrc = ex.image_url ? safeImageSrc(imgCache[ex.image_url]) : ''
+              const img = imgSrc
+                ? `<img src="${imgSrc}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
+                : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
               const details = [
                 ex.sets && ex.reps
-                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${ex.sets} × ${ex.reps}</span>`
+                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${escapeHtml(ex.sets)} × ${escapeHtml(ex.reps)}</span>`
                   : '',
                 ex.rest
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${ex.rest}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${escapeHtml(ex.rest)}</span>`
                   : '',
                 ex.target_weight
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${ex.target_weight}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${escapeHtml(ex.target_weight)}</span>`
                   : '',
               ]
                 .filter(Boolean)
                 .join(' ')
               const note = ex.note
-                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${ex.note}</div>`
+                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${escapeHtml(ex.note)}</div>`
                 : ''
-              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${ex.name}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
+              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${escapeHtml(ex.name)}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
             })
             .join('')
           const dayLabel = dayNames[(workout.day_of_week || 1) - 1] || ''
-          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${workout.name}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${workout.duration_min || 60} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
+          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${escapeHtml(workout.name)}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${escapeHtml(workout.duration_min || 60)} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
         })
         .join('')
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${clientName || 'Programme'}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${escapeHtml(clientName || 'Programme')}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
       const win = window.open('', '_blank')
+      if (!win) throw new Error('fenêtre bloquée par le navigateur (autorise les pop-ups)')
       win.document.write(html)
       win.document.close()
       win.print()
@@ -1202,7 +1178,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
       {/* ── Liste vide ── */}
       {displayedWorkouts.length === 0 && !showAdd && (
-        <div style={{ textAlign: 'center', color: 'var(--chalk-dim)', padding: '40px 0', fontSize: 15 }}>
+        <div
+          style={{
+            textAlign: 'center',
+            color: 'var(--chalk-dim)',
+            padding: '40px 0',
+            fontSize: 15,
+          }}
+        >
           {cycleMode === 'future'
             ? 'Aucune séance dans le cycle futur — clique sur "+ Séance" pour commencer'
             : 'Aucune séance — clique sur "+ Séance" pour commencer'}
@@ -1235,7 +1218,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 alignItems: 'center',
                 padding: '14px 16px',
                 cursor: isRenaming ? 'default' : 'pointer',
-                background: isOpen ? (cycleMode === 'future' ? 'var(--accent-dim)' : 'var(--accent-dim)') : 'var(--bg-card)',
+                background: isOpen
+                  ? cycleMode === 'future'
+                    ? 'var(--accent-dim)'
+                    : 'var(--accent-dim)'
+                  : 'var(--bg-card)',
                 transition: 'background 0.15s',
               }}
             >
@@ -1268,7 +1255,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     border: 'none',
                     background: 'transparent',
                     cursor: wIdx === displayedWorkouts.length - 1 ? 'default' : 'pointer',
-                    color: wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
+                    color:
+                      wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
                     fontSize: 12,
                     padding: 2,
                     lineHeight: 1,
@@ -1365,7 +1353,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                   {workout.exercises?.length || 0} exercice
                   {(workout.exercises?.length || 0) > 1 ? 's' : ''}
                   {workout.cycle_name && (
-                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {workout.cycle_name}</span>
+                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>
+                      · {workout.cycle_name}
+                    </span>
                   )}
                 </div>
               </div>
@@ -1398,7 +1388,9 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                 >
                   🗑
                 </button>
-                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>{isOpen ? '▲' : '▼'}</span>
+                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>
+                  {isOpen ? '▲' : '▼'}
+                </span>
               </div>
             </div>
 
@@ -1607,19 +1599,31 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Giant Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--rx)', color: 'var(--rx)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--rx)',
+                        color: 'var(--rx)',
+                      }}
                     >
                       + Giant Set
                     </button>
                     <button
                       onClick={() => addExercise(workout.id, 'Drop Set', null)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--accent)',
+                        color: 'var(--accent)',
+                      }}
                     >
                       + Drop Set
                     </button>
                     <button
                       onClick={() => addWorkoutBlock(workout.id)}
-                      style={{ ...btnVariant('outline'), borderColor: 'var(--border)', color: 'var(--chalk)' }}
+                      style={{
+                        ...btnVariant('outline'),
+                        borderColor: 'var(--border)',
+                        color: 'var(--chalk)',
+                      }}
                     >
                       + WOD Block
                     </button>

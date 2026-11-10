@@ -1,4 +1,4 @@
-import { S, font, mono } from '../../lib/coachDashboard/offersAndCompliance'
+import { S, mono } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function KpiCard({ icon, label, value, sub, accent = S.navy, onClick }) {
   return (
@@ -56,4 +56,3 @@ export default function KpiCard({ icon, label, value, sub, accent = S.navy, onCl
     </div>
   )
 }
-

@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import { watchBreakpoint } from '../lib/breakpoints'
+import { toLocalISODate } from '../lib/dateUtils'
 import AppShell from '../components/ui/AppShell'
-import { useToast } from '../lib/useToast'
+import { Toast, useToast } from '../components/Toast'
 // CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers, 3e
 // passe) — MiniChart, BodyTracker et RecipeOfTheDay étaient définis dans ce
 // même fichier (1635 lignes). Extraits tel quel, sans changement de
@@ -12,7 +12,7 @@ import { useToast } from '../lib/useToast'
 // désactivé ("masqué pour le moment", cf. commentaire plus bas) et n'a
 // aucun point d'appel — son code reste disponible dans
 // components/mensurations/RecipeOfTheDay.jsx pour une réactivation future.
-// Voir CHANGELOG-AUDIT-DECOUPAGE-3.md.
+// Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE-3.md.
 import BodyTracker from '../components/mensurations/BodyTracker'
 
 // pages/mensurations.js
@@ -24,11 +24,10 @@ import BodyTracker from '../components/mensurations/BodyTracker'
 // et l'onglet ouvert par défaut ont bougé (voir plus bas), pour ne rien
 // casser côté requêtes Supabase / RLS.
 export default function Mensurations() {
-  const { show, ToastComponent } = useToast()
+  const { toast, showToast: show } = useToast(4000)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [measures, setMeasures] = useState([])
-  const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [editProfile, setEditProfile] = useState(false)
   const [editWeight, setEditWeight] = useState(false)
@@ -56,10 +55,6 @@ export default function Mensurations() {
   const router = useRouter()
   // (ancien sélecteur d'onglet Dashboard/Mensurations/Recette — supprimé, les deux
   // premiers sont désormais fusionnés en un seul écran, voir plus bas.)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
-
   useEffect(() => {
     const load = async () => {
       try {
@@ -98,14 +93,6 @@ export default function Mensurations() {
         // On les remappe ici vers les clés courtes utilisées par l'UI existante
         // (m.waist, m.hips...) pour ne pas devoir réécrire tout l'affichage.
         setMeasures((m || []).map(fromDbMeasure))
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
-        const { data: s } = await supabase
-          .from('workout_sessions')
-          .select('*')
-          .eq('client_id', user.id)
-          .gte('date', weekStart.toISOString().split('T')[0])
-        setSessions(s || [])
       } catch (e) {
         show('Erreur de chargement : ' + e.message, 'error')
       } finally {
@@ -160,7 +147,7 @@ export default function Mensurations() {
     if (!weightForm.weight) return
     setSaving(true)
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = toLocalISODate()
       const { data, error } = await supabase
         .from('measures')
         .insert({
@@ -275,16 +262,6 @@ export default function Mensurations() {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
   }
 
-  const latestWeight = measures[0]?.weight
-  const prevWeight = measures[1]?.weight
-  const weightDelta = latestWeight && prevWeight ? (latestWeight - prevWeight).toFixed(1) : null
-  const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-  const adherence = sessions.length > 0 ? Math.round((sessions.length / 5) * 100) : 0
-
   if (loading)
     return (
       <div
@@ -326,7 +303,7 @@ export default function Mensurations() {
 
   return (
     <>
-      <ToastComponent />
+      <Toast toast={toast} />
       <AppShell
         title="Mensurations & profil"
         userName={profile?.full_name?.split(' ')[0]}
@@ -580,21 +557,6 @@ export default function Mensurations() {
 }
 
 // ── Styles locaux ──────────────────────────────────────────────────────────────
-const kpiLabel = {
-  fontSize: 10,
-  letterSpacing: '1.5px',
-  textTransform: 'uppercase',
-  color: 'var(--text-faint)',
-  marginBottom: 6,
-  fontWeight: 700,
-}
-const kpiValue = {
-  fontFamily: "'Playfair Display',serif",
-  fontSize: 32,
-  fontWeight: 700,
-  lineHeight: 1,
-  color: 'var(--navy)',
-}
 const lbl3 = {
   display: 'block',
   fontSize: 10,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { toLocalISODate } from '../lib/dateUtils'
 import { watchBreakpoint } from '../lib/breakpoints'
 import { signOutAndRedirect } from '../lib/auth'
 import { apiFetch } from '../lib/api'
@@ -19,7 +20,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 // row, et les 3 onglets clients/offres/calendrier) a été extrait dans
 // components/coach/dashboard/*, tel quel, sans changement de comportement.
 // Ce fichier ne garde que l'état, le chargement de données et les handlers —
-// l'orchestration. Voir CHANGELOG-AUDIT-DECOUPAGE.md pour le détail.
+// l'orchestration. Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE.md pour le détail.
 import CoachSidebar from '../components/coach/dashboard/CoachSidebar'
 import CoachMobileNav from '../components/coach/dashboard/CoachMobileNav'
 import KpiRow from '../components/coach/dashboard/KpiRow'
@@ -32,7 +33,6 @@ import {
   S,
   font,
   bebas,
-  daysAgo,
   toClientModel,
   computeCompliance,
 } from '../lib/coachDashboard/offersAndCompliance'
@@ -124,10 +124,7 @@ export default function CoachDashboard() {
       const { data: sess } = await supabase
         .from('workout_sessions')
         .select('*')
-        .gte(
-          'date',
-          new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
-        )
+        .gte('date', toLocalISODate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
       if (sess && sess.length > 0) {
         setSessions(
           sess.map((s) => ({
@@ -219,7 +216,7 @@ export default function CoachDashboard() {
       try {
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+        const sevenDaysAgoStr = toLocalISODate(sevenDaysAgo)
 
         const [{ data: m }, { data: n }, { data: w }, { data: s }] = await Promise.all([
           supabase

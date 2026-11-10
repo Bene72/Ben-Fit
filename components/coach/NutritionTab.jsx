@@ -15,17 +15,16 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ci, inp, lbl, btn } from '../../lib/coachShared'
-import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
-import { watchBreakpoint } from '../../lib/breakpoints'
+import { must } from '../../lib/db'
+import {
+  NutritionRing,
+  NutritionScoreBlock,
+  NutritionWeekGraph,
+} from '../nutrition/NutritionVisuals'
+import { inp, lbl, btn } from '../../lib/coachShared'
+import { todayString, MACROS } from '../../lib/nutritionUtils'
 import FoodBlock from '../nutrition/FoodBlock'
 import WeekTable from '../nutrition/WeekTable'
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(false)
-  useEffect(() => watchBreakpoint('compact', setMobile), [])
-  return mobile
-}
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
@@ -140,20 +139,30 @@ function NutritionTab({ clientId, clientName }) {
       // On ne modifie plus jamais le plan actif en place : on l'archive et on
       // en crée un nouveau, pour garder un historique complet des versions.
       if (plan) {
-        await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
-        setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
+        await must(supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id))
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('nutrition_plans')
         .insert(planData)
         .select()
         .single()
+      if (error) {
+        // Le nouveau plan n'a pas pu être créé : on réactive l'ancien pour que
+        // l'athlète ne se retrouve jamais sans plan actif.
+        if (plan) {
+          await supabase.from('nutrition_plans').update({ active: true }).eq('id', plan.id)
+        }
+        throw error
+      }
+      if (plan) setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
       setPlan(data)
+      setEditPlan(false)
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
+      // Le formulaire reste ouvert avec la saisie : rien n'est perdu
+      window.alert("Le plan n'a pas pu être enregistré : " + e.message)
     } finally {
       setSaving(false)
-      setEditPlan(false)
     }
   }
 
@@ -162,31 +171,36 @@ function NutritionTab({ clientId, clientName }) {
     try {
       const existing = logs.find((l) => l.date === date)
       if (existing) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('nutrition_logs')
           .update(fields)
           .eq('id', existing.id)
           .select('*, nutrition_log_meals(*)')
           .single()
+        if (error) throw error
         if (data) setLogs((prev) => prev.map((l) => (l.id === existing.id ? data : l)))
         return data
       } else {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('nutrition_logs')
           .insert({ client_id: clientId, date, ...fields })
           .select('*, nutrition_log_meals(*)')
           .single()
+        if (error) throw error
         if (data) setLogs((prev) => [data, ...prev].sort((a, b) => b.date.localeCompare(a.date)))
         return data
       }
     } catch (e) {
       console.error('Erreur upsert log:', e)
+      window.alert("Le journal n'a pas pu être enregistré : " + e.message)
       return null
     }
   }
 
   if (loading)
-    return <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: 40 }}>Chargement…</div>
+    return (
+      <div style={{ color: 'var(--chalk-dim)', textAlign: 'center', padding: 40 }}>Chargement…</div>
+    )
 
   // ── Liste des mois disponibles dans l'historique du client, pour le filtre ──
   const availableMonths = Array.from(
@@ -344,7 +358,10 @@ function PlanBlock({
           {!editPlan && planHistory.length > 0 && (
             <button
               onClick={() => setShowPlanHistory(!showPlanHistory)}
-              style={btn(showPlanHistory ? 'var(--chalk)' : 'var(--bg-card)', showPlanHistory ? 'var(--bg-card)' : 'var(--chalk)')}
+              style={btn(
+                showPlanHistory ? 'var(--chalk)' : 'var(--bg-card)',
+                showPlanHistory ? 'var(--bg-card)' : 'var(--chalk)'
+              )}
             >
               {showPlanHistory ? '✕ Fermer' : `🕘 Historique (${planHistory.length})`}
             </button>
@@ -361,7 +378,15 @@ function PlanBlock({
       </div>
 
       {showPlanHistory ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 420, overflowY: 'auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            maxHeight: 420,
+            overflowY: 'auto',
+          }}
+        >
           {planHistory.map((p) => (
             <div
               key={p.id}
@@ -395,7 +420,14 @@ function PlanBlock({
                 ))}
               </div>
               {p.coach_note && (
-                <div style={{ fontSize: 11, color: 'var(--chalk-dim)', marginTop: 6, fontStyle: 'italic' }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--chalk-dim)',
+                    marginTop: 6,
+                    fontStyle: 'italic',
+                  }}
+                >
                   💬 {p.coach_note}
                 </div>
               )}
@@ -549,7 +581,11 @@ function PlanBlock({
               style={{ ...inp, resize: 'vertical' }}
             />
           </div>
-          <button onClick={savePlan} disabled={saving} style={btn('var(--chalk)', 'var(--bg-card)')}>
+          <button
+            onClick={savePlan}
+            disabled={saving}
+            style={btn('var(--chalk)', 'var(--bg-card)')}
+          >
             {saving ? 'Sauvegarde…' : '✓ Enregistrer le plan'}
           </button>
         </div>
@@ -683,58 +719,6 @@ function PlanBlock({
 
 // ─── Composants propres au coach ──────────────────────────────────────────────
 
-function NutritionRing({ value, target, label, unit, color }) {
-  const percent = target ? Math.min(100, (value / target) * 100) : 0
-  const over = percent >= 100
-  const R = 42,
-    stroke = 7,
-    nr = R - stroke * 2
-  const circ = nr * 2 * Math.PI
-  const offset = circ - (percent / 100) * circ
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ position: 'relative', display: 'inline-block' }}>
-        <svg height={R * 2} width={R * 2} style={{ transform: 'rotate(-90deg)' }}>
-          <circle stroke="var(--chalk-dim)" fill="transparent" strokeWidth={stroke} r={nr} cx={R} cy={R} />
-          <circle
-            stroke={over ? 'var(--danger)' : color}
-            fill="transparent"
-            strokeWidth={stroke}
-            strokeDasharray={`${circ} ${circ}`}
-            style={{
-              strokeDashoffset: offset,
-              transition: 'stroke-dashoffset 0.5s',
-              strokeLinecap: 'round',
-            }}
-            r={nr}
-            cx={R}
-            cy={R}
-          />
-        </svg>
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%,-50%)',
-            textAlign: 'center',
-            lineHeight: 1.2,
-          }}
-        >
-          <div
-            style={{ fontWeight: 800, fontSize: 14, color: over ? 'var(--danger)' : 'var(--chalk)' }}
-          >
-            {value}
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--chalk-dim)' }}>/{target}</div>
-        </div>
-      </div>
-      <div style={{ marginTop: 6, fontWeight: 600, fontSize: 12, color: 'var(--chalk)' }}>{label}</div>
-      <div style={{ fontSize: 10, color: 'var(--chalk-dim)' }}>{unit}</div>
-    </div>
-  )
-}
-
 function NutritionMacroBlock({ log, plan, date, onSave }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
@@ -753,6 +737,10 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
         carbs: log.carbs || '',
         fat: log.fat || '',
       })
+    // Volontaire : on ne réinitialise le formulaire que quand le journal change
+    // (autre jour) ou que ses calories changent — pas à chaque nouvel objet `log`,
+    // ce qui écraserait la saisie en cours.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log?.id, log?.calories])
 
   const save = async () => {
@@ -883,170 +871,11 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
               label={m.label}
               unit={m.unit}
               color={m.color}
+              variant="coach"
             />
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-function NutritionScoreBlock({ log, plan }) {
-  if (!plan)
-    return (
-      <InfoBox bg="var(--gold-dim)" border="var(--gold)" color="var(--gold)">
-        ⚠️ Aucun plan nutritionnel défini pour ce client
-      </InfoBox>
-    )
-  if (!log || log.calories === 0)
-    return (
-      <InfoBox bg="var(--bg-card-2)" border="var(--border)" color="var(--chalk-dim)">
-        📝 Aucune donnée pour aujourd'hui
-      </InfoBox>
-    )
-
-  const targets = [
-    plan.target_calories || 0,
-    plan.target_protein || 0,
-    plan.target_carbs || 0,
-    plan.target_fat || 0,
-  ]
-  const keys = ['calories', 'protein', 'carbs', 'fat']
-  const score = Math.min(
-    100,
-    Math.round(
-      (keys.reduce(
-        (acc, k, i) => acc + (targets[i] ? Math.min(1, (log[k] || 0) / targets[i]) : 0),
-        0
-      ) /
-        4) *
-        100
-    )
-  )
-  const color = score >= 80 ? 'var(--accent)' : score >= 50 ? 'var(--accent)' : 'var(--danger)'
-
-  const feedback = []
-  if ((log.protein || 0) < (plan.target_protein || 0)) feedback.push('💪 Augmente les protéines')
-  if ((log.calories || 0) < (plan.target_calories || 0) * 0.8)
-    feedback.push('⚡ Trop bas en calories')
-  if ((log.carbs || 0) < (plan.target_carbs || 0) * 0.8) feedback.push('🌾 Manque de glucides')
-  if ((log.fat || 0) < (plan.target_fat || 0) * 0.7) feedback.push('🥑 Lipides bas')
-  if (feedback.length === 0) feedback.push('✅ Objectifs atteints !')
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
-      <div
-        style={{
-          padding: '14px 18px',
-          borderRadius: 12,
-          background: 'var(--bg-card-2)',
-          border: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-        }}
-      >
-        <div style={{ fontSize: 26, fontWeight: 800, color }}>
-          {score}
-          <span style={{ fontSize: 12, color: 'var(--chalk-dim)', fontWeight: 400 }}>/100</span>
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)' }}>Score nutrition</div>
-          <div style={{ fontSize: 11, color: 'var(--chalk-dim)' }}>
-            {score >= 80
-              ? '🟢 Excellente journée'
-              : score >= 50
-                ? '🟡 Peut mieux faire'
-                : '🔴 Objectifs non atteints'}
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          padding: '14px 18px',
-          borderRadius: 12,
-          background: 'var(--accent-dim)',
-          border: '1px solid var(--accent-brd)',
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--chalk)', marginBottom: 6 }}>
-          Feedback
-        </div>
-        {feedback.map((f, i) => (
-          <div key={i} style={{ fontSize: 12, color: 'var(--chalk)', marginBottom: 2 }}>
-            {f}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function NutritionWeekGraph({ logs, plan, today }) {
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - 6 + i)
-    const ds = d.toISOString().split('T')[0]
-    const log = logs.find((l) => l.date === ds)
-    return {
-      date: ds,
-      calories: log?.calories || 0,
-      label: d.toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 2),
-    }
-  })
-  const max = Math.max(...days.map((d) => d.calories), plan?.target_calories || 1)
-  return (
-    <div
-      style={{
-        padding: '14px 18px',
-        borderRadius: 12,
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        marginBottom: 16,
-      }}
-    >
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--chalk)', marginBottom: 14 }}>
-        📈 Calories — 7 derniers jours
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 70 }}>
-        {days.map((d, i) => {
-          const h = max ? Math.max((d.calories / max) * 100, 2) : 2
-          const isToday = d.date === today
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
-              {d.calories > 0 && <div style={{ fontSize: 8, color: 'var(--chalk-dim)' }}>{d.calories}</div>}
-              <div
-                style={{
-                  width: '100%',
-                  height: `${h}%`,
-                  background: isToday ? 'var(--accent)' : 'var(--border-hi)',
-                  borderRadius: '3px 3px 0 0',
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 9,
-                  color: isToday ? 'var(--chalk)' : 'var(--chalk-dim)',
-                  fontWeight: isToday ? 700 : 400,
-                }}
-              >
-                {d.label}
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
@@ -1059,27 +888,10 @@ function NutritionTodayView({ today, logs, plan, onSave }) {
         {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </div>
       <NutritionMacroBlock log={log} plan={plan} date={today} onSave={onSave} />
-      <NutritionScoreBlock log={log} plan={plan} />
-      <NutritionWeekGraph logs={logs} plan={plan} today={today} />
+      <NutritionScoreBlock log={log} plan={plan} variant="coach" />
+      <NutritionWeekGraph logs={logs} plan={plan} today={today} variant="coach" />
       {/* FoodBlock coach : pas de onEnsureLog car le log doit être créé via NutritionMacroBlock d'abord */}
       <FoodBlock log={log} mode="coach" />
-    </div>
-  )
-}
-
-function InfoBox({ bg, border, color, children }) {
-  return (
-    <div
-      style={{
-        padding: '14px 18px',
-        borderRadius: 12,
-        background: bg,
-        border: `1px solid ${border}`,
-        marginBottom: 16,
-        textAlign: 'center',
-      }}
-    >
-      <span style={{ fontSize: 13, color }}>{children}</span>
     </div>
   )
 }

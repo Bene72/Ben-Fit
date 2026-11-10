@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { must } from '../../lib/db'
+import { toLocalISODate } from '../../lib/dateUtils'
 import { NOTE_COLORS, S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function PostItPanel({ clientId, notes, onUpdate }) {
@@ -15,24 +17,30 @@ export default function PostItPanel({ clientId, notes, onUpdate }) {
       id: Date.now(),
       text: text.trim(),
       color,
-      createdAt: new Date().toISOString().split('T')[0],
+      createdAt: toLocalISODate(),
     }
     const updated = [...(notes || []), newNote]
     try {
-      await supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId)
+      await must(supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId))
       onUpdate(updated)
       setText('')
       setAdding(false)
     } catch (e) {
       console.error(e)
+      // Le texte reste dans le champ : rien n'est perdu, il suffit de réessayer.
+      window.alert("La note n'a pas pu être enregistrée : " + e.message)
     }
     setSaving(false)
   }
 
   const deleteNote = async (id) => {
     const updated = (notes || []).filter((n) => n.id !== id)
-    await supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId)
-    onUpdate(updated)
+    try {
+      await must(supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId))
+      onUpdate(updated)
+    } catch (e) {
+      window.alert("La note n'a pas pu être supprimée : " + e.message)
+    }
   }
 
   const nc = NOTE_COLORS.find((c) => c.id === color) || NOTE_COLORS[0]

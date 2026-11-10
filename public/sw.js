@@ -1,29 +1,18 @@
-// Service Worker — Ben&Fit PWA
-const CACHE_NAME = 'benfit-v1'
-const STATIC_ASSETS = ['/', '/dashboard', '/training', '/nutrition', '/messages', '/bilan']
+// Ben&Fit — Service worker de désinstallation.
+//
+// Une ancienne version de l'app enregistrait un service worker qui mettait en
+// cache les pages ('benfit-v1'). Plus aucun code ne l'enregistre, mais les
+// navigateurs qui l'avaient installé le gardent et peuvent servir de vieilles
+// pages hors-ligne. Ce fichier, récupéré automatiquement par ces navigateurs
+// lors de leur vérification de mise à jour, vide le cache puis se désinstalle.
+self.addEventListener('install', () => self.skipWaiting())
 
-self.addEventListener('install', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
-  )
-  self.skipWaiting()
-})
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  )
-  self.clients.claim()
-})
-
-self.addEventListener('fetch', event => {
-  // Ne pas intercepter les requêtes Supabase
-  if (event.request.url.includes('supabase.co')) return
-
-  event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
+    (async () => {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+      await self.registration.unregister()
+    })()
   )
 })

@@ -12,52 +12,52 @@
 
 .athlete-theme {
   /* ── Marque — Navy (intouchable) ──────────────────────────────────── */
-  --navy:         #0D1B4E;
-  --navy-mid:     #1A2B6B;
-  --navy-light:   #2A3F8F;
-  --navy-deep:    #081230;
+  --navy: #0d1b4e;
+  --navy-mid: #1a2b6b;
+  --navy-light: #2a3f8f;
+  --navy-deep: #081230;
 
   /* ── Marque — Or (validé, ne pas changer sans décision explicite) ──── */
-  --gold:         #e8c84a;
-  --gold-deep:    #C9A83E; /* variante plus sombre du même or, pour dégradés/hover — pas un autre doré */
-  --gold-dim:     rgba(232, 200, 74, 0.15);
-  --gold-soft:    rgba(232, 200, 74, 0.08);
+  --gold: #e8c84a;
+  --gold-deep: #c9a83e; /* variante plus sombre du même or, pour dégradés/hover — pas un autre doré */
+  --gold-dim: rgba(232, 200, 74, 0.15);
+  --gold-soft: rgba(232, 200, 74, 0.08);
 
   /* ── Neutres / surfaces ──────────────────────────────────────────── */
-  --bg:              #F3F5FA;
-  --surface:         #FFFFFF;
-  --surface-muted:   #F7F9FC;
-  --surface-strong:  #EEF1F8;
-  --surface-alt:     #EEF1F8;
-  --card:            #FFFFFF;
-  --card-warm:       #FAFCFF;
-  --border:          #E4E9F2;
-  --border-soft:     rgba(13, 27, 78, 0.06);
-  --border-strong:   #D6DEEA;
+  --bg: #f3f5fa;
+  --surface: #ffffff;
+  --surface-muted: #f7f9fc;
+  --surface-strong: #eef1f8;
+  --surface-alt: #eef1f8;
+  --card: #ffffff;
+  --card-warm: #fafcff;
+  --border: #e4e9f2;
+  --border-soft: rgba(13, 27, 78, 0.06);
+  --border-strong: #d6deea;
 
   /* ── Texte ───────────────────────────────────────────────────────── */
-  --text:        #0D1B4E;
-  --text-soft:   #58628A;
-  --text-faint:  #94A0BF;
-  --muted:       #6B7A99;
+  --text: #0d1b4e;
+  --text-soft: #58628a;
+  --text-faint: #94a0bf;
+  --muted: #6b7a99;
 
   /* ── Accent fonctionnel (bleu — actions secondaires, PAS la marque) ── */
-  --accent:      #3B6BE0;
+  --accent: #3b6be0;
   --accent-soft: rgba(59, 107, 224, 0.1);
-  --accent-deep: #1E4FC4;
-  --accent-2:    #4A6FD4;
+  --accent-deep: #1e4fc4;
+  --accent-2: #4a6fd4;
 
   /* ── Statuts ─────────────────────────────────────────────────────── */
-  --success:      #17A673;
+  --success: #17a673;
   --success-soft: rgba(23, 166, 115, 0.12);
-  --success-bg:   #E8F5EE;
-  --warning:      #D97706;
+  --success-bg: #e8f5ee;
+  --warning: #d97706;
   --warning-soft: rgba(217, 119, 6, 0.12);
-  --warning-bg:   #FEF3C7;
-  --danger:       #E5484D;
-  --danger-soft:  rgba(229, 72, 77, 0.12);
-  --danger-bg:    #FEE8E0;
-  --green:        #3A8A5A; /* alias historique utilisé par plusieurs pages */
+  --warning-bg: #fef3c7;
+  --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --danger-bg: #fee8e0;
+  --green: #3a8a5a; /* alias historique utilisé par plusieurs pages */
 
   /* ── Radius ──────────────────────────────────────────────────────── */
   --r-sm: 10px;
@@ -71,9 +71,9 @@
   --radius-xl: var(--r-xl);
 
   /* ── Ombres ──────────────────────────────────────────────────────── */
-  --shadow-sm:   0 2px 12px rgba(13, 27, 78, 0.04);
-  --shadow-md:   0 10px 30px rgba(13, 27, 78, 0.07);
-  --shadow-lg:   0 24px 60px rgba(13, 27, 78, 0.12);
+  --shadow-sm: 0 2px 12px rgba(13, 27, 78, 0.04);
+  --shadow-md: 0 10px 30px rgba(13, 27, 78, 0.07);
+  --shadow-lg: 0 24px 60px rgba(13, 27, 78, 0.12);
   --shadow-hero: 0 32px 70px rgba(13, 27, 78, 0.14);
 
   /* ── Espacement ──────────────────────────────────────────────────── */
@@ -88,7 +88,8 @@
 
   /* ── Typographie ─────────────────────────────────────────────────── */
   --font-display: 'Bebas Neue', sans-serif;
-  --font-sans:    'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans:
+    'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Base : couleur de fond/texte héritée par tous les descendants (corrige
      le texte "chalk" quasi blanc hérité de styles/globals.css `body { color:

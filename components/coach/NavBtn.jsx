@@ -1,4 +1,4 @@
-import { S, font } from '../../lib/coachDashboard/offersAndCompliance'
+import { S } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function NavBtn({ onClick, children }) {
   return (
@@ -22,4 +22,3 @@ export default function NavBtn({ onClick, children }) {
     </button>
   )
 }
-

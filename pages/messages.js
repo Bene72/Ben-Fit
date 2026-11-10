@@ -3,7 +3,6 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import AppShell from '../components/ui/AppShell'
 
-export const dynamic = 'force-dynamic'
 export default function Messages() {
   const [user, setUser] = useState(null)
   const [messages, setMessages] = useState([])
@@ -13,10 +12,17 @@ export default function Messages() {
   const router = useRouter()
 
   useEffect(() => {
+    // Le canal temps réel est gardé ici pour être fermé au démontage.
+    // (Avant : le `return () => removeChannel()` était renvoyé par la fonction
+    // async, donc jamais exécuté → un abonnement de plus à chaque visite.)
+    let channel = null
+    let cancelled = false
+
     const load = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+      if (cancelled) return
       if (!user) {
         router.push('/')
         return
@@ -39,8 +45,9 @@ export default function Messages() {
         .eq('read', false)
 
       // Real-time subscription
-      const channel = supabase
-        .channel('messages')
+      if (cancelled) return
+      channel = supabase
+        .channel(`messages-${user.id}`)
         .on(
           'postgres_changes',
           {
@@ -50,14 +57,20 @@ export default function Messages() {
             filter: `receiver_id=eq.${user.id}`,
           },
           (payload) => {
-            setMessages((prev) => [...prev, payload.new])
+            setMessages((prev) =>
+              prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]
+            )
+            // Message reçu pendant que la page est ouverte → marqué lu
+            supabase.from('messages').update({ read: true }).eq('id', payload.new.id).then()
           }
         )
         .subscribe()
-
-      return () => supabase.removeChannel(channel)
     }
     load()
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
     // CORRECTIF AUDIT 09/09/2026 : `router` ajouté aux dépendances (warning
     // exhaustive-deps) — sans risque de boucle, `router` de useRouter() est
     // une référence stable en Next.js Pages Router.
@@ -78,19 +91,30 @@ export default function Messages() {
       .eq('id', user.id)
       .single()
 
-    const { data } = await supabase
+    if (!profile?.coach_id) {
+      window.alert("Aucun coach n'est associé à ton compte : message non envoyé.")
+      setSending(false)
+      return
+    }
+
+    const { data, error } = await supabase
       .from('messages')
       .insert({
         sender_id: user.id,
-        receiver_id: profile?.coach_id,
+        receiver_id: profile.coach_id,
         content: newMsg.trim(),
         read: false,
       })
       .select()
       .single()
 
-    if (data) setMessages((prev) => [...prev, data])
-    setNewMsg('')
+    if (error) {
+      // Le texte reste dans le champ pour pouvoir réessayer
+      window.alert('Message non envoyé : ' + error.message)
+    } else {
+      if (data) setMessages((prev) => [...prev, data])
+      setNewMsg('')
+    }
     setSending(false)
   }
 

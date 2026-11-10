@@ -61,22 +61,6 @@ export default function AgentBilanPage() {
   }, [router])
 
   useEffect(() => {
-    if (!clientId) return
-    let active = true
-
-    async function load() {
-      try {
-        setLoading(true)
-      } catch {}
-    }
-
-    load()
-    return () => {
-      active = false
-    }
-  }, [clientId])
-
-  useEffect(() => {
     if (!clientId || !authorized) return
     let active = true
 

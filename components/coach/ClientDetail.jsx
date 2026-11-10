@@ -4,7 +4,14 @@ import Badge from './Badge'
 import ProgressBar from './ProgressBar'
 import PostItPanel from './PostItPanel'
 import TrackerPanel from './TrackerPanel'
-import { OFFERS, S, font, bebas, complianceColor, daysAgo } from '../../lib/coachDashboard/offersAndCompliance'
+import {
+  OFFERS,
+  S,
+  font,
+  bebas,
+  complianceColor,
+  daysAgo,
+} from '../../lib/coachDashboard/offersAndCompliance'
 
 const COACH_MEASURE_FIELDS = [
   { key: 'weight', label: 'Poids', unit: 'kg', icon: '⚖️', color: S.red, required: true },
@@ -189,7 +196,9 @@ export default function ClientDetail({
           icon="📊"
           label="Compliance"
           value={historyLoading ? '…' : compliance == null ? '—' : `${compliance}%`}
-          sub={compliance == null && !historyLoading ? 'Pas de programme actif' : '7 derniers jours'}
+          sub={
+            compliance == null && !historyLoading ? 'Pas de programme actif' : '7 derniers jours'
+          }
           accent={complianceColor(compliance)}
         />
         <KpiCard
@@ -327,11 +336,7 @@ export default function ClientDetail({
                 {compliance == null ? '—' : `${compliance}%`}
               </span>
             </div>
-            <ProgressBar
-              value={compliance ?? 0}
-              color={complianceColor(compliance)}
-              height={7}
-            />
+            <ProgressBar value={compliance ?? 0} color={complianceColor(compliance)} height={7} />
           </div>
           {client.since && (
             <div style={{ fontSize: 12, color: S.muted }}>

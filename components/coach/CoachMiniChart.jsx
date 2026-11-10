@@ -1,4 +1,4 @@
-import { S, font } from '../../lib/coachDashboard/offersAndCompliance'
+import { S } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function CoachMiniChart({ entries, field, fieldsMeta }) {
   const data = [...entries]
