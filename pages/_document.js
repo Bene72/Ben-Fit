@@ -20,11 +20,8 @@ export default function Document() {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Ben&Fit" />
 
-        {/* Icons iOS */}
-        <link rel="apple-touch-icon" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/logo.png" />
+        {/* Icône iOS (écran d'accueil) — 180×180, image dédiée plus légère que logo.png */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
         {/* Fonts — chargement unique et optimisé (display=swap pour perf) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

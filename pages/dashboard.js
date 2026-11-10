@@ -13,6 +13,7 @@ import AppShell from '../components/ui/AppShell'
 import WeekStrip, { localDateKey, isoWeekday } from '../components/ui/WeekStrip'
 import { normalizeExercises } from '../lib/trainingUtils'
 import AthleteHighlights from '../components/athlete/AthleteHighlights'
+import AppPrompt from '../components/ui/AppPrompt'
 
 // ── Chargement défensif des dates d'activité (séances loguées) ─────────────
 // Même logique de repli que hooks/useTrainingData.js (colonnes historiques
@@ -237,6 +238,8 @@ export default function Aujourdhui() {
           {error}
         </div>
       )}
+
+      <AppPrompt userId={profile?.id} />
 
       {/* Objectifs, série de semaines, bilan de cycle */}
       <AthleteHighlights userId={profile?.id} firstName={firstName} />
