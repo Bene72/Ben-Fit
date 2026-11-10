@@ -21,7 +21,7 @@ async function handler(req, res) {
     return res.status(400).json({ error: 'messageId invalide' })
   }
 
-  const { data: msg } = await supabaseAdmin
+  const { data: msg } = await supabaseAdmin()
     .from('messages')
     .select('id, sender_id, receiver_id, content')
     .eq('id', messageId)
@@ -29,8 +29,8 @@ async function handler(req, res) {
   if (!msg || msg.sender_id !== req.user.id) return res.status(403).json({ error: 'Interdit' })
 
   const [{ data: sender }, { data: receiver }] = await Promise.all([
-    supabaseAdmin.from('profiles').select('full_name, role').eq('id', msg.sender_id).single(),
-    supabaseAdmin.from('profiles').select('role').eq('id', msg.receiver_id).single(),
+    supabaseAdmin().from('profiles').select('full_name, role').eq('id', msg.sender_id).single(),
+    supabaseAdmin().from('profiles').select('role').eq('id', msg.receiver_id).single(),
   ])
   const fromName = sender?.role === 'coach' ? 'ton coach' : sender?.full_name || 'un athlète'
   const preview = String(msg.content || '').slice(0, 120)

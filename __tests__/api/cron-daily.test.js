@@ -1,6 +1,6 @@
 /** @jest-environment node */
 jest.mock('../../lib/pushServer', () => ({
-  supabaseAdmin: {},
+  supabaseAdmin: () => ({}),
   sendOnce: jest.fn(),
   pushReady: () => true,
 }))

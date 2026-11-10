@@ -41,6 +41,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Non autorisé' })
   }
   if (!pushReady()) return res.status(200).json({ skipped: 'push non configuré' })
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY)
+    return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante' })
 
   const today = parisToday()
   const dow = isoDow(today)
@@ -48,13 +50,13 @@ export default async function handler(req, res) {
   const report = { sessions: 0, bilans: 0, coaches: 0 }
 
   const subs = await safe(
-    fetchAll(() => supabaseAdmin.from('push_subscriptions').select('user_id'))
+    fetchAll(() => supabaseAdmin().from('push_subscriptions').select('user_id'))
   )
   const subscribed = [...new Set(subs.map((s) => s.user_id))]
   if (!subscribed.length) return res.status(200).json({ ...report, note: 'aucun abonné' })
 
   const profiles = await safe(
-    fetchAll(() => supabaseAdmin.from('profiles').select('*').in('id', subscribed))
+    fetchAll(() => supabaseAdmin().from('profiles').select('*').in('id', subscribed))
   )
   const athletes = profiles.filter((p) => p.role === 'client' && !p.archived)
   const coaches = profiles.filter((p) => p.role === 'coach')
@@ -65,7 +67,7 @@ export default async function handler(req, res) {
     const [workouts, bilans] = await Promise.all([
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('workouts')
             .select('client_id, name, day_of_week')
             .in('client_id', athleteIds)
@@ -77,7 +79,7 @@ export default async function handler(req, res) {
       dow === 7
         ? safe(
             fetchAll(() =>
-              supabaseAdmin
+              supabaseAdmin()
                 .from('bilans')
                 .select('client_id')
                 .in('client_id', athleteIds)
@@ -120,7 +122,7 @@ export default async function handler(req, res) {
   for (const coach of coaches) {
     const clients = await safe(
       fetchAll(() =>
-        supabaseAdmin.from('profiles').select('*').eq('coach_id', coach.id).eq('role', 'client')
+        supabaseAdmin().from('profiles').select('*').eq('coach_id', coach.id).eq('role', 'client')
       )
     )
     const active = clients.filter((c) => !c.archived)
@@ -130,7 +132,7 @@ export default async function handler(req, res) {
     const [w, logs, sessions, nutrition, bilans, alerts] = await Promise.all([
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('workouts')
             .select('client_id, day_of_week, is_archived, is_future')
             .in('client_id', ids)
@@ -140,7 +142,7 @@ export default async function handler(req, res) {
       ),
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('workout_logs')
             .select('client_id, logged_at')
             .in('client_id', ids)
@@ -149,7 +151,7 @@ export default async function handler(req, res) {
       ),
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('workout_sessions')
             .select('client_id, date, completed')
             .in('client_id', ids)
@@ -158,7 +160,7 @@ export default async function handler(req, res) {
       ),
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('nutrition_logs')
             .select('client_id, date')
             .in('client_id', ids)
@@ -167,7 +169,7 @@ export default async function handler(req, res) {
       ),
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('bilans')
             .select('*')
             .in('client_id', ids)
@@ -176,7 +178,7 @@ export default async function handler(req, res) {
       ),
       safe(
         fetchAll(() =>
-          supabaseAdmin
+          supabaseAdmin()
             .from('cycle_alerts')
             .select('client_id, client_name, days_remaining')
             .in('client_id', ids)
