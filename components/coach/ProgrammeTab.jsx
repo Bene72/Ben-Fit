@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { printProgramme } from '../../lib/programme/exportPdf'
 import { createSaveQueue } from '../../lib/programme/saveQueue'
+import { applyProgression } from '../../lib/programme/progression'
 import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
 import {
   duplicateWorkouts,
@@ -21,6 +22,7 @@ import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import WorkoutCard from './programme/WorkoutCard'
 import CycleToggle from './programme/CycleToggle'
 import SaveStatus from './programme/SaveStatus'
+import NextCycleModal from './programme/NextCycleModal'
 import ProgrammeToolbar from './programme/ProgrammeToolbar'
 import CycleNameBar from './programme/CycleNameBar'
 import NewWorkoutForm from './programme/NewWorkoutForm'
@@ -57,6 +59,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [renamingWorkout, setRenamingWorkout] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [reordering, setReordering] = useState(false)
+  const [showNextCycle, setShowNextCycle] = useState(false)
+  const [preparingNext, setPreparingNext] = useState(false)
   // État de l'enregistrement des champs : 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   const [saveStatus, setSaveStatus] = useState('idle')
   const saveQueue = useRef(null)
@@ -677,6 +681,29 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setDuplicating(false)
   }
 
+  // ── Préparer le cycle suivant (actuel → futur, avec progression) ──
+  const prepareNextCycle = async (mode) => {
+    setPreparingNext(true)
+    try {
+      await saveQueue.current.flush()
+      const { workouts: n, exercises: e } = await duplicateWorkouts({
+        sourceWorkouts: workouts,
+        targetClientId: clientId,
+        isFuture: true,
+        resetWeights: false,
+        imageFiles: exerciseImageFiles,
+        transformExercise: (row) => applyProgression(row, mode),
+      })
+      await reloadWorkouts()
+      setShowNextCycle(false)
+      setCycleMode('future')
+      showToast(`Cycle futur prêt : ${n} séances · ${e} exercices. Ajuste puis active.`, 'success')
+    } catch (err) {
+      showToast('Erreur : ' + err.message, 'error')
+    }
+    setPreparingNext(false)
+  }
+
   // ── Workout Block ──────────────────────────────────────────
   const groupColors = {
     Superset: 'var(--danger)',
@@ -791,6 +818,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // État et actions partagés avec les sous-composants du programme
   const programmeCtx = {
+    setShowNextCycle,
     addWorkout,
     archiveCycle,
     archiving,
@@ -862,6 +890,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 0 80px' }}>
       {toast && <Toast toast={toast} />}
       <SaveStatus status={saveStatus} />
+      {showNextCycle && (
+        <NextCycleModal
+          workouts={workouts}
+          futureCount={futureWorkouts.length}
+          preparing={preparingNext}
+          onConfirm={prepareNextCycle}
+          onCancel={() => setShowNextCycle(false)}
+        />
+      )}
 
       {/* ── Toggle + bouton Activer ── */}
       <div

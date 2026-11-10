@@ -15,6 +15,7 @@ export default function ProgrammeToolbar({ ctx }) {
     loadHistory,
     setShowAdd,
     setShowDuplicate,
+    setShowNextCycle,
     syncImages,
   } = ctx
   return (
@@ -32,6 +33,11 @@ export default function ProgrammeToolbar({ ctx }) {
         <button onClick={() => setShowAdd((s) => !s)} style={btnVariant('primary')}>
           + Séance
         </button>
+        {cycleMode === 'current' && displayedWorkouts.length > 0 && (
+          <button onClick={() => setShowNextCycle(true)} style={btnVariant('gold')}>
+            ⏭ Préparer le cycle suivant
+          </button>
+        )}
         <button
           onClick={exportPDF}
           disabled={exporting || !displayedWorkouts.length}
