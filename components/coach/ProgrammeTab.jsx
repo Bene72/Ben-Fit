@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
-import { escapeHtml, safeImageSrc } from '../../lib/html'
+import { printProgramme } from '../../lib/programme/exportPdf'
 import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
-import { btnVariant, lbl, inp, DAYS_FR } from '../../lib/coachShared'
-import ExRow from './ExerciseRow'
-import WorkoutBlockGroup from './WorkoutBlockGroup'
+import {
+  duplicateWorkouts,
+  syncExerciseImages,
+  listExerciseImageFiles,
+} from '../../lib/programme/duplicate'
 import ExercisePicker from './ExercisePicker'
 import { Toast, useToast } from '../Toast'
 // CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers, 2e
@@ -15,48 +17,13 @@ import { Toast, useToast } from '../Toast'
 // resté en place : trop couplé pour être découpé sans risque de régression
 // sans pouvoir retester contre un vrai Supabase.
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
+import WorkoutCard from './programme/WorkoutCard'
+import CycleToggle from './programme/CycleToggle'
+import ProgrammeToolbar from './programme/ProgrammeToolbar'
+import CycleNameBar from './programme/CycleNameBar'
+import NewWorkoutForm from './programme/NewWorkoutForm'
 import DuplicateCycleModal from './programme/DuplicateCycleModal'
 import CycleHistoryModal from './programme/CycleHistoryModal'
-
-// ── Toggle Actuel / Futur ──────────────────────────────────────
-function CycleToggle({ mode, onChange }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        background: 'var(--accent-dim)',
-        borderRadius: 10,
-        padding: 3,
-        gap: 2,
-      }}
-    >
-      {[
-        { id: 'current', label: '🟢 Cycle actuel' },
-        { id: 'future', label: '🔵 Cycle futur' },
-      ].map(({ id, label }) => (
-        <button
-          key={id}
-          onClick={() => onChange(id)}
-          style={{
-            padding: '7px 16px',
-            borderRadius: 8,
-            border: 'none',
-            cursor: 'pointer',
-            background:
-              mode === id ? (id === 'future' ? 'var(--accent)' : 'var(--accent)') : 'transparent',
-            color: mode === id ? 'var(--chalk)' : 'var(--chalk-dim)',
-            fontWeight: 700,
-            fontSize: 13,
-            fontFamily: "'DM Sans',sans-serif",
-            transition: 'all 0.15s',
-          }}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const { toast, showToast } = useToast()
@@ -242,19 +209,16 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   // ── Images d'exercices (listing direct depuis Supabase Storage) ──
+  // Renvoie aussi la liste (utilisée juste après par syncImages : l'état
+  // React n'est pas encore à jour à ce moment-là — c'était un bug).
   const fetchImageFiles = async () => {
     try {
-      const { data, error } = await supabase.storage
-        .from('exercise-images')
-        .list('', { limit: 500, sortBy: { column: 'name', order: 'asc' } })
-      if (!error && data?.length) {
-        const files = data
-          .map((f) => f.name)
-          .filter((n) => n && /\.(jpg|jpeg|png|gif|webp)$/i.test(n))
-          .sort((a, b) => a.localeCompare(b, 'fr'))
-        setExerciseImageFiles(files)
-      }
-    } catch {}
+      const files = await listExerciseImageFiles()
+      if (files.length) setExerciseImageFiles(files)
+      return files
+    } catch {
+      return []
+    }
   }
 
   useEffect(() => {
@@ -659,57 +623,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setDuplicating(false)
         return
       }
-      let totalExInserted = 0
-      const imageIndex = buildImageIndex(exerciseImageFiles)
-      for (const workout of sourceWorkouts) {
-        const { data: exData } = await supabase
-          .from('exercises')
-          .select('*')
-          .eq('workout_id', workout.id)
-          .order('order_index')
-        const exs = (exData || workout.exercises || []).sort(
-          (a, b) => (a.order_index || 0) - (b.order_index || 0)
-        )
-        const { data: newWorkout, error: wInsErr } = await supabase
-          .from('workouts')
-          .insert({
-            client_id: targetClientId,
-            name: workout.name,
-            type: workout.type,
-            day_of_week: workout.day_of_week,
-            duration_min: workout.duration_min,
-            cycle_name: workout.cycle_name || null,
-            is_future: cycleMode === 'future',
-          })
-          .select()
-          .single()
-        if (wInsErr) throw new Error('Erreur création séance : ' + wInsErr.message)
-        if (!newWorkout || !exs.length) continue
-        const groupIdMap = {}
-        let gIdx = 0
-        exs.forEach((ex) => {
-          if (ex.group_id && !groupIdMap[ex.group_id])
-            groupIdMap[ex.group_id] = `dup_${newWorkout.id.slice(0, 8)}_g${gIdx++}`
-        })
-        // Une seule requête par séance pour tous ses exercices (au lieu d'une
-        // par exercice). Image : celle de la source, sinon match bibliothèque.
-        const rows = exs.map((ex) => ({
-          workout_id: newWorkout.id,
-          name: String(ex.name || ''),
-          sets: ex.sets != null ? parseInt(ex.sets) || null : null,
-          reps: ex.reps != null ? String(ex.reps) : null,
-          rest: ex.rest || null,
-          note: ex.note || null,
-          target_weight: resetWeights ? null : ex.target_weight || null,
-          order_index: parseInt(ex.order_index) || 0,
-          group_type: ex.group_type || 'Normal',
-          group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
-          image_url: ex.image_url || findExerciseImage(ex.name, imageIndex) || null,
-        }))
-        const { error: exErr } = await supabase.from('exercises').insert(rows)
-        if (exErr) throw new Error(`Exercices de « ${workout.name} » : ${exErr.message}`)
-        totalExInserted += rows.length
-      }
+      const { exercises: totalExInserted } = await duplicateWorkouts({
+        sourceWorkouts,
+        targetClientId,
+        isFuture: cycleMode === 'future',
+        resetWeights,
+        imageFiles: exerciseImageFiles,
+      })
       setShowDuplicate(false)
       setDuplicateTarget('')
       if (targetClientId === clientId) await reloadWorkouts()
@@ -796,34 +716,22 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setImageSyncing(true)
     try {
       // Recharger la liste d'images si elle est vide (ex: 401 au mount)
-      let files = exerciseImageFiles
-      if (!files.length) {
-        await fetchImageFiles()
-        files = exerciseImageFiles
-      }
+      const files = exerciseImageFiles.length ? exerciseImageFiles : await fetchImageFiles()
       if (!files.length) {
         showToast('Aucune image trouvée dans la bibliothèque', 'error')
         setImageSyncing(false)
         return
       }
-      const imageIndex = buildImageIndex(files)
-      const toSync = displayedWorkouts.flatMap((workout) =>
-        (workout.exercises || []).filter((ex) => forceAll || !ex.image_url)
-      )
-      if (!toSync.length) {
+      const { candidates } = await syncExerciseImages({
+        workouts: displayedWorkouts,
+        imageFiles: files,
+        forceAll,
+      })
+      if (!candidates) {
         showToast('Toutes les images sont déjà synchronisées', 'info')
         setImageSyncing(false)
         return
       }
-      // Mises à jour en parallèle (au lieu d'une requête après l'autre)
-      const updates = toSync
-        .map((ex) => ({ id: ex.id, url: findExerciseImage(ex.name, imageIndex) }))
-        .filter((u) => u.url)
-      const results = await Promise.all(
-        updates.map((u) => supabase.from('exercises').update({ image_url: u.url }).eq('id', u.id))
-      )
-      const failed = results.filter((r) => r.error).length
-      if (failed) throw new Error(`${failed} image(s) non enregistrée(s)`)
       await reloadWorkouts()
       showToast('Images synchronisées !', 'success')
     } catch (e) {
@@ -836,70 +744,68 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const exportPDF = async () => {
     setExporting(true)
     try {
-      const imgToBase64 = async (url) => {
-        try {
-          const res = await fetch(url)
-          const blob = await res.blob()
-          return await new Promise((resolve) => {
-            const r = new FileReader()
-            r.onloadend = () => resolve(r.result)
-            r.readAsDataURL(blob)
-          })
-        } catch {
-          return null
-        }
-      }
-      const allExercises = displayedWorkouts.flatMap((w) => w.exercises || [])
-      const imgCache = {}
-      await Promise.all(
-        allExercises
-          .filter((e) => e.image_url)
-          .map(async (e) => {
-            if (!imgCache[e.image_url]) imgCache[e.image_url] = await imgToBase64(e.image_url)
-          })
-      )
-      const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-      const workoutBlocks = displayedWorkouts
-        .map((workout) => {
-          const exercises = (workout.exercises || [])
-            .map((ex) => {
-              const imgSrc = ex.image_url ? safeImageSrc(imgCache[ex.image_url]) : ''
-              const img = imgSrc
-                ? `<img src="${imgSrc}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
-                : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
-              const details = [
-                ex.sets && ex.reps
-                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${escapeHtml(ex.sets)} × ${escapeHtml(ex.reps)}</span>`
-                  : '',
-                ex.rest
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${escapeHtml(ex.rest)}</span>`
-                  : '',
-                ex.target_weight
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${escapeHtml(ex.target_weight)}</span>`
-                  : '',
-              ]
-                .filter(Boolean)
-                .join(' ')
-              const note = ex.note
-                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${escapeHtml(ex.note)}</div>`
-                : ''
-              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${escapeHtml(ex.name)}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
-            })
-            .join('')
-          const dayLabel = dayNames[(workout.day_of_week || 1) - 1] || ''
-          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${escapeHtml(workout.name)}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${escapeHtml(workout.duration_min || 60)} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
-        })
-        .join('')
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${escapeHtml(clientName || 'Programme')}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
-      const win = window.open('', '_blank')
-      if (!win) throw new Error('fenêtre bloquée par le navigateur (autorise les pop-ups)')
-      win.document.write(html)
-      win.document.close()
-      win.print()
+      await printProgramme({
+        workouts: displayedWorkouts,
+        clientName,
+        isFuture: cycleMode === 'future',
+      })
     } catch (e) {
       showToast('Erreur export PDF : ' + e.message, 'error')
     }
     setExporting(false)
+  }
+
+  // État et actions partagés avec les sous-composants du programme
+  const programmeCtx = {
+    addWorkout,
+    archiveCycle,
+    archiving,
+    currentCycleName,
+    cycleMode,
+    cycleName,
+    displayedWorkouts,
+    exportPDF,
+    exporting,
+    fetchAthleteLogs,
+    imageSyncing,
+    loadAllClients,
+    loadHistory,
+    newW,
+    saveCurrentCycleName,
+    savingCycleName,
+    setCurrentCycleName,
+    setCycleName,
+    setNewW,
+    setShowAdd,
+    setShowDuplicate,
+    showAdd,
+    syncImages,
+  }
+
+  // Actions et état passés à chaque carte séance (components/coach/programme/WorkoutCard)
+  const workoutCtx = {
+    addExercise,
+    addWorkoutBlock,
+    athleteLogs,
+    cancelRenameWorkout,
+    confirmRenameWorkout,
+    cycleMode,
+    deleteExercise,
+    deleteWorkout,
+    editMode,
+    groupColors,
+    moveExercise,
+    moveWorkout,
+    openWorkout,
+    renameValue,
+    renamingWorkout,
+    reordering,
+    setEditMode,
+    setOpenWorkout,
+    setRenameValue,
+    startRenameWorkout,
+    updateExercise,
+    updateWorkoutDay,
   }
 
   // ── Render ─────────────────────────────────────────────────
@@ -984,197 +890,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
-      {/* ── Barre d'outils ── */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          marginBottom: 20,
-          alignItems: 'center',
-        }}
-      >
-        <button onClick={() => setShowAdd((s) => !s)} style={btnVariant('primary')}>
-          + Séance
-        </button>
-        <button
-          onClick={exportPDF}
-          disabled={exporting || !displayedWorkouts.length}
-          style={btnVariant('outline')}
-        >
-          {exporting ? '⏳ Export…' : '📄 PDF'}
-        </button>
-        <button
-          onClick={() => syncImages(false)}
-          disabled={imageSyncing}
-          style={btnVariant('outline')}
-        >
-          {imageSyncing ? '⏳ Sync…' : '🖼 Images'}
-        </button>
-        <button
-          onClick={() => {
-            loadAllClients()
-            setShowDuplicate(true)
-          }}
-          style={btnVariant('outline')}
-        >
-          📋 Dupliquer
-        </button>
-        {cycleMode === 'current' && (
-          <button onClick={loadHistory} style={btnVariant('ghost')}>
-            🗂 Historique
-          </button>
-        )}
-        <button
-          onClick={() => fetchAthleteLogs()}
-          style={btnVariant('ghost')}
-          title="Rafraîchir les logs athlète"
-        >
-          🔄
-        </button>
-      </div>
+      <ProgrammeToolbar ctx={programmeCtx} />
 
-      {/* ── Cycle name + archivage (actuel seulement) ── */}
-      {cycleMode === 'current' && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            marginBottom: 20,
-            flexWrap: 'wrap',
-          }}
-        >
-          <input
-            value={currentCycleName}
-            onChange={(e) => setCurrentCycleName(e.target.value)}
-            placeholder="Nom du cycle actuel (ex: Cycle Force #3)"
-            style={{ ...inp, flex: 1, minWidth: 200 }}
-          />
-          <button
-            onClick={saveCurrentCycleName}
-            disabled={savingCycleName}
-            style={btnVariant('outline')}
-          >
-            {savingCycleName ? '…' : '💾 Sauver nom'}
-          </button>
-          <input
-            value={cycleName}
-            onChange={(e) => setCycleName(e.target.value)}
-            placeholder="Nom pour archiver…"
-            style={{ ...inp, flex: 1, minWidth: 160 }}
-          />
-          <button onClick={archiveCycle} disabled={archiving} style={btnVariant('danger')}>
-            {archiving ? '…' : '📦 Archiver'}
-          </button>
-        </div>
-      )}
+      <CycleNameBar ctx={programmeCtx} />
 
-      {/* ── Formulaire nouvelle séance ── */}
-      {showAdd && (
-        <div
-          style={{
-            background: cycleMode === 'future' ? 'var(--accent-dim)' : 'var(--bg-card-2)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 18,
-            marginBottom: 20,
-            border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent)' : 'var(--accent-brd)'}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          }}
-        >
-          <div
-            style={{
-              fontFamily: 'var(--font-display, "Bebas Neue", sans-serif)',
-              fontSize: 16,
-              letterSpacing: 1,
-              color: 'var(--chalk)',
-              marginBottom: 4,
-            }}
-          >
-            NOUVELLE SÉANCE
-          </div>
-          {cycleMode === 'future' && (
-            <div
-              style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700, marginBottom: 10 }}
-            >
-              🔵 Cette séance sera ajoutée au cycle futur
-            </div>
-          )}
-          {cycleMode !== 'future' && <div style={{ marginBottom: 10 }} />}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr',
-              gap: 10,
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Nom de la séance</label>
-              <input
-                value={newW.name}
-                onChange={(e) => setNewW((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Push Day A, Full Body…"
-                style={inp}
-              />
-            </div>
-            <div>
-              <label style={lbl}>Type</label>
-              <select
-                value={newW.type}
-                onChange={(e) => setNewW((p) => ({ ...p, type: e.target.value }))}
-                style={inp}
-              >
-                {[
-                  'Push',
-                  'Pull',
-                  'Legs',
-                  'Full Body',
-                  'Upper',
-                  'Lower',
-                  'Core',
-                  'Cardio',
-                  'WOD',
-                  'Autre',
-                ].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Jour</label>
-              <select
-                value={newW.day_of_week}
-                onChange={(e) => setNewW((p) => ({ ...p, day_of_week: +e.target.value }))}
-                style={inp}
-              >
-                {DAYS_FR.map((label, i) => (
-                  <option key={label} value={i + 1}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Durée (min)</label>
-              <input
-                type="number"
-                value={newW.duration_min}
-                onChange={(e) => setNewW((p) => ({ ...p, duration_min: +e.target.value }))}
-                style={inp}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={addWorkout} style={btnVariant('gold')}>
-              ✓ Créer
-            </button>
-            <button onClick={() => setShowAdd(false)} style={btnVariant('ghost')}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      <NewWorkoutForm ctx={programmeCtx} />
 
       {/* ── Liste vide ── */}
       {displayedWorkouts.length === 0 && !showAdd && (
@@ -1193,447 +913,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       )}
 
       {/* ── Liste des séances ── */}
-      {displayedWorkouts.map((workout, wIdx) => {
-        const isOpen = openWorkout === workout.id
-        const isEdit = editMode === workout.id
-        const isRenaming = renamingWorkout === workout.id
-        return (
-          <div
-            key={workout.id}
-            style={{
-              marginBottom: 12,
-              background: 'var(--bg-card)',
-              borderRadius: 14,
-              border: `1.5px solid ${cycleMode === 'future' ? 'var(--accent-brd)' : 'var(--border)'}`,
-              overflow: 'hidden',
-              boxShadow: isOpen ? '0 4px 20px rgba(255,91,46,0.08)' : 'none',
-            }}
-          >
-            <div
-              onClick={() => {
-                if (!isRenaming) setOpenWorkout(isOpen ? null : workout.id)
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '14px 16px',
-                cursor: isRenaming ? 'default' : 'pointer',
-                background: isOpen
-                  ? cycleMode === 'future'
-                    ? 'var(--accent-dim)'
-                    : 'var(--accent-dim)'
-                  : 'var(--bg-card)',
-                transition: 'background 0.15s',
-              }}
-            >
-              {/* ── Flèches réordonnancement ── */}
-              <div
-                style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 10 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={() => moveWorkout(workout.id, -1)}
-                  disabled={wIdx === 0 || reordering}
-                  title="Monter la séance"
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: wIdx === 0 ? 'default' : 'pointer',
-                    color: wIdx === 0 ? 'var(--accent)' : 'var(--chalk-dim)',
-                    fontSize: 12,
-                    padding: 2,
-                    lineHeight: 1,
-                  }}
-                >
-                  ▲
-                </button>
-                <button
-                  onClick={() => moveWorkout(workout.id, 1)}
-                  disabled={wIdx === displayedWorkouts.length - 1 || reordering}
-                  title="Descendre la séance"
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: wIdx === displayedWorkouts.length - 1 ? 'default' : 'pointer',
-                    color:
-                      wIdx === displayedWorkouts.length - 1 ? 'var(--accent)' : 'var(--chalk-dim)',
-                    fontSize: 12,
-                    padding: 2,
-                    lineHeight: 1,
-                  }}
-                >
-                  ▼
-                </button>
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 15,
-                    color: 'var(--chalk)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  {isRenaming ? (
-                    <input
-                      autoFocus
-                      value={renameValue}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={() => confirmRenameWorkout(workout.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          confirmRenameWorkout(workout.id)
-                        }
-                        if (e.key === 'Escape') {
-                          e.preventDefault()
-                          cancelRenameWorkout()
-                        }
-                      }}
-                      style={{
-                        ...inp,
-                        padding: '4px 8px',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        maxWidth: 280,
-                      }}
-                    />
-                  ) : (
-                    <span
-                      onDoubleClick={(e) => {
-                        e.stopPropagation()
-                        startRenameWorkout(workout.id, workout.name)
-                      }}
-                      title="Double-clic pour renommer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      {workout.name}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          startRenameWorkout(workout.id, workout.name)
-                        }}
-                        title="Renommer la séance"
-                        style={{
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer',
-                          fontSize: 12,
-                          padding: 2,
-                          color: 'var(--chalk-dim)',
-                          lineHeight: 1,
-                        }}
-                      >
-                        ✏️
-                      </button>
-                    </span>
-                  )}
-                  {cycleMode === 'future' && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        background: 'var(--accent)',
-                        color: '#16110D',
-                        padding: '2px 7px',
-                        borderRadius: 20,
-                        fontWeight: 700,
-                      }}
-                    >
-                      FUTUR
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--chalk-dim)', marginTop: 2 }}>
-                  {DAYS_FR[(workout.day_of_week || 1) - 1]} · {workout.duration_min || 60} min ·{' '}
-                  {workout.exercises?.length || 0} exercice
-                  {(workout.exercises?.length || 0) > 1 ? 's' : ''}
-                  {workout.cycle_name && (
-                    <span style={{ marginLeft: 8, color: 'var(--accent)' }}>
-                      · {workout.cycle_name}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 8 }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditMode(isEdit ? null : workout.id)
-                    if (!isOpen) setOpenWorkout(workout.id)
-                  }}
-                  style={{
-                    ...btnVariant(isEdit ? 'primary' : 'outline'),
-                    fontSize: 12,
-                    padding: '5px 10px',
-                  }}
-                >
-                  {isEdit ? '✓ Fin édition' : '✏️ Éditer'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteWorkout(workout.id)
-                  }}
-                  style={{
-                    ...btnVariant('ghost'),
-                    fontSize: 12,
-                    color: 'var(--danger)',
-                    padding: '5px 10px',
-                  }}
-                >
-                  🗑
-                </button>
-                <span style={{ fontSize: 12, color: 'var(--chalk-dim)' }}>
-                  {isOpen ? '▲' : '▼'}
-                </span>
-              </div>
-            </div>
-
-            {isOpen && (
-              <div>
-                {isEdit && (
-                  <div
-                    style={{
-                      padding: '10px 16px',
-                      background: 'var(--accent-dim)',
-                      borderBottom: '1px solid var(--border)',
-                      display: 'flex',
-                      gap: 8,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <label style={lbl}>Jour :</label>
-                    <select
-                      value={workout.day_of_week || 1}
-                      onChange={(e) => updateWorkoutDay(workout.id, e.target.value)}
-                      style={{ ...inp, width: 120 }}
-                    >
-                      {DAYS_FR.map((label, i) => (
-                        <option key={label} value={i + 1}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {!isEdit && workout.exercises?.length > 0 && (
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 48px 56px 80px',
-                      gap: 4,
-                      padding: '8px 12px 4px',
-                      borderBottom: '1px solid var(--accent-brd)',
-                    }}
-                  >
-                    {['Exercice', 'Séries', 'Reps', 'Repos'].map((h) => (
-                      <div
-                        key={h}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: '0.8px',
-                          textTransform: 'uppercase',
-                          color: 'var(--chalk-dim)',
-                          textAlign: h === 'Exercice' ? 'left' : 'center',
-                        }}
-                      >
-                        {h}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {(() => {
-                  const exercises = workout.exercises || []
-                  const grouped = []
-                  let i = 0
-                  while (i < exercises.length) {
-                    const ex = exercises[i]
-                    if (ex.group_type && ex.group_type !== 'Normal' && ex.group_id) {
-                      const groupExs = exercises.filter((e) => e.group_id === ex.group_id)
-                      if (!grouped.find((g) => g.groupId === ex.group_id))
-                        grouped.push({
-                          type: 'group',
-                          groupId: ex.group_id,
-                          groupType: ex.group_type,
-                          exercises: groupExs,
-                        })
-                    } else {
-                      grouped.push({ type: 'single', exercise: ex })
-                    }
-                    i++
-                  }
-                  return grouped.map((item) => {
-                    if (item.type === 'single') {
-                      const ex = item.exercise
-                      const allExs = workout.exercises || []
-                      const exIdx = allExs.findIndex((e) => e.id === ex.id)
-                      return (
-                        <ExRow
-                          key={ex.id}
-                          ex={ex}
-                          wId={workout.id}
-                          edit={isEdit}
-                          onUpdate={updateExercise}
-                          onDelete={deleteExercise}
-                          onMove={moveExercise}
-                          isFirst={exIdx === 0}
-                          isLast={exIdx === allExs.length - 1}
-                          recentLog={athleteLogs[ex.name] || null}
-                        />
-                      )
-                    }
-                    if (item.groupType === 'Workout Block') {
-                      return (
-                        <WorkoutBlockGroup
-                          key={item.groupId}
-                          group={item}
-                          wId={workout.id}
-                          edit={isEdit}
-                          onUpdate={updateExercise}
-                          onDelete={deleteExercise}
-                          onMove={moveExercise}
-                          onAddExercise={addExercise}
-                        />
-                      )
-                    }
-                    const color = groupColors[item.groupType] || 'var(--accent)'
-                    const allExs = workout.exercises || []
-                    return (
-                      <div
-                        key={item.groupId}
-                        style={{
-                          borderLeft: `4px solid ${color}`,
-                          margin: '8px 10px',
-                          borderRadius: '0 10px 10px 0',
-                          background: 'var(--accent-dim)',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: '6px 12px',
-                            background: color,
-                            color: 'var(--chalk)',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: '0.8px',
-                            textTransform: 'uppercase',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <span>{item.groupType}</span>
-                          {isEdit && (
-                            <button
-                              onClick={() => addExercise(workout.id, item.groupType, item.groupId)}
-                              style={{
-                                background: 'rgba(255,255,255,0.2)',
-                                border: 'none',
-                                color: 'var(--chalk)',
-                                borderRadius: 5,
-                                padding: '2px 8px',
-                                cursor: 'pointer',
-                                fontSize: 11,
-                              }}
-                            >
-                              + Exercice
-                            </button>
-                          )}
-                        </div>
-                        {item.exercises.map((ex) => {
-                          const exIdx = allExs.findIndex((e) => e.id === ex.id)
-                          return (
-                            <ExRow
-                              key={ex.id}
-                              ex={ex}
-                              wId={workout.id}
-                              edit={isEdit}
-                              onUpdate={updateExercise}
-                              onDelete={deleteExercise}
-                              onMove={moveExercise}
-                              isFirst={exIdx === 0}
-                              isLast={exIdx === allExs.length - 1}
-                              recentLog={athleteLogs[ex.name] || null}
-                            />
-                          )
-                        })}
-                      </div>
-                    )
-                  })
-                })()}
-
-                {isEdit && (
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      display: 'flex',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                      borderTop: '1px solid var(--accent-brd)',
-                    }}
-                  >
-                    <button
-                      onClick={() => addExercise(workout.id, 'Normal', null)}
-                      style={btnVariant('outline')}
-                    >
-                      + Exercice
-                    </button>
-                    <button
-                      onClick={() => addExercise(workout.id, 'Superset', null)}
-                      style={{
-                        ...btnVariant('outline'),
-                        borderColor: 'var(--danger)',
-                        color: 'var(--danger)',
-                      }}
-                    >
-                      + Superset
-                    </button>
-                    <button
-                      onClick={() => addExercise(workout.id, 'Giant Set', null)}
-                      style={{
-                        ...btnVariant('outline'),
-                        borderColor: 'var(--rx)',
-                        color: 'var(--rx)',
-                      }}
-                    >
-                      + Giant Set
-                    </button>
-                    <button
-                      onClick={() => addExercise(workout.id, 'Drop Set', null)}
-                      style={{
-                        ...btnVariant('outline'),
-                        borderColor: 'var(--accent)',
-                        color: 'var(--accent)',
-                      }}
-                    >
-                      + Drop Set
-                    </button>
-                    <button
-                      onClick={() => addWorkoutBlock(workout.id)}
-                      style={{
-                        ...btnVariant('outline'),
-                        borderColor: 'var(--border)',
-                        color: 'var(--chalk)',
-                      }}
-                    >
-                      + WOD Block
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {displayedWorkouts.map((workout, wIdx) => (
+        <WorkoutCard
+          key={workout.id}
+          workout={workout}
+          wIdx={wIdx}
+          workoutCount={displayedWorkouts.length}
+          ctx={workoutCtx}
+        />
+      ))}
 
       {/* ── Modal picker exercice ── */}
       {exPicker && (
