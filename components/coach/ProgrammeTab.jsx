@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { escapeHtml, safeImageSrc } from '../../lib/html'
-import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
+import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
+import { btn, btnVariant, lbl, inp, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import WorkoutBlockGroup from './WorkoutBlockGroup'
 import ExercisePicker from './ExercisePicker'
@@ -350,34 +351,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
     let payload = { [field]: value }
     if (field === 'name') {
-      try {
-        const exNorm = value
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9 ]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-        const nf = exerciseImageFiles.map((fname) => ({
-          normalized: fname
-            .toLowerCase()
-            .replace(/\.[^.]+$/, '')
-            .replace(/[-_]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim(),
-          url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-        }))
-        let match = nf.find((f) => f.normalized === exNorm)
-        if (!match)
-          match = nf.find((f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
-        if (!match) {
-          const words = exNorm.split(' ').filter((w) => w.length > 2)
-          match = nf.find(
-            (f) => words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-          )
-        }
-        if (match) payload.image_url = match.url
-      } catch {}
+      const imageUrl = findExerciseImage(value, buildImageIndex(exerciseImageFiles))
+      if (imageUrl) payload.image_url = imageUrl
     }
     const { image_url: imgUrl, ...payloadCore } = payload
     const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
@@ -683,6 +658,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         return
       }
       let totalExInserted = 0
+      const imageIndex = buildImageIndex(exerciseImageFiles)
       for (const workout of sourceWorkouts) {
         const { data: exData } = await supabase
           .from('exercises')
@@ -713,54 +689,24 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
           if (ex.group_id && !groupIdMap[ex.group_id])
             groupIdMap[ex.group_id] = `dup_${newWorkout.id.slice(0, 8)}_g${gIdx++}`
         })
-        for (const ex of exs) {
-          // ── Synchro image : réutiliser l'image source ou matcher depuis la bibliothèque ──
-          let resolvedImageUrl = ex.image_url || null
-          if (!resolvedImageUrl && exerciseImageFiles.length) {
-            const exNorm = String(ex.name || '')
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/[^a-z0-9 ]/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim()
-            const nf = exerciseImageFiles.map((fname) => ({
-              normalized: fname
-                .toLowerCase()
-                .replace(/\.[^.]+$/, '')
-                .replace(/[-_]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim(),
-              url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-            }))
-            let match = nf.find((f) => f.normalized === exNorm)
-            if (!match)
-              match = nf.find((f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized))
-            if (!match) {
-              const words = exNorm.split(' ').filter((w) => w.length > 2)
-              match = nf.find(
-                (f) =>
-                  words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-              )
-            }
-            if (match) resolvedImageUrl = match.url
-          }
-          const { error: exErr } = await supabase.from('exercises').insert({
-            workout_id: newWorkout.id,
-            name: String(ex.name || ''),
-            sets: ex.sets != null ? parseInt(ex.sets) || null : null,
-            reps: ex.reps != null ? String(ex.reps) : null,
-            rest: ex.rest || null,
-            note: ex.note || null,
-            target_weight: resetWeights ? null : ex.target_weight || null,
-            order_index: parseInt(ex.order_index) || 0,
-            group_type: ex.group_type || 'Normal',
-            group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
-            image_url: resolvedImageUrl,
-          })
-          if (exErr) console.error('Erreur insert exercice', ex.name, exErr.message)
-          else totalExInserted++
-        }
+        // Une seule requête par séance pour tous ses exercices (au lieu d'une
+        // par exercice). Image : celle de la source, sinon match bibliothèque.
+        const rows = exs.map((ex) => ({
+          workout_id: newWorkout.id,
+          name: String(ex.name || ''),
+          sets: ex.sets != null ? parseInt(ex.sets) || null : null,
+          reps: ex.reps != null ? String(ex.reps) : null,
+          rest: ex.rest || null,
+          note: ex.note || null,
+          target_weight: resetWeights ? null : ex.target_weight || null,
+          order_index: parseInt(ex.order_index) || 0,
+          group_type: ex.group_type || 'Normal',
+          group_id: ex.group_id ? groupIdMap[ex.group_id] : null,
+          image_url: ex.image_url || findExerciseImage(ex.name, imageIndex) || null,
+        }))
+        const { error: exErr } = await supabase.from('exercises').insert(rows)
+        if (exErr) throw new Error(`Exercices de « ${workout.name} » : ${exErr.message}`)
+        totalExInserted += rows.length
       }
       setShowDuplicate(false)
       setDuplicateTarget('')
@@ -854,15 +800,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setImageSyncing(false)
         return
       }
-      const normalizedFiles = files.map((fname) => ({
-        normalized: fname
-          .toLowerCase()
-          .replace(/\.[^.]+$/, '')
-          .replace(/[-_]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim(),
-        url: `${SUPABASE_URL}/storage/v1/object/public/exercise-images/${encodeURIComponent(fname)}`,
-      }))
+      const imageIndex = buildImageIndex(files)
       const toSync = displayedWorkouts.flatMap((workout) =>
         (workout.exercises || []).filter((ex) => forceAll || !ex.image_url)
       )
@@ -871,27 +809,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setImageSyncing(false)
         return
       }
-      for (const ex of toSync) {
-        const exNorm = ex.name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9 ]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-        let match = normalizedFiles.find((f) => f.normalized === exNorm)
-        if (!match)
-          match = normalizedFiles.find(
-            (f) => f.normalized.includes(exNorm) || exNorm.includes(f.normalized)
-          )
-        if (!match) {
-          const words = exNorm.split(' ').filter((w) => w.length > 2)
-          match = normalizedFiles.find(
-            (f) => words.filter((w) => f.normalized.includes(w)).length >= Math.min(2, words.length)
-          )
-        }
-        if (match) await supabase.from('exercises').update({ image_url: match.url }).eq('id', ex.id)
-      }
+      // Mises à jour en parallèle (au lieu d'une requête après l'autre)
+      const updates = toSync
+        .map((ex) => ({ id: ex.id, url: findExerciseImage(ex.name, imageIndex) }))
+        .filter((u) => u.url)
+      const results = await Promise.all(
+        updates.map((u) => supabase.from('exercises').update({ image_url: u.url }).eq('id', u.id))
+      )
+      const failed = results.filter((r) => r.error).length
+      if (failed) throw new Error(`${failed} image(s) non enregistrée(s)`)
       await reloadWorkouts()
       showToast('Images synchronisées !', 'success')
     } catch (e) {

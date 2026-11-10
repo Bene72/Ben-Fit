@@ -1,9 +1,22 @@
 {
   "extends": ["next/core-web-vitals", "prettier"],
-  "env": { "browser": true, "node": true, "es2022": true, "jest": true },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true,
+    "jest": true
+  },
   "rules": {
     "react/no-unescaped-entities": "off",
-    "no-undef": "error"
+    "no-undef": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "args": "none",
+        "ignoreRestSiblings": true,
+        "caughtErrors": "none"
+      }
+    ]
   },
   "ignorePatterns": ["node_modules/", ".next/", "supabase/migrations/", "public/"]
 }

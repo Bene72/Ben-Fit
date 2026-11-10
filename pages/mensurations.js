@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
-import { toLocalISODate, getMondayOfWeekString } from '../lib/dateUtils'
-import { watchBreakpoint } from '../lib/breakpoints'
+import { toLocalISODate } from '../lib/dateUtils'
 import AppShell from '../components/ui/AppShell'
 import { useToast } from '../lib/useToast'
 // CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers, 3e
@@ -29,7 +28,6 @@ export default function Mensurations() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [measures, setMeasures] = useState([])
-  const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [editProfile, setEditProfile] = useState(false)
   const [editWeight, setEditWeight] = useState(false)
@@ -57,10 +55,6 @@ export default function Mensurations() {
   const router = useRouter()
   // (ancien sélecteur d'onglet Dashboard/Mensurations/Recette — supprimé, les deux
   // premiers sont désormais fusionnés en un seul écran, voir plus bas.)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
-
   useEffect(() => {
     const load = async () => {
       try {
@@ -99,15 +93,6 @@ export default function Mensurations() {
         // On les remappe ici vers les clés courtes utilisées par l'UI existante
         // (m.waist, m.hips...) pour ne pas devoir réécrire tout l'affichage.
         setMeasures((m || []).map(fromDbMeasure))
-        // getMondayOfWeekString gère le dimanche (l'ancien calcul
-        // getDate() - getDay() + 1 renvoyait le lundi SUIVANT un dimanche).
-        const weekStart = getMondayOfWeekString()
-        const { data: s } = await supabase
-          .from('workout_sessions')
-          .select('*')
-          .eq('client_id', user.id)
-          .gte('date', weekStart)
-        setSessions(s || [])
       } catch (e) {
         show('Erreur de chargement : ' + e.message, 'error')
       } finally {
@@ -276,16 +261,6 @@ export default function Mensurations() {
     setBodyTab('history')
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
   }
-
-  const latestWeight = measures[0]?.weight
-  const prevWeight = measures[1]?.weight
-  const weightDelta = latestWeight && prevWeight ? (latestWeight - prevWeight).toFixed(1) : null
-  const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-  const adherence = sessions.length > 0 ? Math.round((sessions.length / 5) * 100) : 0
 
   if (loading)
     return (
@@ -582,21 +557,6 @@ export default function Mensurations() {
 }
 
 // ── Styles locaux ──────────────────────────────────────────────────────────────
-const kpiLabel = {
-  fontSize: 10,
-  letterSpacing: '1.5px',
-  textTransform: 'uppercase',
-  color: 'var(--text-faint)',
-  marginBottom: 6,
-  fontWeight: 700,
-}
-const kpiValue = {
-  fontFamily: "'Playfair Display',serif",
-  fontSize: 32,
-  fontWeight: 700,
-  lineHeight: 1,
-  color: 'var(--navy)',
-}
 const lbl3 = {
   display: 'block',
   fontSize: 10,

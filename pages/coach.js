@@ -33,7 +33,6 @@ import {
   S,
   font,
   bebas,
-  daysAgo,
   toClientModel,
   computeCompliance,
 } from '../lib/coachDashboard/offersAndCompliance'
