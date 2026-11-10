@@ -91,19 +91,30 @@ export default function Messages() {
       .eq('id', user.id)
       .single()
 
-    const { data } = await supabase
+    if (!profile?.coach_id) {
+      window.alert("Aucun coach n'est associé à ton compte : message non envoyé.")
+      setSending(false)
+      return
+    }
+
+    const { data, error } = await supabase
       .from('messages')
       .insert({
         sender_id: user.id,
-        receiver_id: profile?.coach_id,
+        receiver_id: profile.coach_id,
         content: newMsg.trim(),
         read: false,
       })
       .select()
       .single()
 
-    if (data) setMessages((prev) => [...prev, data])
-    setNewMsg('')
+    if (error) {
+      // Le texte reste dans le champ pour pouvoir réessayer
+      window.alert('Message non envoyé : ' + error.message)
+    } else {
+      if (data) setMessages((prev) => [...prev, data])
+      setNewMsg('')
+    }
     setSending(false)
   }
 

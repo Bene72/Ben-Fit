@@ -89,13 +89,20 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
     ])
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .insert({ sender_id: coachId, receiver_id: clientId, content, read: false })
       .select()
       .single()
 
-    if (data) setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)))
+    if (error) {
+      // Retire le message "optimiste" et remet le texte dans le champ
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
+      setNewMsg(content)
+      window.alert('Message non envoyé : ' + error.message)
+    } else if (data) {
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)))
+    }
     setSending(false)
   }
 

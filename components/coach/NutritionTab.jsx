@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { must } from '../../lib/db'
 import {
   NutritionRing,
   NutritionScoreBlock,
@@ -138,16 +139,30 @@ function NutritionTab({ clientId, clientName }) {
       // On ne modifie plus jamais le plan actif en place : on l'archive et on
       // en crée un nouveau, pour garder un historique complet des versions.
       if (plan) {
-        await supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id)
-        setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
+        await must(supabase.from('nutrition_plans').update({ active: false }).eq('id', plan.id))
       }
-      const { data } = await supabase.from('nutrition_plans').insert(planData).select().single()
+      const { data, error } = await supabase
+        .from('nutrition_plans')
+        .insert(planData)
+        .select()
+        .single()
+      if (error) {
+        // Le nouveau plan n'a pas pu être créé : on réactive l'ancien pour que
+        // l'athlète ne se retrouve jamais sans plan actif.
+        if (plan) {
+          await supabase.from('nutrition_plans').update({ active: true }).eq('id', plan.id)
+        }
+        throw error
+      }
+      if (plan) setPlanHistory((prev) => [{ ...plan, active: false }, ...prev])
       setPlan(data)
+      setEditPlan(false)
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
+      // Le formulaire reste ouvert avec la saisie : rien n'est perdu
+      window.alert("Le plan n'a pas pu être enregistré : " + e.message)
     } finally {
       setSaving(false)
-      setEditPlan(false)
     }
   }
 
@@ -156,25 +171,28 @@ function NutritionTab({ clientId, clientName }) {
     try {
       const existing = logs.find((l) => l.date === date)
       if (existing) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('nutrition_logs')
           .update(fields)
           .eq('id', existing.id)
           .select('*, nutrition_log_meals(*)')
           .single()
+        if (error) throw error
         if (data) setLogs((prev) => prev.map((l) => (l.id === existing.id ? data : l)))
         return data
       } else {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('nutrition_logs')
           .insert({ client_id: clientId, date, ...fields })
           .select('*, nutrition_log_meals(*)')
           .single()
+        if (error) throw error
         if (data) setLogs((prev) => [data, ...prev].sort((a, b) => b.date.localeCompare(a.date)))
         return data
       }
     } catch (e) {
       console.error('Erreur upsert log:', e)
+      window.alert("Le journal n'a pas pu être enregistré : " + e.message)
       return null
     }
   }

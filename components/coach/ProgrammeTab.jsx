@@ -425,11 +425,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     const isFuture = cycleMode === 'future'
     const list = isFuture ? futureWorkouts : workouts
     const nextOrder = list.reduce((max, w) => Math.max(max, w.order_index ?? 0), 0) + 1
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('workouts')
       .insert({ ...newW, client_id: clientId, is_future: isFuture, order_index: nextOrder })
       .select()
       .single()
+    if (error) {
+      showToast('Séance non créée : ' + error.message, 'error')
+      return
+    }
     if (data) {
       const setter = isFuture ? setFutureWorkouts : setWorkouts
       setter((prev) => [...prev, { ...data, exercises: [] }])
@@ -771,7 +775,11 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       group_type: 'Workout Block',
       group_id: gid,
     }))
-    const { data } = await supabase.from('exercises').insert(rows).select()
+    const { data, error } = await supabase.from('exercises').insert(rows).select()
+    if (error) {
+      showToast('Bloc non créé : ' + error.message, 'error')
+      return
+    }
     if (data) {
       const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
       setter((prev) =>

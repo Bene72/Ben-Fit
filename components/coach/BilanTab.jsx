@@ -46,11 +46,12 @@ function BilanTab({ clientId, clientName, coachId }) {
       setCreating(false)
       return
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bilans')
       .insert({ client_id: clientId, coach_id: coachId, week_start: weekStart })
       .select()
       .single()
+    if (error) window.alert("Le bilan n'a pas pu être créé : " + error.message)
     if (data) {
       setBilans((prev) => [data, ...prev])
       setOpenBilan(data.id)

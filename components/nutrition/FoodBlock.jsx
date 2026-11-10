@@ -124,7 +124,15 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       fat: Math.round((selected.fat || 0) * ratio * 10) / 10,
       fiber: 0,
     }
-    const { data } = await supabase.from('nutrition_log_meals').insert(item).select().single()
+    const { data, error } = await supabase
+      .from('nutrition_log_meals')
+      .insert(item)
+      .select()
+      .single()
+    if (error) {
+      window.alert("L'aliment n'a pas pu être ajouté : " + error.message)
+      return
+    }
     if (data) {
       setItems((prev) => [...prev, data])
       setSelected(null)
@@ -151,7 +159,15 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       fat: parseFloat(manual.fat) || 0,
       fiber: 0,
     }
-    const { data } = await supabase.from('nutrition_log_meals').insert(item).select().single()
+    const { data, error } = await supabase
+      .from('nutrition_log_meals')
+      .insert(item)
+      .select()
+      .single()
+    if (error) {
+      window.alert("L'aliment n'a pas pu être ajouté : " + error.message)
+      return
+    }
     if (data) {
       setItems((prev) => [...prev, data])
       setManual({ name: '', quantity: '100', calories: '', protein: '', carbs: '', fat: '' })
