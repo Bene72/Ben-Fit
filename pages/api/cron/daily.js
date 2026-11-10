@@ -71,8 +71,8 @@ export default async function handler(req, res) {
             .from('workouts')
             .select('client_id, name, day_of_week')
             .in('client_id', athleteIds)
-            .eq('is_archived', false)
-            .eq('is_future', false)
+            .not('is_archived', 'is', true)
+            .not('is_future', 'is', true)
             .eq('day_of_week', dow)
         )
       ),
@@ -136,8 +136,8 @@ export default async function handler(req, res) {
             .from('workouts')
             .select('client_id, day_of_week, is_archived, is_future')
             .in('client_id', ids)
-            .eq('is_archived', false)
-            .eq('is_future', false)
+            .not('is_archived', 'is', true)
+            .not('is_future', 'is', true)
         )
       ),
       safe(

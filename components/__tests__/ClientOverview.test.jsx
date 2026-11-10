@@ -77,3 +77,39 @@ it("en-tête : offre, cycle, frise d'engagement, boutons", () => {
   expect(onMessage).toHaveBeenCalled()
   expect(screen.getByText('🔁 Renouvelé')).toBeTruthy()
 })
+
+it('en-tête : menu ⋯ (offre, archivage) et clic sur l’offre', () => {
+  const onEditOffer = jest.fn()
+  const onArchive = jest.fn()
+  render(
+    <ClientHeader
+      client={{ ...client, balance: -77 }}
+      onBack={() => {}}
+      onMessage={() => {}}
+      onEditOffer={onEditOffer}
+      onArchive={onArchive}
+      onUnarchive={() => {}}
+    />
+  )
+  expect(screen.getByText(/Retard de paiement : 77 €/)).toBeTruthy()
+  fireEvent.click(screen.getByText(/Essentia Plus · 77 €\/mois/))
+  expect(onEditOffer).toHaveBeenCalledTimes(1)
+  fireEvent.click(screen.getByLabelText("Plus d'actions"))
+  fireEvent.click(screen.getByText('📦 Archiver le client'))
+  expect(onArchive).toHaveBeenCalled()
+})
+
+it('une seule pesée, bilan sur 10, objectif client', async () => {
+  render(
+    <OverviewTab
+      client={{ ...client, objective: 'Sèche' }}
+      measures={[{ id: 'm1', date: '2026-10-18', weight: 84.2 }]}
+      onMeasuresChange={() => {}}
+      onUpdate={() => {}}
+    />
+  )
+  await waitFor(() => expect(screen.getByText('91 %')).toBeTruthy())
+  expect(screen.getByText(/1 pesée · 18 oct/)).toBeTruthy()
+  expect(screen.getByText('/ 10')).toBeTruthy()
+  expect(screen.getByText('Sèche')).toBeTruthy()
+})
