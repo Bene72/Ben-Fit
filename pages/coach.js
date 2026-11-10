@@ -22,7 +22,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 // Ce fichier ne garde que l'état, le chargement de données et les handlers —
 // l'orchestration.
 import CoachSidebar from '../components/coach/dashboard/CoachSidebar'
-import RetentionPanel from '../components/coach/RetentionPanel'
+import RenewalsPanel from '../components/coach/RenewalsPanel'
 import AppPrompt from '../components/ui/AppPrompt'
 import CoachMobileNav from '../components/coach/dashboard/CoachMobileNav'
 import KpiRow from '../components/coach/dashboard/KpiRow'
@@ -454,12 +454,11 @@ export default function CoachDashboard() {
 
           {activeTab === 'clients' && !selectedClient && <AppPrompt userId={user?.id} dark />}
 
-          {/* Qui a besoin de toi cette semaine ? (athlètes à risque + renouvellements) */}
+          {/* Renouvellements à préparer (S10+ de l'engagement de 12 semaines) */}
           {activeTab === 'clients' && !selectedClient && clientSubTab !== 'archives' && (
-            <RetentionPanel
+            <RenewalsPanel
               coachId={user?.id}
               clients={activeClients}
-              isMobile={isMobile}
               onOpenClient={(id) => router.push(`/coach/${id}?tab=overview`)}
             />
           )}
