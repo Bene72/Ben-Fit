@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { printProgramme } from '../../lib/programme/exportPdf'
+import { createSaveQueue } from '../../lib/programme/saveQueue'
 import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
 import {
   duplicateWorkouts,
@@ -19,6 +20,7 @@ import { Toast, useToast } from '../Toast'
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import WorkoutCard from './programme/WorkoutCard'
 import CycleToggle from './programme/CycleToggle'
+import SaveStatus from './programme/SaveStatus'
 import ProgrammeToolbar from './programme/ProgrammeToolbar'
 import CycleNameBar from './programme/CycleNameBar'
 import NewWorkoutForm from './programme/NewWorkoutForm'
@@ -55,6 +57,28 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [renamingWorkout, setRenamingWorkout] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [reordering, setReordering] = useState(false)
+  // État de l'enregistrement des champs : 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle')
+  const saveQueue = useRef(null)
+  if (!saveQueue.current)
+    saveQueue.current = createSaveQueue({ delay: 700, onStatus: setSaveStatus })
+
+  // On n'oublie rien en quittant l'onglet ou la page
+  useEffect(() => {
+    const q = saveQueue.current
+    const beforeUnload = (e) => {
+      if (q.hasPending()) {
+        q.flush()
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload)
+      q.flush()
+    }
+  }, [])
 
   const displayedWorkouts = cycleMode === 'future' ? futureWorkouts : workouts
 
@@ -101,6 +125,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // ── Chargement workouts ────────────────────────────────────
   async function reloadWorkouts() {
+    // Les modifications en attente partent avant de relire la base
+    await saveQueue.current?.flush()
     const enrichWithExercises = async (list) => {
       if (!list?.length) return []
       const ids = list.map((w) => w.id)
@@ -311,6 +337,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       )
     )
 
+    // Écriture différée : une seule requête après la dernière frappe
+    // (voir lib/programme/saveQueue.js), au lieu d'une par lettre tapée.
+    saveQueue.current.schedule(`${exId}:${field}`, () =>
+      saveExerciseField(workoutId, exId, field, value, setter)
+    )
+  }
+
+  const saveExerciseField = async (workoutId, exId, field, value, setter) => {
     let payload = { [field]: value }
     if (field === 'name') {
       const imageUrl = findExerciseImage(value, buildImageIndex(exerciseImageFiles))
@@ -318,7 +352,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }
     const { image_url: imgUrl, ...payloadCore } = payload
     const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
-    if (upErr) console.error('Erreur update exercice:', upErr.message)
+    if (upErr) throw upErr
     if (imgUrl) {
       const { error: imgErr } = await supabase
         .from('exercises')
@@ -827,6 +861,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 0 80px' }}>
       {toast && <Toast toast={toast} />}
+      <SaveStatus status={saveStatus} />
 
       {/* ── Toggle + bouton Activer ── */}
       <div
