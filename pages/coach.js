@@ -6,13 +6,8 @@ import { supabase } from '../lib/supabase'
 import { toLocalISODate } from '../lib/dateUtils'
 import { watchBreakpoint } from '../lib/breakpoints'
 import { signOutAndRedirect } from '../lib/auth'
-import { apiFetch } from '../lib/api'
-import { Toast, useToast } from '../components/Toast'
 
 import CreateClientModal from '../components/coach/CreateClientModal'
-import OfferModal from '../components/coach/OfferModal'
-import ArchiveModal from '../components/coach/ArchiveModal'
-import ClientDetail from '../components/coach/ClientDetail'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 // CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers) —
@@ -30,26 +25,15 @@ import ClientsTab from '../components/coach/dashboard/ClientsTab'
 import OffresTab from '../components/coach/dashboard/OffresTab'
 import CalendarTab from '../components/coach/dashboard/CalendarTab'
 
-import {
-  OFFERS,
-  S,
-  font,
-  bebas,
-  toClientModel,
-  computeCompliance,
-} from '../lib/coachDashboard/offersAndCompliance'
+import { OFFERS, S, font, bebas, toClientModel } from '../lib/coachDashboard/offersAndCompliance'
 
 export default function CoachDashboard() {
   const router = useRouter()
-  const { toast, showToast } = useToast()
   const [user, setUser] = useState(null)
   const [clients, setClients] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [editingOffer, setEditingOffer] = useState(null)
-  const [archivingClient, setArchivingClient] = useState(null)
   const [activeTab, setActiveTab] = useState('clients')
   const [clientSubTab, setClientSubTab] = useState('actifs')
 
@@ -61,13 +45,11 @@ export default function CoachDashboard() {
     if (t === 'offres' || t === 'calendar' || t === 'clients') {
       setActiveTab(t)
     }
-  }, [router.isReady, router.query.tab])
+    // Depuis la fiche client : « Nouvel élève »
+    if (router.query.new === '1') setShowCreate(true)
+  }, [router.isReady, router.query.tab, router.query.new])
   const [showCreate, setShowCreate] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [clientMeasures, setClientMeasures] = useState([])
-  const [clientNutrition, setClientNutrition] = useState([])
-  const [clientCompliance, setClientCompliance] = useState(null)
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [clientSearch, setClientSearch] = useState('')
   const [clientSort, setClientSort] = useState('recent')
   const [activity, setActivity] = useState([])
@@ -206,144 +188,14 @@ export default function CoachDashboard() {
     }
   }
 
-  useEffect(() => {
-    const loadHistory = async () => {
-      if (!selected) {
-        setClientMeasures([])
-        setClientNutrition([])
-        setClientCompliance(null)
-        return
-      }
-      setHistoryLoading(true)
-      try {
-        const sevenDaysAgo = new Date()
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        const sevenDaysAgoStr = toLocalISODate(sevenDaysAgo)
-
-        const [{ data: m }, { data: n }, { data: w }, { data: s }] = await Promise.all([
-          supabase
-            .from('measures')
-            .select('*')
-            .eq('client_id', selected)
-            .order('date', { ascending: false })
-            .limit(200),
-          supabase
-            .from('nutrition_logs')
-            .select('*')
-            .eq('client_id', selected)
-            .order('date', { ascending: false })
-            .limit(200),
-          supabase.from('workouts').select('id, day_of_week').eq('client_id', selected),
-          supabase
-            .from('workout_sessions')
-            .select('date, completed')
-            .eq('client_id', selected)
-            .gte('date', sevenDaysAgoStr),
-        ])
-        setClientMeasures(m || [])
-        setClientNutrition(n || [])
-        setClientCompliance(computeCompliance(w, s))
-      } catch (err) {
-        console.error('Erreur chargement historique client:', err)
-        setClientMeasures([])
-        setClientNutrition([])
-        setClientCompliance(null)
-      } finally {
-        setHistoryLoading(false)
-      }
-    }
-    loadHistory()
-  }, [selected])
-
-  const archiveClient = async (clientId) => {
-    try {
-      // CORRECTIF AUDIT 09/09/2026 (point S2) : apiFetch() centralise la
-      // récupération du token + gère le cas "session expirée" proprement.
-      const res = await apiFetch('/api/archive-client', {
-        method: 'POST',
-        body: JSON.stringify({ client_id: clientId, archived: true }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      const archivedAt = new Date().toISOString()
-      setClients((prev) =>
-        prev.map((c) => (c.id === clientId ? { ...c, archived: true, archivedAt } : c))
-      )
-      setSelected(null)
-      showToast('Client archivé', 'success')
-    } catch (err) {
-      console.error('Erreur archivage:', err)
-      showToast('Erreur archivage : ' + err.message, 'error')
-    }
-  }
-
-  const unarchiveClient = async (clientId) => {
-    try {
-      const res = await apiFetch('/api/archive-client', {
-        method: 'POST',
-        body: JSON.stringify({ client_id: clientId, archived: false }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      setClients((prev) =>
-        prev.map((c) => (c.id === clientId ? { ...c, archived: false, archivedAt: null } : c))
-      )
-      setSelected(null)
-      setClientSubTab('actifs')
-      showToast('Client réactivé', 'success')
-    } catch (err) {
-      console.error('Erreur réactivation:', err)
-      showToast('Erreur réactivation : ' + err.message, 'error')
-    }
-  }
-
-  const handleNotesUpdate = (clientId, updatedNotes) => {
-    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, notes: updatedNotes } : c)))
-  }
-
-  const handleSaveOffer = async (clientId, form) => {
-    // BUG signalé : la mise à jour optimiste de `clients` se faisait AVANT
-    // l'écriture Supabase, et une erreur (colonne manquante, RLS, réseau...)
-    // n'était que loggée en console — jamais montrée au coach. L'écran
-    // semblait donc "enregistré" jusqu'au rechargement suivant, où la vraie
-    // valeur (jamais persistée) revenait. On écrit d'abord, on vérifie
-    // qu'une ligne a bien été modifiée (.select() : une RLS qui bloque
-    // silencieusement l'update renvoie 0 ligne, sans erreur), puis seulement
-    // on met à jour l'affichage — même pattern que archiveClient/unarchiveClient.
-    try {
-      // "next_payment" retiré : colonne absente de `profiles` côté Supabase
-      // (confirmé par l'erreur "Could not find the 'next_payment' column of
-      // 'profiles' in the schema cache"). À réintroduire une fois la colonne
-      // ajoutée en base — voir components/coach/OfferModal.jsx pour le champ
-      // correspondant, retiré du formulaire pour ne pas induire en erreur.
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ offer: form.offer })
-        .eq('id', clientId)
-        .select()
-      if (error) throw error
-      if (!data || data.length === 0) {
-        throw new Error("Aucune ligne modifiée (droits d'accès ?)")
-      }
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === clientId ? { ...c, offer: form.offer, since: form.startDate } : c
-        )
-      )
-      showToast('Offre enregistrée', 'success')
-      return true
-    } catch (err) {
-      console.error('Erreur mise à jour offre:', err)
-      showToast("Erreur : l'offre n'a pas été enregistrée — " + err.message, 'error')
-      return false
-    }
-  }
+  // Fiche client unique : un clic sur un athlète ouvre /coach/[id] (même
+  // cadre que le cockpit). Offre, archivage et post-it s'y gèrent désormais.
+  const openClient = (id) => router.push(`/coach/${id}`)
 
   const activeClients = clients.filter((c) => !c.archived && c.status === 'actif')
   const archivedClients = clients.filter((c) => c.archived)
   const mrr = activeClients.reduce((s, c) => s + (OFFERS[c.offer]?.price || 0), 0)
   const pendingMsg = clients.reduce((s, c) => s + c.messages, 0)
-  const selectedClient = selected ? clients.find((c) => c.id === selected) : null
   const baseClients =
     clientSubTab === 'archives' ? archivedClients : clients.filter((c) => !c.archived)
   const searchedClients = clientSearch.trim()
@@ -408,17 +260,13 @@ export default function CoachDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: S.bg, fontFamily: font, color: S.navy }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap');`}</style>
-      {toast && <Toast toast={toast} />}
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         {/* ── SIDEBAR ── */}
         {!isMobile && (
           <CoachSidebar
             user={user}
             activeTab={activeTab}
-            onSelectTab={(id) => {
-              setActiveTab(id)
-              setSelected(null)
-            }}
+            onSelectTab={setActiveTab}
             onCreateClient={() => setShowCreate(true)}
             onSignOut={() => signOutAndRedirect(router)}
           />
@@ -427,94 +275,52 @@ export default function CoachDashboard() {
         {/* ── MAIN ── */}
         <div style={{ flex: 1, padding: isMobile ? '16px' : '28px', overflowY: 'auto' }}>
           {/* Nav mobile */}
-          {isMobile && (
-            <CoachMobileNav
-              activeTab={activeTab}
-              onSelectTab={(id) => {
-                setActiveTab(id)
-                setSelected(null)
-              }}
-            />
-          )}
+          {isMobile && <CoachMobileNav activeTab={activeTab} onSelectTab={setActiveTab} />}
 
           {/* KPI Row — chaque tuile est un hyperlien vers la vue concernée */}
-          {!selectedClient && (
-            <KpiRow
-              activeCount={activeClients.length}
-              archivedCount={archivedClients.length}
-              mrr={mrr}
-              pendingMessages={pendingMsg}
-              onShowActiveClients={() => {
-                setActiveTab('clients')
-                setClientSubTab('actifs')
-              }}
-              onShowMessages={() => setActiveTab('clients')}
-            />
-          )}
+          <KpiRow
+            activeCount={activeClients.length}
+            archivedCount={archivedClients.length}
+            mrr={mrr}
+            pendingMessages={pendingMsg}
+            onShowActiveClients={() => {
+              setActiveTab('clients')
+              setClientSubTab('actifs')
+            }}
+            onShowMessages={() => setActiveTab('clients')}
+          />
 
-          {activeTab === 'clients' && !selectedClient && <AppPrompt userId={user?.id} dark />}
+          {activeTab === 'clients' && <AppPrompt userId={user?.id} dark />}
 
           {/* Renouvellements à préparer (S10+ de l'engagement de 12 semaines) */}
-          {activeTab === 'clients' && !selectedClient && clientSubTab !== 'archives' && (
-            <RenewalsPanel
-              coachId={user?.id}
-              clients={activeClients}
-              onOpenClient={(id) => router.push(`/coach/${id}?tab=overview`)}
-            />
+          {activeTab === 'clients' && clientSubTab !== 'archives' && (
+            <RenewalsPanel coachId={user?.id} clients={activeClients} onOpenClient={openClient} />
           )}
 
-          {/* ── VUE DÉTAIL CLIENT ── */}
-          {(activeTab === 'clients' || activeTab === 'calendar') && selectedClient ? (
-            <ClientDetail
-              client={selectedClient}
-              onBack={() => setSelected(null)}
-              onEditOffer={() => setEditingOffer(selectedClient)}
-              onNavigate={(id) => router.push(`/coach/${id}?tab=overview`)}
-              onArchive={(c) => setArchivingClient(c)}
-              onUnarchive={unarchiveClient}
-              onNotesUpdate={handleNotesUpdate}
-              measures={clientMeasures}
-              compliance={clientCompliance}
-              nutritionLogs={clientNutrition}
-              historyLoading={historyLoading}
-            />
-          ) : /* ── VUE CLIENTS ── */
-          activeTab === 'clients' ? (
+          {/* ── VUE CLIENTS ── */}
+          {activeTab === 'clients' ? (
             <ClientsTab
               isMobile={isMobile}
               clients={clients}
               archivedClients={archivedClients}
               clientSubTab={clientSubTab}
-              onChangeSubTab={(id) => {
-                setClientSubTab(id)
-                setSelected(null)
-              }}
+              onChangeSubTab={setClientSubTab}
               clientSearch={clientSearch}
               onChangeSearch={setClientSearch}
               clientSort={clientSort}
               onChangeSort={setClientSort}
               displayedClients={displayedClients}
-              onSelectClient={setSelected}
+              onSelectClient={openClient}
               onCreateClient={() => setShowCreate(true)}
               activity={activity}
               activityLoading={activityLoading}
-              onSelectActivity={(id) => {
-                setSelected(id)
-                setActiveTab('clients')
-              }}
+              onSelectActivity={openClient}
               sessions={sessions}
               coachId={user?.id}
             />
           ) : /* ── VUE OFFRES ── */
           activeTab === 'offres' ? (
-            <OffresTab
-              isMobile={isMobile}
-              clients={clients}
-              onSelectClient={(id) => {
-                setSelected(id)
-                setActiveTab('clients')
-              }}
-            />
+            <OffresTab isMobile={isMobile} clients={clients} onSelectClient={openClient} />
           ) : /* ── VUE CALENDRIER ── */
           activeTab === 'calendar' ? (
             <CalendarTab
@@ -532,20 +338,6 @@ export default function CoachDashboard() {
         <CreateClientModal
           onClose={() => setShowCreate(false)}
           onCreated={(nc) => setClients((prev) => [nc, ...prev])}
-        />
-      )}
-      {editingOffer && (
-        <OfferModal
-          client={editingOffer}
-          onClose={() => setEditingOffer(null)}
-          onSave={handleSaveOffer}
-        />
-      )}
-      {archivingClient && (
-        <ArchiveModal
-          client={archivingClient}
-          onClose={() => setArchivingClient(null)}
-          onConfirm={archiveClient}
         />
       )}
     </div>

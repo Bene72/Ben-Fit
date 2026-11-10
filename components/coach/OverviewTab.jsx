@@ -14,6 +14,18 @@ import { fmt, cycleUrgency } from '../../lib/insights'
 import WeightHistoryPanel from './WeightHistoryPanel'
 import GoalsEditor from './GoalsEditor'
 import PostItPanel from './PostItPanel'
+import TrackerPanel from './TrackerPanel'
+
+// Mensurations saisies par l'athlète (le poids a son propre bloc)
+const MEASURE_FIELDS = [
+  { key: 'waist', label: 'Tour de taille', unit: 'cm', icon: '📏', color: 'var(--accent)' },
+  { key: 'hips', label: 'Tour de hanches', unit: 'cm', icon: '📏', color: 'var(--rx)' },
+  { key: 'glutes', label: 'Tour de fesses', unit: 'cm', icon: '📏', color: 'var(--gold)' },
+  { key: 'chest', label: 'Tour de poitrine', unit: 'cm', icon: '📏', color: 'var(--info)' },
+  { key: 'arm', label: 'Tour de bras', unit: 'cm', icon: '💪', color: 'var(--rx)' },
+  { key: 'thigh', label: 'Tour de cuisse', unit: 'cm', icon: '📏', color: 'var(--accent)' },
+  { key: 'calf', label: 'Tour de mollet', unit: 'cm', icon: '📏', color: 'var(--info)' },
+]
 
 const card = {
   background: 'var(--bg-card)',
@@ -157,6 +169,7 @@ export default function OverviewTab({ client, measures, onMeasuresChange, onUpda
   const weightDelta =
     byDate.length >= 2 ? Math.round((lastWeight - Number(byDate[0].weight)) * 10) / 10 : null
 
+  const hasMensurations = (measures || []).some((m) => MEASURE_FIELDS.some((f) => m[f.key] != null))
   const o = overview
   const cycle = o?.nextCycleEnd
   const cycleTag = cycle ? cycleUrgency(cycle.days_remaining) : null
@@ -226,7 +239,9 @@ export default function OverviewTab({ client, measures, onMeasuresChange, onUpda
           sub={
             weightDelta !== null
               ? `${weightDelta > 0 ? '+' : ''}${fmt(weightDelta)} kg depuis le début`
-              : 'Aucune pesée'
+              : byDate.length === 1
+                ? `1 pesée · ${fmtDay(byDate[0].date)}`
+                : 'Aucune pesée'
           }
           subColor={
             weightDelta === null ? undefined : weightDelta <= 0 ? 'var(--rx)' : 'var(--gold)'
@@ -251,7 +266,7 @@ export default function OverviewTab({ client, measures, onMeasuresChange, onUpda
             {o?.lastBilan?.average != null ? (
               <>
                 {fmt(o.lastBilan.average)}
-                <span style={{ color: 'var(--chalk-muted)', fontSize: 22 }}> / 5</span>
+                <span style={{ color: 'var(--chalk-muted)', fontSize: 22 }}> / 10</span>
               </>
             ) : o ? (
               '—'
@@ -278,6 +293,17 @@ export default function OverviewTab({ client, measures, onMeasuresChange, onUpda
             measures={measures || []}
             onChange={onMeasuresChange}
           />
+          {hasMensurations && (
+            <TrackerPanel
+              title="Mensurations"
+              icon="📏"
+              subtitle="Valeurs saisies par l'athlète, avec date et courbe d'évolution."
+              entries={measures}
+              fields={MEASURE_FIELDS}
+              defaultField={MEASURE_FIELDS.find((f) => measures.some((m) => m[f.key] != null))?.key}
+              emptyLabel="Aucune mensuration"
+            />
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -368,6 +394,8 @@ export default function OverviewTab({ client, measures, onMeasuresChange, onUpda
                     color: 'var(--chalk)',
                   }}
                 >
+                  <span style={{ color: 'var(--chalk-dim)' }}>Objectif client</span>
+                  <b>{client.objective || '—'}</b>
                   <span style={{ color: 'var(--chalk-dim)' }}>Programme</span>
                   <b>{client.current_program || '—'}</b>
                   <span style={{ color: 'var(--chalk-dim)' }}>Objectif séance</span>

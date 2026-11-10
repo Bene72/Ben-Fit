@@ -3,7 +3,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
 import { watchBreakpoint } from '../../lib/breakpoints'
-import AppShell from '../../components/ui/AppShell'
+import CoachSidebar from '../../components/coach/dashboard/CoachSidebar'
+import CoachMobileNav from '../../components/coach/dashboard/CoachMobileNav'
+import OfferModal from '../../components/coach/OfferModal'
+import ArchiveModal from '../../components/coach/ArchiveModal'
+import { Toast, useToast } from '../../components/Toast'
+import { apiFetch } from '../../lib/api'
+import { signOutAndRedirect } from '../../lib/auth'
+import { S, font } from '../../lib/coachDashboard/offersAndCompliance'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import OverviewTab from '../../components/coach/OverviewTab'
 import ClientHeader from '../../components/coach/ClientHeader'
@@ -12,6 +19,32 @@ import NutritionTab from '../../components/coach/NutritionTab'
 import GestionTab from '../../components/coach/GestionTab'
 import MessagesTab from '../../components/coach/MessagesTab'
 import BilanTab from '../../components/coach/BilanTab'
+
+// Cadre commun au cockpit : même menu latéral (desktop) / barre (mobile).
+// Composant défini HORS de la page : défini à l'intérieur, il serait recréé à
+// chaque rendu et tout son contenu (onglets, formulaires) serait remonté.
+function CoachFrame({ user, isMobile, toast, onSelectTab, onCreateClient, onSignOut, children }) {
+  return (
+    <div style={{ minHeight: '100vh', background: S.bg, fontFamily: font, color: S.navy }}>
+      {toast && <Toast toast={toast} />}
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        {!isMobile && (
+          <CoachSidebar
+            user={user}
+            activeTab="clients"
+            onSelectTab={onSelectTab}
+            onCreateClient={onCreateClient}
+            onSignOut={onSignOut}
+          />
+        )}
+        <div style={{ flex: 1, minWidth: 0, padding: isMobile ? 16 : 28, overflowY: 'auto' }}>
+          {isMobile && <CoachMobileNav activeTab="clients" onSelectTab={onSelectTab} />}
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ClientPage() {
   const router = useRouter()
@@ -22,7 +55,12 @@ export default function ClientPage() {
   const [activeTab, setActiveTab] = useState(tab || 'overview')
   const [isMobile, setIsMobile] = useState(false)
 
-  useEffect(() => watchBreakpoint('mobile', setIsMobile), [])
+  const [editingOffer, setEditingOffer] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const { toast, showToast } = useToast()
+
+  // Même point de bascule que le cockpit (pages/coach.js)
+  useEffect(() => watchBreakpoint('tablet', setIsMobile), [])
 
   // Auth
   useEffect(() => {
@@ -82,7 +120,7 @@ export default function ClientPage() {
 
         const { data: measures } = await supabase
           .from('measures')
-          .select('id, weight, date')
+          .select('*')
           .eq('client_id', clientId)
           .order('date', { ascending: false })
           .limit(500)
@@ -118,6 +156,51 @@ export default function ClientPage() {
 
   const handleClientUpdate = (updated) => setClient(updated)
 
+  // Même logique que l'ancienne vue rapide du cockpit (pages/coach.js) :
+  // on écrit d'abord, on vérifie qu'une ligne a bien été modifiée, puis on affiche.
+  const saveOffer = async (id, form) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ offer: form.offer })
+        .eq('id', id)
+        .select()
+      if (error) throw error
+      if (!data?.length) throw new Error("Aucune ligne modifiée (droits d'accès ?)")
+      setClient((prev) => ({ ...prev, ...data[0] }))
+      showToast('Offre enregistrée', 'success')
+      return true
+    } catch (err) {
+      showToast("Erreur : l'offre n'a pas été enregistrée — " + err.message, 'error')
+      return false
+    }
+  }
+
+  const setArchived = async (id, archived) => {
+    try {
+      const res = await apiFetch('/api/archive-client', {
+        method: 'POST',
+        body: JSON.stringify({ client_id: id, archived }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      setClient((prev) => ({
+        ...prev,
+        archived,
+        archived_at: archived ? new Date().toISOString() : null,
+      }))
+      showToast(archived ? 'Client archivé' : 'Client réactivé', 'success')
+    } catch (err) {
+      showToast(
+        (archived ? 'Erreur archivage : ' : 'Erreur réactivation : ') + err.message,
+        'error'
+      )
+    }
+  }
+
+  const goCockpit = (tabId) =>
+    router.push(tabId && tabId !== 'clients' ? `/coach?tab=${tabId}` : '/coach')
+
   const tabs = [
     { id: 'overview', label: "Vue d'ensemble" },
     { id: 'programme', label: 'Programme' },
@@ -129,30 +212,39 @@ export default function ClientPage() {
 
   if (loading || !client)
     return (
-      <AppShell title="Chargement...">
+      <CoachFrame
+        user={user}
+        isMobile={isMobile}
+        toast={toast}
+        onSelectTab={goCockpit}
+        onCreateClient={() => router.push('/coach?new=1')}
+        onSignOut={() => signOutAndRedirect(router)}
+      >
         <div style={{ padding: '60px', display: 'flex', justifyContent: 'center' }}>
           <LoadingSpinner gold message="Chargement…" />
         </div>
-      </AppShell>
+      </CoachFrame>
     )
 
   return (
-    <AppShell title={client.full_name || 'Client'}>
-      <div
-        style={{
-          background: 'var(--bg)',
-          minHeight: '100vh',
-          fontFamily: "'DM Sans',sans-serif",
-          margin: '-24px -28px',
-          padding: isMobile ? '20px 16px' : '24px 28px',
-        }}
-      >
+    <CoachFrame
+      user={user}
+      isMobile={isMobile}
+      toast={toast}
+      onSelectTab={goCockpit}
+      onCreateClient={() => router.push('/coach?new=1')}
+      onSignOut={() => signOutAndRedirect(router)}
+    >
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
         <ClientHeader
           client={client}
           isMobile={isMobile}
           onBack={() => router.push('/coach')}
           onMessage={() => handleTabChange('messages')}
           onUpdate={handleClientUpdate}
+          onEditOffer={() => setEditingOffer(true)}
+          onArchive={() => setArchiving(true)}
+          onUnarchive={() => setArchived(client.id, false)}
         />
 
         {/* Onglets */}
@@ -231,6 +323,21 @@ export default function ClientPage() {
           <GestionTab client={client} onDelete={() => router.push('/coach')} />
         )}
       </div>
-    </AppShell>
+
+      {editingOffer && (
+        <OfferModal
+          client={{ ...client, since: client.created_at?.split('T')[0] || '' }}
+          onClose={() => setEditingOffer(false)}
+          onSave={saveOffer}
+        />
+      )}
+      {archiving && (
+        <ArchiveModal
+          client={{ ...client, name: client.full_name || client.email }}
+          onClose={() => setArchiving(false)}
+          onConfirm={(id) => setArchived(id, true)}
+        />
+      )}
+    </CoachFrame>
   )
 }

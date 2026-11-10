@@ -35,8 +35,18 @@ const btn = (primary) => ({
   fontFamily: 'inherit',
 })
 
-export default function ClientHeader({ client, isMobile, onBack, onMessage, onUpdate }) {
+export default function ClientHeader({
+  client,
+  isMobile,
+  onBack,
+  onMessage,
+  onUpdate,
+  onEditOffer,
+  onArchive,
+  onUnarchive,
+}) {
   const [editingDate, setEditingDate] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const start = client.engagement_start ? String(client.engagement_start).slice(0, 10) : ''
   const [dateValue, setDateValue] = useState(start)
   const [saving, setSaving] = useState(false)
@@ -162,9 +172,21 @@ export default function ClientHeader({ client, isMobile, onBack, onMessage, onUp
               alignItems: 'center',
             }}
           >
-            {offer && (
-              <span style={pill('var(--gold-dim)', 'var(--gold)')}>
-                {offer.name} · {offer.price} €/mois
+            <button
+              onClick={onEditOffer}
+              title="Modifier l'offre"
+              style={{
+                ...pill('var(--gold-dim)', 'var(--gold)'),
+                border: 0,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {offer ? `${offer.name} · ${offer.price} €/mois` : 'Choisir une offre'} ✎
+            </button>
+            {Number(client.balance) < 0 && (
+              <span style={pill('var(--danger-dim)', 'var(--danger)')}>
+                Retard de paiement : {Math.abs(Number(client.balance))} €
               </span>
             )}
             {client.current_cycle_name && (
@@ -288,6 +310,72 @@ export default function ClientHeader({ client, isMobile, onBack, onMessage, onUp
             <button style={btn(true)} onClick={onMessage}>
               💬 Message
             </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                style={{ ...btn(false), padding: '8px 11px' }}
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Plus d'actions"
+                aria-expanded={menuOpen}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  onMouseLeave={() => setMenuOpen(false)}
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: 'calc(100% + 6px)',
+                    zIndex: 20,
+                    background: 'var(--bg-card-2)',
+                    border: '1px solid var(--border-hi)',
+                    borderRadius: 12,
+                    padding: 6,
+                    minWidth: 190,
+                    boxShadow: '0 12px 30px rgba(0,0,0,.35)',
+                  }}
+                >
+                  {[
+                    { label: "✏️ Modifier l'offre", action: onEditOffer },
+                    {
+                      label: '📅 Date de début d’engagement',
+                      action: () => setEditingDate(true),
+                      hide: !hasEngagementColumn,
+                    },
+                    client.archived
+                      ? { label: '♻️ Réactiver le client', action: onUnarchive }
+                      : { label: '📦 Archiver le client', action: onArchive },
+                  ]
+                    .filter((i) => !i.hide && i.action)
+                    .map((item) => (
+                      <button
+                        key={item.label}
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          item.action()
+                        }}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          background: 'none',
+                          border: 0,
+                          color: 'var(--chalk)',
+                          padding: '9px 10px',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          fontSize: 13,
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
