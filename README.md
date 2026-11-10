@@ -4,7 +4,7 @@ Application de coaching CrossFit & Hyrox — Next.js + Supabase + Vercel
 
 ## Stack
 
-- **Frontend** : Next.js 14 (Pages Router), React 18, Tailwind CSS + CSS maison (`styles/`)
+- **Frontend** : Next.js 15 (Pages Router), React 18, Tailwind CSS + CSS maison (`styles/`)
 - **Backend** : Supabase (Auth, Postgres, Storage, Realtime, RLS, Edge Functions)
 - **Deploy** : Vercel
 - **Qualité** : ESLint, Prettier, Jest — vérifiés par la CI GitHub Actions à chaque push/PR
