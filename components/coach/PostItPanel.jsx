@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { toLocalISODate } from '../../lib/dateUtils'
-import { NOTE_COLORS, S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
+import { NOTE_COLORS, S, font } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function PostItPanel({ clientId, notes, onUpdate }) {
   const [adding, setAdding] = useState(false)
@@ -62,8 +62,16 @@ export default function PostItPanel({ clientId, notes, onUpdate }) {
           marginBottom: 14,
         }}
       >
-        <div style={{ fontFamily: bebas, fontSize: 14, color: S.navy, letterSpacing: 2 }}>
-          📌 ANNOTATIONS
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 12.5,
+            color: 'var(--chalk-dim)',
+            textTransform: 'uppercase',
+            letterSpacing: 1.2,
+          }}
+        >
+          Post-it
         </div>
         {!adding && (
           <button

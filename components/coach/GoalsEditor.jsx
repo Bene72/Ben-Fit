@@ -98,8 +98,8 @@ export default function GoalsEditor({ clientId }) {
     <div
       style={{
         background: 'var(--bg-card)',
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: 16,
+        padding: 18,
         border: '1px solid var(--border)',
         marginBottom: 16,
       }}
@@ -112,8 +112,16 @@ export default function GoalsEditor({ clientId }) {
           marginBottom: 12,
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--chalk)' }}>
-          🎯 Objectifs (Athlete Assessment)
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 12.5,
+            color: 'var(--chalk-dim)',
+            textTransform: 'uppercase',
+            letterSpacing: 1.2,
+          }}
+        >
+          Objectifs · Athlete Assessment
         </div>
         <button
           onClick={() => setAdding((v) => !v)}

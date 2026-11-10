@@ -100,8 +100,8 @@ export default function WeightHistoryPanel({ clientId, measures, onChange }) {
     <div
       style={{
         background: 'var(--bg-card)',
-        borderRadius: '12px',
-        padding: '20px',
+        borderRadius: '16px',
+        padding: '18px',
         border: '1px solid var(--border)',
         marginBottom: '16px',
       }}
@@ -114,8 +114,16 @@ export default function WeightHistoryPanel({ clientId, measures, onChange }) {
           marginBottom: '14px',
         }}
       >
-        <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--chalk)' }}>
-          ⚖️ Historique du poids
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 12.5,
+            color: 'var(--chalk-dim)',
+            textTransform: 'uppercase',
+            letterSpacing: 1.2,
+          }}
+        >
+          Historique du poids
         </div>
         <button onClick={() => setShowForm(!showForm)} style={btn('var(--accent)', 'white')}>
           {showForm ? 'Annuler' : '+ Ajouter une pesée'}
