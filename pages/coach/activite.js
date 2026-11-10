@@ -5,23 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-
-// ── Helper : formatte une date relative en français ──────────────────────
-function timeAgo(dateStr) {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now - date
-  const diffMin = Math.floor(diffMs / 60000)
-  const diffH = Math.floor(diffMin / 60)
-  const diffD = Math.floor(diffH / 24)
-
-  if (diffMin < 1) return "à l'instant"
-  if (diffMin < 60) return `il y a ${diffMin} min`
-  if (diffH < 24) return `il y a ${diffH}h`
-  if (diffD === 1) return 'hier'
-  if (diffD < 7) return `il y a ${diffD} j`
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-}
+import { timeAgo } from '../../lib/coachDashboard/offersAndCompliance'
 
 const EVENT_META = {
   measure: {

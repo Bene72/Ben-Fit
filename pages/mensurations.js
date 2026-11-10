@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import { toLocalISODate } from '../lib/dateUtils'
 import AppShell from '../components/ui/AppShell'
-import { useToast } from '../lib/useToast'
+import { Toast, useToast } from '../components/Toast'
 // CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers, 3e
 // passe) — MiniChart, BodyTracker et RecipeOfTheDay étaient définis dans ce
 // même fichier (1635 lignes). Extraits tel quel, sans changement de
@@ -24,7 +24,7 @@ import BodyTracker from '../components/mensurations/BodyTracker'
 // et l'onglet ouvert par défaut ont bougé (voir plus bas), pour ne rien
 // casser côté requêtes Supabase / RLS.
 export default function Mensurations() {
-  const { show, ToastComponent } = useToast()
+  const { toast, showToast: show } = useToast(4000)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [measures, setMeasures] = useState([])
@@ -303,7 +303,7 @@ export default function Mensurations() {
 
   return (
     <>
-      <ToastComponent />
+      <Toast toast={toast} />
       <AppShell
         title="Mensurations & profil"
         userName={profile?.full_name?.split(' ')[0]}

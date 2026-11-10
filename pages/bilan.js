@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 import { must } from '../lib/db'
-import { getMondayOfWeekString } from '../lib/dateUtils'
+import { getMondayOfWeekString, getWeekLabelLong } from '../lib/dateUtils'
 
 import AppShell from '../components/ui/AppShell'
 import SurfaceCard from '../components/ui/SurfaceCard'
@@ -26,14 +26,6 @@ const BILAN_ITEMS = [
 // d'où des bilans "semaine en cours" qui ne se retrouvaient pas.
 function getMondayOfWeek(date = new Date()) {
   return getMondayOfWeekString(date)
-}
-
-function getWeekLabel(dateStr) {
-  if (!dateStr) return 'Semaine'
-  const d = new Date(dateStr)
-  const end = new Date(d)
-  end.setDate(end.getDate() + 6)
-  return `Semaine du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
 function computeAverage(bilan) {
@@ -409,7 +401,9 @@ export default function BilanPage() {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 800 }}>{getWeekLabel(bilan.week_start)}</div>
+                          <div style={{ fontWeight: 800 }}>
+                            {getWeekLabelLong(bilan.week_start)}
+                          </div>
                           <div className="ui-muted" style={{ fontSize: 12 }}>
                             {bilan.filled_by_client ? 'Complété' : 'À remplir'}
                           </div>
@@ -487,7 +481,7 @@ export default function BilanPage() {
             <>
               <SurfaceCard padded>
                 <SectionHead
-                  title={getWeekLabel(selectedBilan.week_start)}
+                  title={getWeekLabelLong(selectedBilan.week_start)}
                   caption="Remplis chaque bloc avec une note et un commentaire utile pour ton coach."
                   action={
                     <StatusBadge tone={selectedBilan.filled_by_client ? 'success' : 'warning'}>
@@ -623,7 +617,7 @@ export default function BilanPage() {
               <div className="ui-stack">
                 <div className="ui-card ui-card--soft ui-card--padded">
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Semaine active</div>
-                  <div className="ui-muted">{getWeekLabel(selectedBilan.week_start)}</div>
+                  <div className="ui-muted">{getWeekLabelLong(selectedBilan.week_start)}</div>
                 </div>
 
                 <div className="ui-card ui-card--padded">

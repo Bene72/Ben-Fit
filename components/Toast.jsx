@@ -9,7 +9,7 @@
  *   // Dans le JSX :
  *   {toast && <Toast toast={toast} />}
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const COLORS = {
   success: { bg: '#E8F5EE', text: '#3A7A5A', border: '#3A7A5A' },
@@ -24,6 +24,8 @@ export function Toast({ toast }) {
   const c = COLORS[toast.type] || COLORS.info
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live="polite"
       style={{
         position: 'fixed',
         bottom: '24px',
@@ -42,7 +44,7 @@ export function Toast({ toast }) {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        whiteSpace: 'nowrap',
+        maxWidth: 'calc(100vw - 32px)',
         animation: 'toastIn 0.25s ease',
       }}
     >
@@ -55,11 +57,20 @@ export function Toast({ toast }) {
 
 export function useToast(duration = 3000) {
   const [toast, setToast] = useState(null)
+  const timer = useRef(null)
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), duration)
-  }
+  // Un seul minuteur actif : sans ça, le minuteur d'un toast précédent
+  // faisait disparaître trop tôt le toast suivant.
+  const showToast = useCallback(
+    (message, type = 'success') => {
+      clearTimeout(timer.current)
+      setToast({ message, type })
+      timer.current = setTimeout(() => setToast(null), duration)
+    },
+    [duration]
+  )
+
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   return { toast, showToast }
 }
