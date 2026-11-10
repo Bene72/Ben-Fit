@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { notifyNewMessage } from '../../lib/notify'
 
 function MessagesTab({ coachId, clientId, clientName, onRead }) {
   const [messages, setMessages] = useState([])
@@ -102,6 +103,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
       window.alert('Message non envoyé : ' + error.message)
     } else if (data) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)))
+      notifyNewMessage(data.id)
     }
     setSending(false)
   }

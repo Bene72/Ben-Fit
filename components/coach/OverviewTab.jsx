@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, inp, lbl } from '../../lib/coachShared'
 import WeightHistoryPanel from './WeightHistoryPanel'
+import EngagementCard from './EngagementCard'
+import GoalsEditor from './GoalsEditor'
 
 export default function OverviewTab({
   client,
@@ -135,6 +137,9 @@ export default function OverviewTab({
           onChange={onMeasuresChange}
         />
       )}
+
+      <EngagementCard client={client} onUpdate={onUpdate} />
+      <GoalsEditor clientId={client.id} />
 
       {/* Note coach */}
       <div
