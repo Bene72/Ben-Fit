@@ -1,4 +1,4 @@
-import { timeAgo, S, font, bebas, mono } from '../../lib/coachDashboard/offersAndCompliance'
+import { timeAgo, S, bebas, mono } from '../../lib/coachDashboard/offersAndCompliance'
 
 const SIGNAL_ICON = { log: '💪', message: '💬', bilan: '📈', session: '✅' }
 

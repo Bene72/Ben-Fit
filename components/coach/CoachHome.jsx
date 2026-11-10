@@ -5,7 +5,6 @@
 // Ne fait aucun appel réseau : consomme les données déjà chargées par coach.js.
 import { S, font, bebas, daysAgo } from '../../lib/coachDashboard/offersAndCompliance'
 import Avatar from './Avatar'
-import Badge from './Badge'
 
 const RISK_THRESHOLD_DAYS = 10 // au-delà, on considère qu'un client "décroche"
 

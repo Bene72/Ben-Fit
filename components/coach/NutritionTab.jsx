@@ -20,17 +20,10 @@ import {
   NutritionScoreBlock,
   NutritionWeekGraph,
 } from '../nutrition/NutritionVisuals'
-import { ci, inp, lbl, btn } from '../../lib/coachShared'
-import { todayString, clampPercent, MACROS } from '../../lib/nutritionUtils'
-import { watchBreakpoint } from '../../lib/breakpoints'
+import { inp, lbl, btn } from '../../lib/coachShared'
+import { todayString, MACROS } from '../../lib/nutritionUtils'
 import FoodBlock from '../nutrition/FoodBlock'
 import WeekTable from '../nutrition/WeekTable'
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(false)
-  useEffect(() => watchBreakpoint('compact', setMobile), [])
-  return mobile
-}
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
@@ -726,6 +719,10 @@ function NutritionMacroBlock({ log, plan, date, onSave }) {
         carbs: log.carbs || '',
         fat: log.fat || '',
       })
+    // Volontaire : on ne réinitialise le formulaire que quand le journal change
+    // (autre jour) ou que ses calories changent — pas à chaque nouvel objet `log`,
+    // ce qui écraserait la saisie en cours.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log?.id, log?.calories])
 
   const save = async () => {

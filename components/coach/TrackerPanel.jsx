@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import CoachMiniChart from './CoachMiniChart'
-import { S, font, bebas, mono } from '../../lib/coachDashboard/offersAndCompliance'
+import { S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
 
 export default function TrackerPanel({
   title,

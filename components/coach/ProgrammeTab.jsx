@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { escapeHtml, safeImageSrc } from '../../lib/html'
 import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
-import { btn, btnVariant, lbl, inp, DAYS, DAYS_FR } from '../../lib/coachShared'
+import { btnVariant, lbl, inp, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import WorkoutBlockGroup from './WorkoutBlockGroup'
 import ExercisePicker from './ExercisePicker'
@@ -81,7 +81,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [exporting, setExporting] = useState(false)
   const [imageSyncing, setImageSyncing] = useState(false)
   const [exerciseImageFiles, setExerciseImageFiles] = useState([])
-  const [imageFilesLoading, setImageFilesLoading] = useState(true)
   const [athleteLogs, setAthleteLogs] = useState({})
   const [activating, setActivating] = useState(false)
   const [currentCycleName, setCurrentCycleName] = useState('')
@@ -256,7 +255,6 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         setExerciseImageFiles(files)
       }
     } catch {}
-    setImageFilesLoading(false)
   }
 
   useEffect(() => {

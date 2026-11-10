@@ -11,6 +11,10 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
   const [sending, setSending] = useState(false)
   const endRef = useRef(null)
   const channelRef = useRef(null)
+  // onRead dans une ref : un parent qui passe une nouvelle fonction à chaque
+  // rendu ne doit pas relancer le chargement ni recréer l'abonnement.
+  const onReadRef = useRef(onRead)
+  onReadRef.current = onRead
 
   useEffect(() => {
     const load = async () => {
@@ -29,7 +33,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
         .eq('sender_id', clientId)
         .eq('receiver_id', coachId)
         .eq('read', false)
-      onRead?.(clientId)
+      onReadRef.current?.(clientId)
 
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
 
@@ -46,8 +50,12 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
           },
           (payload) => {
             if (payload.new.sender_id !== clientId) return
-            setMessages((prev) => [...prev, payload.new])
-            supabase.from('messages').update({ read: true }).eq('id', payload.new.id)
+            setMessages((prev) =>
+              prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]
+            )
+            // `.then()` indispensable : une requête supabase-js n'est envoyée
+            // que si elle est attendue. Sans lui, le message restait "non lu".
+            supabase.from('messages').update({ read: true }).eq('id', payload.new.id).then()
             setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
           }
         )
@@ -59,7 +67,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
-  }, [clientId])
+  }, [coachId, clientId])
 
   const send = async () => {
     if (!newMsg.trim() || sending) return

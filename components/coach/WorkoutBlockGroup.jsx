@@ -30,7 +30,7 @@
  */
 import { useState } from 'react'
 import { WORKOUT_BLOCK_COLORS } from '../../lib/trainingUtils'
-import { lbl, inp, btnVariant } from '../../lib/coachShared'
+import { lbl, inp } from '../../lib/coachShared'
 
 const FORMATS = ['For Time', 'AMRAP', 'EMOM', 'Tabata', 'RFT', 'Death By']
 

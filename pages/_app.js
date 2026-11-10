@@ -7,6 +7,8 @@ import '../styles/tokens.css'
 // avec l'espace coach (vérifié : coach n'utilise ni .card/.btn/.badge ni
 // aucune classe .ui-*), donc importable globalement sans risque pour lui.
 import '../styles/ui-foundation.css'
+// Styles de la page /training (classes .tp-* uniquement)
+import '../styles/training.css'
 import ErrorBoundary from '../components/ErrorBoundary'
 
 export default function App({ Component, pageProps }) {

@@ -22,7 +22,6 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { sumItems } from '../../lib/nutritionUtils'
-import { ci as coachInputStyle } from '../../lib/coachShared'
 
 export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsChange }) {
   const isCoach = mode === 'coach'
@@ -172,7 +171,6 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
 
   const totals = sumItems(items)
   const canAdd = !!log?.id || !!onEnsureLog
-  const inputCls = isCoach ? coachInputStyle : clientInputStyle
 
   // ── Rendu ────────────────────────────────────────────────────────────────────
   return isCoach ? (

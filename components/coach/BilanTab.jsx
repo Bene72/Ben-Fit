@@ -17,19 +17,24 @@ function BilanTab({ clientId, clientName, coachId }) {
   const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
+    let active = true
+    const load = async () => {
+      setLoading(true)
+      const { data } = await supabase
+        .from('bilans')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('week_start', { ascending: false })
+      // Ignore une réponse arrivée après un changement de client
+      if (!active) return
+      setBilans(data || [])
+      setLoading(false)
+    }
     load()
+    return () => {
+      active = false
+    }
   }, [clientId])
-
-  const load = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('bilans')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('week_start', { ascending: false })
-    setBilans(data || [])
-    setLoading(false)
-  }
 
   const createBilan = async () => {
     setCreating(true)
@@ -85,7 +90,6 @@ function BilanTab({ clientId, clientName, coachId }) {
       </div>
     )
 
-  const currentBilan = bilans.find((b) => b.id === openBilan)
   const archivedCount = bilans.filter((b) => b.archived).length
   const visibleBilans = bilans.filter((b) => (showArchived ? b.archived : !b.archived))
 
