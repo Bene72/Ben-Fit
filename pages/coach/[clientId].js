@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../../lib/supabase'
-import { getMondayOfWeekString } from '../../lib/dateUtils'
 import { watchBreakpoint } from '../../lib/breakpoints'
 import AppShell from '../../components/ui/AppShell'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import OverviewTab from '../../components/coach/OverviewTab'
+import ClientHeader from '../../components/coach/ClientHeader'
 import ProgrammeTab from '../../components/coach/ProgrammeTab'
 import NutritionTab from '../../components/coach/NutritionTab'
 import GestionTab from '../../components/coach/GestionTab'
@@ -87,17 +87,11 @@ export default function ClientPage() {
           .order('date', { ascending: false })
           .limit(500)
 
-        const weekStart = getMondayOfWeekString()
-        const { data: sessions } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('client_id', clientId)
-          .gte('date', weekStart)
-
+        // (Les séances de la semaine sont calculées dans OverviewTab à partir
+        // des perfs loguées : workout_sessions n'est alimentée par aucun écran.)
         setClient({
           ...profile,
           measures: measures || [],
-          sessionsThisWeek: sessions?.length || 0,
         })
       } catch (e) {
         console.error('Erreur chargement client:', e.message)
@@ -125,12 +119,12 @@ export default function ClientPage() {
   const handleClientUpdate = (updated) => setClient(updated)
 
   const tabs = [
-    { id: 'overview', label: "👁 Vue d'ensemble" },
-    { id: 'programme', label: '🏋️ Programme' },
-    { id: 'nutrition', label: '🥗 Nutrition' },
-    { id: 'bilan', label: '📋 Bilan' },
-    { id: 'messages', label: '💬 Messages' },
-    { id: 'gestion', label: '⚙️ Gestion' },
+    { id: 'overview', label: "Vue d'ensemble" },
+    { id: 'programme', label: 'Programme' },
+    { id: 'nutrition', label: 'Nutrition' },
+    { id: 'bilan', label: 'Bilan' },
+    { id: 'messages', label: 'Messages' },
+    { id: 'gestion', label: 'Gestion' },
   ]
 
   if (loading || !client)
@@ -153,115 +147,66 @@ export default function ClientPage() {
           padding: isMobile ? '20px 16px' : '24px 28px',
         }}
       >
-        {/* En-tête */}
-        <div style={{ marginBottom: '24px' }}>
-          <button
-            onClick={() => router.push('/coach')}
-            style={{
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              color: 'var(--chalk-dim)',
-              fontSize: '13px',
-              fontFamily: "'DM Sans',sans-serif",
-              padding: 0,
-              marginBottom: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            ← Mes élèves
-          </button>
+        <ClientHeader
+          client={client}
+          isMobile={isMobile}
+          onBack={() => router.push('/coach')}
+          onMessage={() => handleTabChange('messages')}
+          onUpdate={handleClientUpdate}
+        />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #0D1B2A, #1A2F4A)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                fontWeight: 800,
-                color: 'var(--gold)',
-                flexShrink: 0,
-                fontFamily: "'Playfair Display',serif",
-              }}
-            >
-              {(client.full_name || client.email || '?')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2)}
-            </div>
-            <div>
-              <h1
-                style={{
-                  fontFamily: "'Playfair Display',serif",
-                  fontSize: isMobile ? 22 : 28,
-                  fontWeight: 800,
-                  color: 'var(--chalk)',
-                  margin: 0,
-                  lineHeight: 1.15,
-                }}
-              >
-                {client.full_name || 'Client'}
-              </h1>
-              <p style={{ color: 'var(--chalk-dim)', fontSize: '13px', margin: '2px 0 0' }}>
-                {client.email}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
+        {/* Onglets */}
         <div
+          role="tablist"
           style={{
             display: 'flex',
-            gap: '2px',
-            marginBottom: '24px',
-            borderBottom: '1px solid var(--border-hi)',
-            flexWrap: 'wrap',
+            gap: 4,
+            marginBottom: 20,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 4,
+            width: 'max-content',
+            maxWidth: '100%',
             overflowX: 'auto',
           }}
         >
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => handleTabChange(t.id)}
-              style={{
-                padding: '10px 18px',
-                border: 'none',
-                background: 'transparent',
-                color: activeTab === t.id ? 'var(--chalk)' : 'var(--chalk-dim)',
-                fontWeight: activeTab === t.id ? '700' : '500',
-                fontSize: '13px',
-                cursor: 'pointer',
-                borderBottom:
-                  activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
-                transition: 'all 0.15s',
-                fontFamily: "'DM Sans',sans-serif",
-                whiteSpace: 'nowrap',
-                marginBottom: '-1px',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+          {tabs.map((t) => {
+            const on = activeTab === t.id
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={on}
+                onClick={() => handleTabChange(t.id)}
+                style={{
+                  padding: '8px 14px',
+                  border: 'none',
+                  borderRadius: 9,
+                  background: on ? 'var(--bg-card-2)' : 'transparent',
+                  boxShadow: on ? 'inset 0 -2px 0 var(--accent)' : 'none',
+                  color: on ? 'var(--chalk)' : 'var(--chalk-dim)',
+                  fontWeight: on ? 700 : 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  fontFamily: "'DM Sans',sans-serif",
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Contenu */}
         {activeTab === 'overview' && (
           <OverviewTab
             client={client}
-            sessionsThisWeek={client.sessionsThisWeek}
+            isMobile={isMobile}
             measures={client.measures}
             onMeasuresChange={(updated) => setClient((prev) => ({ ...prev, measures: updated }))}
-            coachId={user?.id}
             onUpdate={handleClientUpdate}
           />
         )}
