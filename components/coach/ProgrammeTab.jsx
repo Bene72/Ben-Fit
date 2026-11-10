@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
+import { escapeHtml, safeImageSrc } from '../../lib/html'
 import { btn, btnVariant, lbl, inp, SUPABASE_URL, DAYS, DAYS_FR } from '../../lib/coachShared'
 import ExRow from './ExerciseRow'
 import WorkoutBlockGroup from './WorkoutBlockGroup'
@@ -930,35 +931,36 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         .map((workout) => {
           const exercises = (workout.exercises || [])
             .map((ex) => {
-              const img =
-                ex.image_url && imgCache[ex.image_url]
-                  ? `<img src="${imgCache[ex.image_url]}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
-                  : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
+              const imgSrc = ex.image_url ? safeImageSrc(imgCache[ex.image_url]) : ''
+              const img = imgSrc
+                ? `<img src="${imgSrc}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border);" />`
+                : `<div style="width:72px;height:72px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">💪</div>`
               const details = [
                 ex.sets && ex.reps
-                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${ex.sets} × ${ex.reps}</span>`
+                  ? `<span style="background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">${escapeHtml(ex.sets)} × ${escapeHtml(ex.reps)}</span>`
                   : '',
                 ex.rest
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${ex.rest}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">⏱ ${escapeHtml(ex.rest)}</span>`
                   : '',
                 ex.target_weight
-                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${ex.target_weight}</span>`
+                  ? `<span style="border:1px solid var(--accent-brd);color:var(--chalk-dim);padding:2px 8px;border-radius:4px;font-size:12px;">🏋️ ${escapeHtml(ex.target_weight)}</span>`
                   : '',
               ]
                 .filter(Boolean)
                 .join(' ')
               const note = ex.note
-                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${ex.note}</div>`
+                ? `<div style="font-size:11px;color:#A9ADB8;margin-top:4px;font-style:italic;">📋 ${escapeHtml(ex.note)}</div>`
                 : ''
-              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${ex.name}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
+              return `<div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,91,46,0.35);">${img}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#F4F1E9;margin-bottom:4px;">${escapeHtml(ex.name)}</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${details}</div>${note}</div></div>`
             })
             .join('')
           const dayLabel = dayNames[(workout.day_of_week || 1) - 1] || ''
-          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${workout.name}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${workout.duration_min || 60} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
+          return `<div style="margin-bottom:28px;background:#1B1D22;border-radius:12px;border:1px solid #2A2D34;overflow:hidden;"><div style="background:#FF5B2E;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;"><div style="color:#16110D;font-weight:700;font-size:16px;">${escapeHtml(workout.name)}</div><div style="color:#16110D;opacity:0.75;font-size:13px;">${dayLabel} · ${escapeHtml(workout.duration_min || 60)} min</div></div><div style="padding:0 18px;">${exercises}</div></div>`
         })
         .join('')
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${clientName || 'Programme'}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:24px;background:#121316;color:#F4F1E9;}</style></head><body><div style="text-align:center;margin-bottom:24px;"><h1 style="font-size:22px;color:#F4F1E9;margin:0 0 4px;">${escapeHtml(clientName || 'Programme')}${cycleMode === 'future' ? ' — Cycle futur' : ''}</h1><div style="color:#A9ADB8;font-size:13px;">${displayedWorkouts.length} séance${displayedWorkouts.length > 1 ? 's' : ''}</div></div>${workoutBlocks}</body></html>`
       const win = window.open('', '_blank')
+      if (!win) throw new Error('fenêtre bloquée par le navigateur (autorise les pop-ups)')
       win.document.write(html)
       win.document.close()
       win.print()
