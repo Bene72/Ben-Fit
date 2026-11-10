@@ -12,6 +12,8 @@ import { supabase } from '../lib/supabase'
 import AppShell from '../components/ui/AppShell'
 import WeekStrip, { localDateKey, isoWeekday } from '../components/ui/WeekStrip'
 import { normalizeExercises } from '../lib/trainingUtils'
+import AthleteHighlights from '../components/athlete/AthleteHighlights'
+import AppPrompt from '../components/ui/AppPrompt'
 
 // ── Chargement défensif des dates d'activité (séances loguées) ─────────────
 // Même logique de repli que hooks/useTrainingData.js (colonnes historiques
@@ -72,7 +74,7 @@ export default function Aujourdhui() {
         const [profileRes, workoutsRes, planRes, logsRes, loggedDatesSet] = await Promise.all([
           supabase
             .from('profiles')
-            .select('full_name, current_cycle_name')
+            .select('id, full_name, current_cycle_name')
             .eq('id', user.id)
             .single(),
           supabase
@@ -236,6 +238,11 @@ export default function Aujourdhui() {
           {error}
         </div>
       )}
+
+      <AppPrompt userId={profile?.id} />
+
+      {/* Objectifs, série de semaines, bilan de cycle */}
+      <AthleteHighlights userId={profile?.id} firstName={firstName} />
 
       <WeekStrip selectedKey={selectedKey} onSelect={setSelectedKey} dotsForDate={dotsForDate} />
 

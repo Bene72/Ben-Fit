@@ -9,9 +9,25 @@ import '../styles/tokens.css'
 import '../styles/ui-foundation.css'
 // Styles de la page /training (classes .tp-* uniquement)
 import '../styles/training.css'
+import { useEffect } from 'react'
 import ErrorBoundary from '../components/ErrorBoundary'
+import { registerServiceWorker } from '../lib/push'
 
 export default function App({ Component, pageProps }) {
+  useEffect(() => {
+    // Service worker : notifications push (aucun cache de pages)
+    registerServiceWorker()
+    // Android/Chrome : on garde l'invitation d'installation pour l'afficher
+    // au bon moment (bouton « Installer l'app » de AppPrompt).
+    const onPrompt = (e) => {
+      e.preventDefault()
+      window.__benfitInstallPrompt = e
+      window.dispatchEvent(new Event('benfit:installable'))
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
+  }, [])
+
   return (
     <ErrorBoundary>
       <Component {...pageProps} />

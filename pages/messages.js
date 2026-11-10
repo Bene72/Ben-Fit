@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { notifyNewMessage } from '../lib/notify'
 import AppShell from '../components/ui/AppShell'
 
 export default function Messages() {
@@ -112,7 +113,10 @@ export default function Messages() {
       // Le texte reste dans le champ pour pouvoir réessayer
       window.alert('Message non envoyé : ' + error.message)
     } else {
-      if (data) setMessages((prev) => [...prev, data])
+      if (data) {
+        setMessages((prev) => [...prev, data])
+        notifyNewMessage(data.id)
+      }
       setNewMsg('')
     }
     setSending(false)

@@ -1,10 +1,10 @@
-// Ben&Fit — Service worker de désinstallation.
+// Ben&Fit — service worker
 //
-// Une ancienne version de l'app enregistrait un service worker qui mettait en
-// cache les pages ('benfit-v1'). Plus aucun code ne l'enregistre, mais les
-// navigateurs qui l'avaient installé le gardent et peuvent servir de vieilles
-// pages hors-ligne. Ce fichier, récupéré automatiquement par ces navigateurs
-// lors de leur vérification de mise à jour, vide le cache puis se désinstalle.
+// Rôle : recevoir les notifications push et ouvrir la bonne page au clic.
+// Volontairement AUCUN cache de pages : l'app reste toujours à jour (une
+// ancienne version mettait en cache les pages, ce qui servait parfois du
+// contenu périmé — on nettoie ces vieux caches à l'activation).
+
 self.addEventListener('install', () => self.skipWaiting())
 
 self.addEventListener('activate', (event) => {
@@ -12,7 +12,45 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keys = await caches.keys()
       await Promise.all(keys.map((k) => caches.delete(k)))
-      await self.registration.unregister()
+      await self.clients.claim()
+    })()
+  )
+})
+
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { body: event.data ? event.data.text() : '' }
+  }
+  const title = data.title || 'Ben&Fit'
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag || undefined,
+      renotify: Boolean(data.tag),
+      data: { url: data.url || '/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = new URL(event.notification.data?.url || '/', self.location.origin).href
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of windows) {
+        if ('focus' in client) {
+          await client.focus()
+          if ('navigate' in client) return client.navigate(url)
+          return undefined
+        }
+      }
+      return self.clients.openWindow(url)
     })()
   )
 })

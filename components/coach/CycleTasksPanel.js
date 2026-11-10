@@ -41,6 +41,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { toLocalISODate } from '../../lib/dateUtils'
 import { must } from '../../lib/db'
+import { cycleUrgency } from '../../lib/insights'
 import { S, font, bebas } from '../../lib/coachDashboard/offersAndCompliance'
 
 function daysLabel(n) {
@@ -66,8 +67,12 @@ function alertStyle(level) {
   return ALERT_STYLES[level] || ALERT_STYLES.ending_soon
 }
 
+// Repères J-14 / J-7 demandés par le coach (10/11/2026) : affichés en tête
+// du libellé, quel que soit le niveau d'alerte calculé par la vue SQL.
 function cycleEndLabel(a) {
-  return `Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+  const tag = cycleUrgency(a.days_remaining)
+  const prefix = tag && tag !== 'Terminé' ? `${tag} · ` : ''
+  return `${prefix}Fin de cycle ${daysLabel(a.days_remaining)} · ${new Date(a.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
 // Délai pendant lequel une ligne "faite" reste visible (avec bouton Annuler)
