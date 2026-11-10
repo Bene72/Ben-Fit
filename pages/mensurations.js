@@ -5,14 +5,9 @@ import { supabase } from '../lib/supabase'
 import { toLocalISODate } from '../lib/dateUtils'
 import AppShell from '../components/ui/AppShell'
 import { Toast, useToast } from '../components/Toast'
-// CORRECTIF AUDIT 09/09/2026 (point 4 : découpage des gros fichiers, 3e
-// passe) — MiniChart, BodyTracker et RecipeOfTheDay étaient définis dans ce
-// même fichier (1635 lignes). Extraits tel quel, sans changement de
-// comportement. RecipeOfTheDay n'est pas ré-importé ici : il était déjà
-// désactivé ("masqué pour le moment", cf. commentaire plus bas) et n'a
-// aucun point d'appel — son code reste disponible dans
-// components/mensurations/RecipeOfTheDay.jsx pour une réactivation future.
-// Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE-3.md.
+// MiniChart et BodyTracker sont dans components/mensurations/.
+// (La carte « Recette du chef », désactivée, a été retirée le 10/11/2026 —
+// récupérable dans l'historique git.)
 import BodyTracker from '../components/mensurations/BodyTracker'
 
 // pages/mensurations.js
@@ -319,8 +314,7 @@ export default function Mensurations() {
           {/* Onglets "Dashboard" et "Mensurations" fusionnés en un seul écran continu
               (ils faisaient doublon : la carte "Poids actuel" et l'aperçu "Suivi
               corporel" ci-dessous redirigeaient simplement vers le même contenu que
-              le vrai suivi mesures juste en dessous). "Recette du chef" masqué pour
-              le moment — RecipeOfTheDay reste dans ce fichier, juste plus affiché. */}
+              le vrai suivi mesures juste en dessous). */}
           <>
             {/* ══ CARDS ══ */}
             <div

@@ -39,7 +39,7 @@ lib/
   dateUtils.js      Dates (semaines, jours)
 middleware.js       Protection serveur des routes /coach et /agent-bilan
 supabase/           Migrations SQL (voir supabase/README.md)
-docs/               Guides ; docs/historique/ = anciens rapports d'audit
+docs/               Guides (déploiement, sécurité, correctifs du 10/11/2026)
 ```
 
 ## Variables d'environnement (Vercel)

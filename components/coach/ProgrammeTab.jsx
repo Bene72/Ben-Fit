@@ -13,7 +13,7 @@ import { Toast, useToast } from '../Toast'
 // (1993 lignes). Extraites tel quel, sans changement de comportement. Le
 // reste du fichier (éditeur de cycle/workouts, ~30 états imbriqués) est
 // resté en place : trop couplé pour être découpé sans risque de régression
-// sans pouvoir retester contre un vrai Supabase. Voir docs/historique/CHANGELOG-AUDIT-DECOUPAGE.md.
+// sans pouvoir retester contre un vrai Supabase.
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import DuplicateCycleModal from './programme/DuplicateCycleModal'
 import CycleHistoryModal from './programme/CycleHistoryModal'
