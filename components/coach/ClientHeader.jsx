@@ -1,16 +1,10 @@
 // components/coach/ClientHeader.jsx
 // En-tête de la fiche client : avatar, nom, offre, cycle en cours, email, et
-// l'engagement de 12 semaines sous forme de frise (une case par semaine),
-// avec « Renouvelé » (nouvel engagement à partir d'aujourd'hui), modification
-// de la date de début, et accès direct aux messages.
+// l'engagement (frise, dates de début / fin, « Prolonger » : voir
+// EngagementDates), et accès direct aux messages.
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import { OFFERS } from '../../lib/coachDashboard/offersAndCompliance'
-import { engagementStatus } from '../../lib/insights'
-import { toLocalISODate } from '../../lib/dateUtils'
-
-const fmt = (d, opts = { day: 'numeric', month: 'short' }) =>
-  d ? new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', opts) : ''
+import EngagementDates from './EngagementDates'
 
 const pill = (bg, color) => ({
   fontSize: 11.5,
@@ -45,15 +39,9 @@ export default function ClientHeader({
   onArchive,
   onUnarchive,
 }) {
-  const [editingDate, setEditingDate] = useState(false)
+  const [datesRequest, setDatesRequest] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
-  const start = client.engagement_start ? String(client.engagement_start).slice(0, 10) : ''
-  const [dateValue, setDateValue] = useState(start)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
   const hasEngagementColumn = 'engagement_start' in client
-  const status = engagementStatus(start)
   const offer = OFFERS[client.offer]
   const initials =
     (client.full_name || client.email || '?')
@@ -62,43 +50,6 @@ export default function ClientHeader({
       .join('')
       .toUpperCase()
       .slice(0, 2) || '?'
-
-  const saveStart = async (date) => {
-    setSaving(true)
-    setError('')
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .update({ engagement_start: date || null })
-      .eq('id', client.id)
-      .select()
-      .single()
-    setSaving(false)
-    if (err) {
-      setError(err.message)
-      return
-    }
-    setDateValue(date)
-    setEditingDate(false)
-    onUpdate?.({ ...client, ...data })
-  }
-
-  const renew = () => {
-    if (
-      window.confirm(
-        `Nouvel engagement de 12 semaines pour ${client.full_name || 'ce client'} à partir d'aujourd'hui ?`
-      )
-    )
-      saveStart(toLocalISODate())
-  }
-
-  const weeks = status?.length || 12
-  const cellColor = (i) => {
-    if (!status) return 'var(--border-hi)'
-    if (i + 1 < status.week) return 'var(--accent)'
-    if (i + 1 === status.week) return status.renewal ? 'var(--info, #4a9eff)' : 'var(--accent)'
-    if (status.renewal && i + 1 <= weeks - 1 && i + 1 >= weeks - 2) return 'rgba(74,158,255,.35)'
-    return 'var(--border-hi)'
-  }
 
   return (
     <div style={{ marginBottom: 18 }}>
@@ -203,96 +154,12 @@ export default function ClientHeader({
 
         <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
           {hasEngagementColumn && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 12,
-                  color: 'var(--chalk-dim)',
-                  marginBottom: 6,
-                }}
-              >
-                <span>Engagement 12 semaines</span>
-                <b style={{ color: 'var(--chalk)' }}>
-                  {!status ? '—' : status.ended ? 'Terminé' : `S${status.week} / ${weeks}`}
-                </b>
-              </div>
-              <div
-                style={{ display: 'grid', gridTemplateColumns: `repeat(${weeks}, 1fr)`, gap: 3 }}
-                aria-label={
-                  status ? `Semaine ${status.week} sur ${weeks}` : 'Engagement non renseigné'
-                }
-              >
-                {Array.from({ length: weeks }, (_, i) => (
-                  <i key={i} style={{ height: 8, borderRadius: 3, background: cellColor(i) }} />
-                ))}
-              </div>
-              {editingDate ? (
-                <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
-                  <input
-                    type="date"
-                    value={dateValue}
-                    onChange={(e) => setDateValue(e.target.value)}
-                    aria-label="Date de début d'engagement"
-                    style={{
-                      flex: 1,
-                      background: 'var(--bg-card-2)',
-                      color: 'var(--chalk)',
-                      border: '1px solid var(--border-hi)',
-                      borderRadius: 8,
-                      padding: '5px 8px',
-                      fontFamily: 'inherit',
-                      fontSize: 12.5,
-                    }}
-                  />
-                  <button style={btn(true)} disabled={saving} onClick={() => saveStart(dateValue)}>
-                    {saving ? '…' : 'OK'}
-                  </button>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: 12,
-                    marginTop: 6,
-                    color: 'var(--chalk-dim)',
-                  }}
-                >
-                  <button
-                    onClick={() => setEditingDate(true)}
-                    title="Modifier la date de début"
-                    style={{
-                      background: 'none',
-                      border: 0,
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: 'inherit',
-                      fontFamily: 'inherit',
-                      fontSize: 12,
-                    }}
-                  >
-                    {start ? `Début ${fmt(start)}` : 'Définir le début'} ✎
-                  </button>
-                  {status?.renewal && (
-                    <span
-                      style={{
-                        color: status.ended ? 'var(--gold)' : 'var(--info, #4a9eff)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {status.ended
-                        ? `Fini le ${fmt(status.endDate)}`
-                        : 'Renouvellement à préparer'}
-                    </span>
-                  )}
-                </div>
-              )}
-              {error && (
-                <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>
-              )}
-            </>
+            <EngagementDates
+              client={client}
+              onUpdate={onUpdate}
+              editRequest={datesRequest}
+              btn={btn}
+            />
           )}
           <div
             style={{
@@ -302,11 +169,6 @@ export default function ClientHeader({
               justifyContent: isMobile ? 'flex-start' : 'flex-end',
             }}
           >
-            {hasEngagementColumn && (
-              <button style={btn(false)} onClick={renew} disabled={saving}>
-                🔁 Renouvelé
-              </button>
-            )}
             <button style={btn(true)} onClick={onMessage}>
               💬 Message
             </button>
@@ -339,8 +201,8 @@ export default function ClientHeader({
                   {[
                     { label: "✏️ Modifier l'offre", action: onEditOffer },
                     {
-                      label: '📅 Date de début d’engagement',
-                      action: () => setEditingDate(true),
+                      label: '📅 Dates d’engagement',
+                      action: () => setDatesRequest((n) => n + 1),
                       hide: !hasEngagementColumn,
                     },
                     client.archived

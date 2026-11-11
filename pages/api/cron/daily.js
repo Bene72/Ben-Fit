@@ -205,8 +205,8 @@ export default async function handler(req, res) {
     )
     const cycles = alerts.filter((a) => a.days_remaining === 14 || a.days_remaining === 7)
     const renewals = active.filter((c) => {
-      const e = engagementStatus(c.engagement_start, today)
-      return e && (e.week === 10 || e.week === 11) && e.daysLeft % 7 === 0
+      const e = engagementStatus(c.engagement_start, today, c.engagement_end)
+      return e && (e.daysLeft === 14 || e.daysLeft === 7)
     })
 
     const parts = []

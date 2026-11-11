@@ -1,6 +1,6 @@
 // components/coach/RenewalsPanel.jsx
 // Cockpit coach : « Renouvellements à préparer » — une carte par athlète à
-// partir de la semaine 10 de son engagement de 12 semaines, avec son résumé
+// 14 jours (ou moins) de la fin de son engagement, avec son résumé
 // de progression et un message pré-rédigé (modifiable avant envoi).
 // N'affiche rien s'il n'y a aucun renouvellement.
 import { useEffect, useState } from 'react'
@@ -128,13 +128,13 @@ function RenewalCard({ item, sent, onMessage, onOpen }) {
 
   useEffect(() => {
     let active = true
-    loadProgressSince(client.id, String(client._raw.engagement_start).slice(0, 10)).then((s) => {
+    loadProgressSince(client.id, engagement.start).then((s) => {
       if (active) setSummary(s)
     })
     return () => {
       active = false
     }
-  }, [client])
+  }, [client, engagement.start])
 
   const headline = summaryHeadline(summary)
   const pct = Math.min(100, Math.round((engagement.week / engagement.length) * 100))
@@ -156,7 +156,7 @@ function RenewalCard({ item, sent, onMessage, onOpen }) {
       <div style={{ fontSize: 11.5, fontWeight: 700, color, marginTop: 2 }}>
         {engagement.ended
           ? `Terminé depuis le ${fmtDate(engagement.endDate)}`
-          : `Semaine ${engagement.week}/${engagement.length} · fin le ${fmtDate(engagement.endDate)}`}
+          : `Fin le ${fmtDate(engagement.endDate)} · ${engagement.daysLeft === 0 ? "aujourd'hui" : `dans ${engagement.daysLeft} j`}`}
       </div>
       <div
         style={{
@@ -235,7 +235,7 @@ export default function RenewalsPanel({ coachId, clients, onOpenClient }) {
           Renouvellements à préparer
         </div>
         <div style={{ fontSize: 12, color: 'var(--chalk-muted)' }}>
-          semaine 10 et plus de l'engagement de 12 semaines
+          fin d'engagement dans 14 jours ou moins
         </div>
       </div>
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
