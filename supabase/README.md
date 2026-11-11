@@ -6,11 +6,12 @@ Scripts SQL à appliquer **dans l'ordre du nom de fichier** (date en préfixe),
 via Supabase → SQL Editor. Chaque script est idempotent (peut être relancé
 sans risque) et ne supprime aucune donnée.
 
-| Fichier                                   | Rôle                                               | Appliqué ?                               |
-| ----------------------------------------- | -------------------------------------------------- | ---------------------------------------- |
-| `20261110120000_securite_roles.sql`       | Empêche l'auto-promotion en coach                  | ☐ (voir `docs/SECURITE-2026-11-10.md`)   |
-| `20261110130000_bilans_semaine_lundi.sql` | Recale les bilans datés d'un dimanche sur le lundi | ☐ (voir `docs/BUGS-DATES-2026-11-10.md`) |
-| `20261111090000_retention.sql`            | Engagement, objectifs, notifications push          | ☐ (voir `docs/RETENTION-2026-11-11.md`)  |
+| Fichier                                   | Rôle                                                   | Appliqué ?                               |
+| ----------------------------------------- | ------------------------------------------------------ | ---------------------------------------- |
+| `20261110120000_securite_roles.sql`       | Empêche l'auto-promotion en coach                      | ☐ (voir `docs/SECURITE-2026-11-10.md`)   |
+| `20261110130000_bilans_semaine_lundi.sql` | Recale les bilans datés d'un dimanche sur le lundi     | ☐ (voir `docs/BUGS-DATES-2026-11-10.md`) |
+| `20261111090000_retention.sql`            | Engagement, objectifs, notifications push              | ☐ (voir `docs/RETENTION-2026-11-11.md`)  |
+| `20261111120000_engagement_fin.sql`       | Date de fin d'engagement (pré-remplie début + 12 sem.) | ☐                                        |
 
 Coche la case dans ce tableau quand c'est fait, pour garder une trace.
 

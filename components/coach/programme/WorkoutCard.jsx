@@ -20,6 +20,7 @@ export default function WorkoutCard({ workout, wIdx, workoutCount, ctx }) {
     editMode,
     groupColors,
     moveExercise,
+    reorderExercise,
     moveWorkout,
     openWorkout,
     renameValue,
@@ -317,6 +318,7 @@ export default function WorkoutCard({ workout, wIdx, workoutCount, ctx }) {
                     onUpdate={updateExercise}
                     onDelete={deleteExercise}
                     onMove={moveExercise}
+                    onReorder={reorderExercise}
                     isFirst={exIdx === 0}
                     isLast={exIdx === allExs.length - 1}
                     recentLog={athleteLogs[ex.name] || null}
@@ -393,6 +395,7 @@ export default function WorkoutCard({ workout, wIdx, workoutCount, ctx }) {
                         onUpdate={updateExercise}
                         onDelete={deleteExercise}
                         onMove={moveExercise}
+                        onReorder={reorderExercise}
                         isFirst={exIdx === 0}
                         isLast={exIdx === allExs.length - 1}
                         recentLog={athleteLogs[ex.name] || null}

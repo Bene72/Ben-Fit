@@ -12,14 +12,36 @@ export default function ExRow({
   isFirst,
   isLast,
   recentLog,
+  onReorder,
 }) {
   const [showImg, setShowImg] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   if (edit) {
+    // Glisser-déposer : on attrape la poignée ⠿, on lâche sur un autre exercice
+    const dropProps = onReorder
+      ? {
+          onDragOver: (e) => {
+            if (!e.dataTransfer.types.includes('text/exercise-id')) return
+            e.preventDefault()
+            setDragOver(true)
+          },
+          onDragLeave: () => setDragOver(false),
+          onDrop: (e) => {
+            e.preventDefault()
+            setDragOver(false)
+            const draggedId = e.dataTransfer.getData('text/exercise-id')
+            if (draggedId) onReorder(wId, draggedId, ex.id)
+          },
+        }
+      : {}
     return (
       <div
+        {...dropProps}
         style={{
+          outline: dragOver ? '2px dashed var(--accent)' : 'none',
+          outlineOffset: 2,
           background: 'var(--bg-card-2)',
           border: '1.5px solid var(--border-hi)',
           borderRadius: 'var(--radius)',
@@ -37,6 +59,28 @@ export default function ExRow({
               paddingTop: 6,
             }}
           >
+            {onReorder && (
+              <span
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/exercise-id', ex.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
+                title="Glisser pour déplacer l'exercice"
+                aria-label="Déplacer l'exercice"
+                style={{
+                  cursor: 'grab',
+                  textAlign: 'center',
+                  color: 'var(--chalk-dim)',
+                  fontSize: 15,
+                  lineHeight: 1,
+                  userSelect: 'none',
+                  marginBottom: 2,
+                }}
+              >
+                ⠿
+              </span>
+            )}
             <button
               onClick={() => !isFirst && onMove(wId, ex.id, -1)}
               disabled={isFirst}

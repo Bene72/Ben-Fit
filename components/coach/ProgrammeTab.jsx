@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
 import { printProgramme } from '../../lib/programme/exportPdf'
+import { createSaveQueue } from '../../lib/programme/saveQueue'
+import { applyProgression } from '../../lib/programme/progression'
 import { buildImageIndex, findExerciseImage } from '../../lib/exerciseImages'
 import {
   duplicateWorkouts,
@@ -19,6 +21,10 @@ import { Toast, useToast } from '../Toast'
 import WorkoutBlockPickerModal from './programme/WorkoutBlockPickerModal'
 import WorkoutCard from './programme/WorkoutCard'
 import CycleToggle from './programme/CycleToggle'
+import SaveStatus from './programme/SaveStatus'
+import NextCycleModal from './programme/NextCycleModal'
+import WeekBoard from './programme/WeekBoard'
+import WorkoutPanel from './programme/WorkoutPanel'
 import ProgrammeToolbar from './programme/ProgrammeToolbar'
 import CycleNameBar from './programme/CycleNameBar'
 import NewWorkoutForm from './programme/NewWorkoutForm'
@@ -55,6 +61,55 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   const [renamingWorkout, setRenamingWorkout] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [reordering, setReordering] = useState(false)
+  const [showNextCycle, setShowNextCycle] = useState(false)
+  // Vue Semaine (par défaut) ou Liste (l'ancienne vue, gardée en secours)
+  const [view, setView] = useState(() => {
+    try {
+      return window.localStorage.getItem('benfit:programmeView') || 'week'
+    } catch {
+      return 'week'
+    }
+  })
+  const [panelWorkoutId, setPanelWorkoutId] = useState(null)
+  const [isNarrow, setIsNarrow] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia?.('(max-width: 760px)')
+    if (!mq) return
+    const update = () => setIsNarrow(mq.matches)
+    update()
+    mq.addEventListener?.('change', update)
+    return () => mq.removeEventListener?.('change', update)
+  }, [])
+  const changeView = (v) => {
+    setView(v)
+    setPanelWorkoutId(null)
+    try {
+      window.localStorage.setItem('benfit:programmeView', v)
+    } catch {}
+  }
+  const [preparingNext, setPreparingNext] = useState(false)
+  // État de l'enregistrement des champs : 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle')
+  const saveQueue = useRef(null)
+  if (!saveQueue.current)
+    saveQueue.current = createSaveQueue({ delay: 700, onStatus: setSaveStatus })
+
+  // On n'oublie rien en quittant l'onglet ou la page
+  useEffect(() => {
+    const q = saveQueue.current
+    const beforeUnload = (e) => {
+      if (q.hasPending()) {
+        q.flush()
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload)
+      q.flush()
+    }
+  }, [])
 
   const displayedWorkouts = cycleMode === 'future' ? futureWorkouts : workouts
 
@@ -101,6 +156,8 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // ── Chargement workouts ────────────────────────────────────
   async function reloadWorkouts() {
+    // Les modifications en attente partent avant de relire la base
+    await saveQueue.current?.flush()
     const enrichWithExercises = async (list) => {
       if (!list?.length) return []
       const ids = list.map((w) => w.id)
@@ -311,6 +368,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       )
     )
 
+    // Écriture différée : une seule requête après la dernière frappe
+    // (voir lib/programme/saveQueue.js), au lieu d'une par lettre tapée.
+    saveQueue.current.schedule(`${exId}:${field}`, () =>
+      saveExerciseField(workoutId, exId, field, value, setter)
+    )
+  }
+
+  const saveExerciseField = async (workoutId, exId, field, value, setter) => {
     let payload = { [field]: value }
     if (field === 'name') {
       const imageUrl = findExerciseImage(value, buildImageIndex(exerciseImageFiles))
@@ -318,7 +383,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     }
     const { image_url: imgUrl, ...payloadCore } = payload
     const { error: upErr } = await supabase.from('exercises').update(payloadCore).eq('id', exId)
-    if (upErr) console.error('Erreur update exercice:', upErr.message)
+    if (upErr) throw upErr
     if (imgUrl) {
       const { error: imgErr } = await supabase
         .from('exercises')
@@ -381,6 +446,42 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       supabase.from('exercises').update({ order_index: order2 }).eq('id', ex1.id),
       supabase.from('exercises').update({ order_index: order1 }).eq('id', ex2.id),
     ])
+  }
+
+  // Glisser-déposer d'un exercice sur un autre (même séance, même groupe) :
+  // l'exercice déplacé prend la place de la cible, les autres se décalent.
+  const reorderExercise = async (workoutId, draggedId, targetId) => {
+    if (draggedId === targetId) return
+    const list = cycleMode === 'future' ? futureWorkouts : workouts
+    const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
+    const w = list.find((x) => x.id === workoutId)
+    if (!w) return
+    const exs = [...w.exercises].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+    const dragged = exs.find((e) => e.id === draggedId)
+    const target = exs.find((e) => e.id === targetId)
+    if (!dragged || !target) return
+    if ((dragged.group_id || null) !== (target.group_id || null)) {
+      showToast('Déplace cet exercice avec les flèches : il fait partie d’un bloc.', 'info')
+      return
+    }
+    const without = exs.filter((e) => e.id !== draggedId)
+    const at = without.findIndex((e) => e.id === targetId)
+    const fromIdx = exs.findIndex((e) => e.id === draggedId)
+    const toIdx = exs.findIndex((e) => e.id === targetId)
+    without.splice(fromIdx < toIdx ? at + 1 : at, 0, dragged)
+    const reordered = without.map((e, i) => ({ ...e, order_index: i }))
+    const changed = reordered.filter(
+      (e) => exs.find((o) => o.id === e.id)?.order_index !== e.order_index
+    )
+    setter((prev) => prev.map((x) => (x.id === workoutId ? { ...x, exercises: reordered } : x)))
+    const results = await Promise.all(
+      changed.map((e) =>
+        supabase.from('exercises').update({ order_index: e.order_index }).eq('id', e.id)
+      )
+    )
+    if (results.some((r) => r.error)) {
+      showToast("L'ordre n'a pas pu être enregistré entièrement — recharge la page.", 'error')
+    }
   }
 
   // ── Workout CRUD ───────────────────────────────────────────
@@ -643,6 +744,29 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setDuplicating(false)
   }
 
+  // ── Préparer le cycle suivant (actuel → futur, avec progression) ──
+  const prepareNextCycle = async (mode) => {
+    setPreparingNext(true)
+    try {
+      await saveQueue.current.flush()
+      const { workouts: n, exercises: e } = await duplicateWorkouts({
+        sourceWorkouts: workouts,
+        targetClientId: clientId,
+        isFuture: true,
+        resetWeights: false,
+        imageFiles: exerciseImageFiles,
+        transformExercise: (row) => applyProgression(row, mode),
+      })
+      await reloadWorkouts()
+      setShowNextCycle(false)
+      setCycleMode('future')
+      showToast(`Cycle futur prêt : ${n} séances · ${e} exercices. Ajuste puis active.`, 'success')
+    } catch (err) {
+      showToast('Erreur : ' + err.message, 'error')
+    }
+    setPreparingNext(false)
+  }
+
   // ── Workout Block ──────────────────────────────────────────
   const groupColors = {
     Superset: 'var(--danger)',
@@ -757,6 +881,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
 
   // État et actions partagés avec les sous-composants du programme
   const programmeCtx = {
+    setShowNextCycle,
     addWorkout,
     archiveCycle,
     archiving,
@@ -795,6 +920,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     editMode,
     groupColors,
     moveExercise,
+    reorderExercise,
     moveWorkout,
     openWorkout,
     renameValue,
@@ -827,6 +953,16 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 0 80px' }}>
       {toast && <Toast toast={toast} />}
+      <SaveStatus status={saveStatus} />
+      {showNextCycle && (
+        <NextCycleModal
+          workouts={workouts}
+          futureCount={futureWorkouts.length}
+          preparing={preparingNext}
+          onConfirm={prepareNextCycle}
+          onCancel={() => setShowNextCycle(false)}
+        />
+      )}
 
       {/* ── Toggle + bouton Activer ── */}
       <div
@@ -890,6 +1026,46 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
+      {/* ── Vue Semaine / Liste ── */}
+      <div
+        role="tablist"
+        aria-label="Affichage du programme"
+        style={{
+          display: 'inline-flex',
+          gap: 4,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: 3,
+          marginBottom: 12,
+        }}
+      >
+        {[
+          { id: 'week', label: '📅 Semaine' },
+          { id: 'list', label: '☰ Liste' },
+        ].map((v) => (
+          <button
+            key={v.id}
+            role="tab"
+            aria-selected={view === v.id}
+            onClick={() => changeView(v.id)}
+            style={{
+              border: 0,
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              background: view === v.id ? 'var(--bg-card-2)' : 'transparent',
+              color: view === v.id ? 'var(--chalk)' : 'var(--chalk-dim)',
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       <ProgrammeToolbar ctx={programmeCtx} />
 
       <CycleNameBar ctx={programmeCtx} />
@@ -912,16 +1088,51 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
         </div>
       )}
 
-      {/* ── Liste des séances ── */}
-      {displayedWorkouts.map((workout, wIdx) => (
-        <WorkoutCard
-          key={workout.id}
-          workout={workout}
-          wIdx={wIdx}
-          workoutCount={displayedWorkouts.length}
-          ctx={workoutCtx}
-        />
-      ))}
+      {/* ── Séances : vue Semaine (planning + panneau latéral) ou Liste ── */}
+      {view === 'week' ? (
+        <>
+          <WeekBoard
+            workouts={displayedWorkouts}
+            future={cycleMode === 'future'}
+            selectedId={panelWorkoutId}
+            onOpen={(id) => {
+              setPanelWorkoutId(id)
+              setOpenWorkout(id)
+            }}
+            onMoveToDay={updateWorkoutDay}
+            onAddForDay={(day) => {
+              setNewW((p) => ({ ...p, day_of_week: day }))
+              setShowAdd(true)
+              window.scrollTo?.({ top: 0, behavior: 'smooth' })
+            }}
+          />
+          <WorkoutPanel
+            open={Boolean(panelWorkoutId && displayedWorkouts.find((w) => w.id === panelWorkoutId))}
+            isMobile={isNarrow}
+            title="Modifier la séance"
+            onClose={() => setPanelWorkoutId(null)}
+          >
+            {panelWorkoutId && displayedWorkouts.find((w) => w.id === panelWorkoutId) && (
+              <WorkoutCard
+                workout={displayedWorkouts.find((w) => w.id === panelWorkoutId)}
+                wIdx={displayedWorkouts.findIndex((w) => w.id === panelWorkoutId)}
+                workoutCount={displayedWorkouts.length}
+                ctx={{ ...workoutCtx, openWorkout: panelWorkoutId, setOpenWorkout: () => {} }}
+              />
+            )}
+          </WorkoutPanel>
+        </>
+      ) : (
+        displayedWorkouts.map((workout, wIdx) => (
+          <WorkoutCard
+            key={workout.id}
+            workout={workout}
+            wIdx={wIdx}
+            workoutCount={displayedWorkouts.length}
+            ctx={workoutCtx}
+          />
+        ))
+      )}
 
       {/* ── Modal picker exercice ── */}
       {exPicker && (

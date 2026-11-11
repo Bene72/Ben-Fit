@@ -75,7 +75,10 @@ it("en-tête : offre, cycle, frise d'engagement, boutons", () => {
   expect(screen.getByLabelText(/Semaine \d+ sur 12|Engagement non renseigné/)).toBeTruthy()
   fireEvent.click(screen.getByText('💬 Message'))
   expect(onMessage).toHaveBeenCalled()
-  expect(screen.getByText('🔁 Renouvelé')).toBeTruthy()
+  expect(screen.getByText('⏩ Prolonger')).toBeTruthy()
+  fireEvent.click(screen.getByText('⏩ Prolonger'))
+  expect(screen.getByText('+1 mois')).toBeTruthy()
+  expect(screen.getByText('+12 semaines')).toBeTruthy()
 })
 
 it('en-tête : menu ⋯ (offre, archivage) et clic sur l’offre', () => {
