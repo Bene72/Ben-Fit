@@ -49,8 +49,8 @@ async function handler(req, res) {
       return res.status(400).json({ error: errors.join(' ; ') })
     }
 
-    if (data.password.length < 6) {
-      return res.status(400).json({ error: '6 caractères minimum pour le mot de passe' })
+    if (data.password.length < 8) {
+      return res.status(400).json({ error: '8 caractères minimum pour le mot de passe' })
     }
 
     const { email, password, full_name, objective, height, current_program, offer } = data

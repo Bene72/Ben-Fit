@@ -1,3 +1,4 @@
+import { notifyError } from '../../lib/dialogs'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import NavBtn from './NavBtn'
@@ -82,7 +83,7 @@ export default function CalendarPanel({ sessions, coachId, clients = [] }) {
       setTaskModalDate(null)
     } catch (err) {
       console.error('Erreur ajout tâche:', err)
-      alert("Impossible d'ajouter la tâche.")
+      notifyError("Impossible d'ajouter la tâche.")
     } finally {
       setSavingTask(false)
     }

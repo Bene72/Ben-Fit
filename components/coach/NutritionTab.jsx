@@ -13,6 +13,7 @@
  *   - nutritionUtils → lib/nutritionUtils.js
  */
 
+import { notifyError } from '../../lib/dialogs'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
@@ -160,7 +161,7 @@ function NutritionTab({ clientId, clientName }) {
     } catch (e) {
       console.error('Erreur sauvegarde plan:', e)
       // Le formulaire reste ouvert avec la saisie : rien n'est perdu
-      window.alert("Le plan n'a pas pu être enregistré : " + e.message)
+      notifyError("Le plan n'a pas pu être enregistré : " + e.message)
     } finally {
       setSaving(false)
     }
@@ -192,7 +193,7 @@ function NutritionTab({ clientId, clientName }) {
       }
     } catch (e) {
       console.error('Erreur upsert log:', e)
-      window.alert("Le journal n'a pas pu être enregistré : " + e.message)
+      notifyError("Le journal n'a pas pu être enregistré : " + e.message)
       return null
     }
   }

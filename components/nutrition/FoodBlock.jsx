@@ -18,6 +18,7 @@
  *   onItemsChange  {fn}            (client only) callback({ calories, protein, carbs, fat })
  */
 
+import { notifyError } from '../../lib/dialogs'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
@@ -130,7 +131,7 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       .select()
       .single()
     if (error) {
-      window.alert("L'aliment n'a pas pu être ajouté : " + error.message)
+      notifyError("L'aliment n'a pas pu être ajouté : " + error.message)
       return
     }
     if (data) {
@@ -165,7 +166,7 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       .select()
       .single()
     if (error) {
-      window.alert("L'aliment n'a pas pu être ajouté : " + error.message)
+      notifyError("L'aliment n'a pas pu être ajouté : " + error.message)
       return
     }
     if (data) {
@@ -181,7 +182,7 @@ export default function FoodBlock({ log, onEnsureLog, mode = 'client', onItemsCh
       await must(supabase.from('nutrition_log_meals').delete().eq('id', id))
       setItems((prev) => prev.filter((i) => i.id !== id))
     } catch (e) {
-      window.alert('Suppression impossible : ' + e.message)
+      notifyError('Suppression impossible : ' + e.message)
     }
   }
 

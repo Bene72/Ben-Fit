@@ -11,6 +11,7 @@ import '../styles/ui-foundation.css'
 import '../styles/training.css'
 import { useEffect } from 'react'
 import ErrorBoundary from '../components/ErrorBoundary'
+import DialogHost from '../components/ui/DialogHost'
 import { registerServiceWorker } from '../lib/push'
 
 export default function App({ Component, pageProps }) {
@@ -31,6 +32,7 @@ export default function App({ Component, pageProps }) {
   return (
     <ErrorBoundary>
       <Component {...pageProps} />
+      <DialogHost />
     </ErrorBoundary>
   )
 }

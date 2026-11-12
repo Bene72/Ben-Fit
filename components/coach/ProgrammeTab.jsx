@@ -1,3 +1,4 @@
+import { confirmDialog, notifyError } from '../../lib/dialogs'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
@@ -229,9 +230,10 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       return
     }
     if (
-      !confirm(
-        'Activer le cycle futur ?\n\nLe cycle actuel sera archivé et le cycle futur deviendra actif pour le client.'
-      )
+      !(await confirmDialog(
+        'Activer le cycle futur ? Le cycle actuel sera archivé et le cycle futur deviendra actif pour le client.',
+        { confirmLabel: 'Activer' }
+      ))
     )
       return
     setActivating(true)
@@ -321,7 +323,15 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       return
     }
     if (data) {
-      if (imageUrl) supabase.from('exercises').update({ image_url: imageUrl }).eq('id', data.id)
+      // (Avant : la requête n'était jamais envoyée — une requête supabase-js ne
+      // part que si elle est attendue — donc l'image n'était pas enregistrée.)
+      if (imageUrl) {
+        const { error: imgErr } = await supabase
+          .from('exercises')
+          .update({ image_url: imageUrl })
+          .eq('id', data.id)
+        if (imgErr) console.error('Image exercice non enregistrée :', imgErr.message)
+      }
       const setter = cycleMode === 'future' ? setFutureWorkouts : setWorkouts
       setter((prev) =>
         prev.map((w) => {
@@ -442,10 +452,14 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     setter((prev) =>
       prev.map((ww) => (ww.id === workoutId ? { ...ww, exercises: newExercises } : ww))
     )
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('exercises').update({ order_index: order2 }).eq('id', ex1.id),
       supabase.from('exercises').update({ order_index: order1 }).eq('id', ex2.id),
     ])
+    if (results.some((r) => r.error)) {
+      showToast("L'ordre n'a pas pu être enregistré.", 'error')
+      await reloadWorkouts()
+    }
   }
 
   // Glisser-déposer d'un exercice sur un autre (même séance, même groupe) :
@@ -510,7 +524,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
   }
 
   const deleteWorkout = async (id) => {
-    if (!confirm('Supprimer cette séance ?')) return
+    if (
+      !(await confirmDialog('Supprimer cette séance ?', {
+        confirmLabel: 'Supprimer',
+        danger: true,
+      }))
+    )
+      return
     try {
       await must(supabase.from('workouts').delete().eq('id', id))
     } catch (e) {
@@ -531,7 +551,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .select('id, day_of_week')
     if (error) {
       console.error('Erreur changement de jour:', error.message)
-      alert("Le changement de jour n'a pas pu être enregistré : " + error.message)
+      notifyError("Le changement de jour n'a pas pu être enregistré : " + error.message)
       return
     }
     if (!data || data.length === 0) {
@@ -542,7 +562,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       console.error(
         'Changement de jour non appliqué (0 ligne modifiée) — vérifier les policies RLS sur la table workouts.'
       )
-      alert(
+      notifyError(
         "Le changement de jour n'a pas été enregistré (probablement un blocage de permissions côté base). Préviens-moi si ça se reproduit."
       )
       return
@@ -568,13 +588,13 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
     newList[newIdx] = { ...w1, order_index: order2 }
     setter(newList)
     setReordering(true)
-    try {
-      await Promise.all([
-        supabase.from('workouts').update({ order_index: order2 }).eq('id', w1.id),
-        supabase.from('workouts').update({ order_index: order1 }).eq('id', w2.id),
-      ])
-    } catch (e) {
-      console.error('Erreur réordonnancement séance:', e)
+    const results = await Promise.all([
+      supabase.from('workouts').update({ order_index: order2 }).eq('id', w1.id),
+      supabase.from('workouts').update({ order_index: order1 }).eq('id', w2.id),
+    ])
+    if (results.some((r) => r.error)) {
+      showToast("L'ordre des séances n'a pas pu être enregistré.", 'error')
+      await reloadWorkouts()
     }
     setReordering(false)
   }
@@ -603,7 +623,7 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       .select('id, name')
     if (error || !data || data.length === 0) {
       console.error('Erreur renommage séance:', error?.message || '0 ligne modifiée (RLS ?)')
-      alert("Le renommage n'a pas pu être enregistré. Le nom va revenir à l'ancienne valeur.")
+      notifyError("Le renommage n'a pas pu être enregistré. Le nom va revenir à l'ancienne valeur.")
       setter((prev) => prev.map((w) => (w.id === workoutId ? { ...w, name: previousName } : w)))
     }
   }
@@ -635,7 +655,12 @@ export default function ProgrammeTab({ clientId, clientName, coachId }) {
       showToast("Donne un nom à ce cycle avant de l'archiver", 'error')
       return
     }
-    if (!confirm('Archiver ce cycle ? Les séances seront archivées et le programme sera vide.'))
+    if (
+      !(await confirmDialog(
+        'Archiver ce cycle ? Les séances seront archivées et le programme sera vide.',
+        { confirmLabel: 'Archiver' }
+      ))
+    )
       return
     setArchiving(true)
     try {

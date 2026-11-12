@@ -2,8 +2,10 @@
  * MessagesTab — messagerie coach ↔ client
  * Extrait de coach.js — logique strictement identique.
  */
+import { notifyError } from '../../lib/dialogs'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { loadMessagesPage } from '../../lib/messagesData'
 import { notifyNewMessage } from '../../lib/notify'
 
 function MessagesTab({ coachId, clientId, clientName, onRead }) {
@@ -17,24 +19,34 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
   const onReadRef = useRef(onRead)
   onReadRef.current = onRead
 
+  const conversationFilter = `and(sender_id.eq.${coachId},receiver_id.eq.${clientId}),and(sender_id.eq.${clientId},receiver_id.eq.${coachId})`
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadEarlier = async () => {
+    if (!messages.length) return
+    setLoadingMore(true)
+    const page = await loadMessagesPage(conversationFilter, messages[0].created_at)
+    setLoadingMore(false)
+    if (page.error) return notifyError('Messages non chargés : ' + page.error.message)
+    setMessages((prev) => [...page.messages, ...prev])
+    setHasMore(page.hasMore)
+  }
+
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .or(
-          `and(sender_id.eq.${coachId},receiver_id.eq.${clientId}),and(sender_id.eq.${clientId},receiver_id.eq.${coachId})`
-        )
-        .order('created_at')
-      setMessages(data || [])
+      const page = await loadMessagesPage(conversationFilter)
+      if (page.error) notifyError('Messages non chargés : ' + page.error.message)
+      setMessages(page.messages)
+      setHasMore(page.hasMore)
 
-      await supabase
+      const { error: readErr } = await supabase
         .from('messages')
         .update({ read: true })
         .eq('sender_id', clientId)
         .eq('receiver_id', coachId)
         .eq('read', false)
-      onReadRef.current?.(clientId)
+      // Le badge « non lus » n'est remis à zéro que si l'écriture a réussi
+      if (!readErr) onReadRef.current?.(clientId)
 
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
 
@@ -68,7 +80,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
-  }, [coachId, clientId])
+  }, [coachId, clientId, conversationFilter])
 
   const send = async () => {
     if (!newMsg.trim() || sending) return
@@ -100,7 +112,7 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
       // Retire le message "optimiste" et remet le texte dans le champ
       setMessages((prev) => prev.filter((m) => m.id !== tempId))
       setNewMsg(content)
-      window.alert('Message non envoyé : ' + error.message)
+      notifyError('Message non envoyé : ' + error.message)
     } else if (data) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)))
       notifyNewMessage(data.id)
@@ -186,6 +198,26 @@ function MessagesTab({ coachId, clientId, clientName, onRead }) {
           >
             Aucun message avec {clientName?.split(' ')[0]} 👋
           </div>
+        )}
+        {hasMore && (
+          <button
+            onClick={loadEarlier}
+            disabled={loadingMore}
+            style={{
+              alignSelf: 'center',
+              background: 'none',
+              border: '1px solid var(--border)',
+              color: 'var(--chalk-dim)',
+              borderRadius: 999,
+              padding: '6px 14px',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              marginBottom: 8,
+            }}
+          >
+            {loadingMore ? 'Chargement…' : 'Voir les messages précédents'}
+          </button>
         )}
         {messages.map((msg) => {
           const isCoach = msg.sender_id === coachId
