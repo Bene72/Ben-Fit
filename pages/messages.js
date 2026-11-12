@@ -1,6 +1,8 @@
+import { notifyError } from '../lib/dialogs'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
+import { loadMessagesPage } from '../lib/messagesData'
 import { notifyNewMessage } from '../lib/notify'
 import AppShell from '../components/ui/AppShell'
 
@@ -9,6 +11,20 @@ export default function Messages() {
   const [messages, setMessages] = useState([])
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadEarlier = async () => {
+    if (!messages.length || !user) return
+    setLoadingMore(true)
+    const page = await loadMessagesPage(
+      `sender_id.eq.${user.id},receiver_id.eq.${user.id}`,
+      messages[0].created_at
+    )
+    setLoadingMore(false)
+    if (page.error) return notifyError('Messages non chargés : ' + page.error.message)
+    setMessages((prev) => [...page.messages, ...prev])
+    setHasMore(page.hasMore)
+  }
   const messagesEndRef = useRef(null)
   const router = useRouter()
 
@@ -31,12 +47,11 @@ export default function Messages() {
       setUser(user)
 
       // Load messages
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .order('created_at', { ascending: true })
-      setMessages(msgs || [])
+      const page = await loadMessagesPage(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      if (cancelled) return
+      if (page.error) notifyError('Messages non chargés : ' + page.error.message)
+      setMessages(page.messages)
+      setHasMore(page.hasMore)
 
       // Mark as read
       await supabase
@@ -93,7 +108,7 @@ export default function Messages() {
       .single()
 
     if (!profile?.coach_id) {
-      window.alert("Aucun coach n'est associé à ton compte : message non envoyé.")
+      notifyError("Aucun coach n'est associé à ton compte : message non envoyé.")
       setSending(false)
       return
     }
@@ -111,7 +126,7 @@ export default function Messages() {
 
     if (error) {
       // Le texte reste dans le champ pour pouvoir réessayer
-      window.alert('Message non envoyé : ' + error.message)
+      notifyError('Message non envoyé : ' + error.message)
     } else {
       if (data) {
         setMessages((prev) => [...prev, data])
@@ -187,6 +202,26 @@ export default function Messages() {
             gap: '12px',
           }}
         >
+          {hasMore && (
+            <button
+              onClick={loadEarlier}
+              disabled={loadingMore}
+              style={{
+                alignSelf: 'center',
+                background: 'none',
+                border: '1px solid var(--border-strong, #c9d1e3)',
+                color: 'var(--text-soft, #58628a)',
+                borderRadius: 999,
+                padding: '6px 14px',
+                fontSize: 12,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                marginBottom: 8,
+              }}
+            >
+              {loadingMore ? 'Chargement…' : 'Voir les messages précédents'}
+            </button>
+          )}
           {messages.length === 0 ? (
             <div
               style={{ textAlign: 'center', color: '#6B7A99', fontSize: '14px', marginTop: '40px' }}

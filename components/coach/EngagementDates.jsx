@@ -3,6 +3,7 @@
 // semaine), dates de début et de fin modifiables, et « Prolonger » (+1 mois
 // ou +12 semaines à partir de la fin actuelle) — pour les athlètes au mois
 // comme pour les engagements de 12 semaines. Remplace « Renouvelé » (11/11/2026).
+import { confirmDialog } from '../../lib/dialogs'
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { engagementStatus } from '../../lib/insights'
@@ -85,11 +86,15 @@ export default function EngagementDates({ client, onUpdate, editRequest, btn }) 
     onUpdate?.({ ...client, ...data })
   }
 
-  const extend = (kind) => {
+  const extend = async (kind) => {
     const base = status?.endDate || toLocalISODate()
     const newEnd = kind === 'month' ? addOneMonth(base) : addDaysISO(base, 84)
     const label = kind === 'month' ? '1 mois' : '12 semaines'
-    if (window.confirm(`Prolonger de ${label} : fin le ${fmt(newEnd)} ?`))
+    if (
+      await confirmDialog(`Prolonger de ${label} : fin le ${fmt(newEnd)} ?`, {
+        confirmLabel: 'Prolonger',
+      })
+    )
       save({ start: start || toLocalISODate(), end: newEnd })
   }
 

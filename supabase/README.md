@@ -12,6 +12,7 @@ sans risque) et ne supprime aucune donnée.
 | `20261110130000_bilans_semaine_lundi.sql` | Recale les bilans datés d'un dimanche sur le lundi     | ☐ (voir `docs/BUGS-DATES-2026-11-10.md`) |
 | `20261111090000_retention.sql`            | Engagement, objectifs, notifications push              | ☐ (voir `docs/RETENTION-2026-11-11.md`)  |
 | `20261111120000_engagement_fin.sql`       | Date de fin d'engagement (pré-remplie début + 12 sem.) | ☐                                        |
+| `20261112210000_durcissement_regles.sql` | Messages non modifiables, objectifs limités aux athlètes du coach | ☐ |
 
 Coche la case dans ce tableau quand c'est fait, pour garder une trace.
 
@@ -45,3 +46,7 @@ Les Edge Functions (`delete-client`, …) se récupèrent de la même façon :
 ```bash
 supabase functions download delete-client
 ```
+
+## `audit/`
+
+Exports des règles d'accès réelles de la base (lecture seule), pour garder une trace de ce qui est en production.

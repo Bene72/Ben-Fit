@@ -2,6 +2,7 @@
  * BilanTab — bilans hebdomadaires du client côté coach
  * Extrait de coach.js — logique strictement identique.
  */
+import { notifyError } from '../../lib/dialogs'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
@@ -51,7 +52,7 @@ function BilanTab({ clientId, clientName, coachId }) {
       .insert({ client_id: clientId, coach_id: coachId, week_start: weekStart })
       .select()
       .single()
-    if (error) window.alert("Le bilan n'a pas pu être créé : " + error.message)
+    if (error) notifyError("Le bilan n'a pas pu être créé : " + error.message)
     if (data) {
       setBilans((prev) => [data, ...prev])
       setOpenBilan(data.id)
@@ -67,7 +68,7 @@ function BilanTab({ clientId, clientName, coachId }) {
       setBilans((prev) => prev.map((b) => (b.id === openBilan ? { ...b, ...editForm } : b)))
     } catch (e) {
       // Le formulaire reste rempli : rien n'est perdu, il suffit de réessayer.
-      window.alert("Le bilan n'a pas pu être enregistré : " + e.message)
+      notifyError("Le bilan n'a pas pu être enregistré : " + e.message)
     }
     setSaving(false)
   }
@@ -77,7 +78,7 @@ function BilanTab({ clientId, clientName, coachId }) {
     try {
       await must(supabase.from('bilans').update({ archived }).eq('id', bilanId))
     } catch (err) {
-      window.alert('Action impossible : ' + err.message)
+      notifyError('Action impossible : ' + err.message)
       return
     }
     setBilans((prev) => prev.map((b) => (b.id === bilanId ? { ...b, archived } : b)))

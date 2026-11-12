@@ -121,7 +121,7 @@ export default function CreateClientModal({ onClose, onCreated }) {
               autoComplete="new-password"
               value={form.password}
               onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              placeholder="6 caractères minimum"
+              placeholder="8 caractères minimum"
               style={inpC}
             />
           </div>

@@ -1,3 +1,4 @@
+import { notifyError } from '../../lib/dialogs'
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { must } from '../../lib/db'
@@ -28,7 +29,7 @@ export default function PostItPanel({ clientId, notes, onUpdate }) {
     } catch (e) {
       console.error(e)
       // Le texte reste dans le champ : rien n'est perdu, il suffit de réessayer.
-      window.alert("La note n'a pas pu être enregistrée : " + e.message)
+      notifyError("La note n'a pas pu être enregistrée : " + e.message)
     }
     setSaving(false)
   }
@@ -39,7 +40,7 @@ export default function PostItPanel({ clientId, notes, onUpdate }) {
       await must(supabase.from('profiles').update({ coach_notes: updated }).eq('id', clientId))
       onUpdate(updated)
     } catch (e) {
-      window.alert("La note n'a pas pu être supprimée : " + e.message)
+      notifyError("La note n'a pas pu être supprimée : " + e.message)
     }
   }
 

@@ -1,3 +1,4 @@
+import { confirmDialog } from '../lib/dialogs'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
@@ -246,7 +247,13 @@ export default function BilanPage() {
   }
 
   async function deleteBilan(bilanId) {
-    if (!confirm('Supprimer ce bilan ? Cette action est irréversible.')) return
+    if (
+      !(await confirmDialog('Supprimer ce bilan ? Cette action est irréversible.', {
+        confirmLabel: 'Supprimer',
+        danger: true,
+      }))
+    )
+      return
     try {
       await must(supabase.from('bilans').delete().eq('id', bilanId))
       setBilans((prev) => prev.filter((b) => b.id !== bilanId))

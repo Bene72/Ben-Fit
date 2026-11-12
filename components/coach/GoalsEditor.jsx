@@ -2,6 +2,7 @@
 // Objectifs de l'athlète (Athlete Assessment) côté coach : création,
 // mise à jour de la valeur, suppression. L'athlète voit ces objectifs en haut
 // de son tableau de bord et peut mettre à jour sa valeur actuelle.
+import { confirmDialog } from '../../lib/dialogs'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { btn, inp, lbl } from '../../lib/coachShared'
@@ -85,7 +86,13 @@ export default function GoalsEditor({ clientId }) {
   }
 
   const remove = async (goal) => {
-    if (!window.confirm(`Supprimer l'objectif « ${goal.name} » ?`)) return
+    if (
+      !(await confirmDialog(`Supprimer l'objectif « ${goal.name} » ?`, {
+        confirmLabel: 'Supprimer',
+        danger: true,
+      }))
+    )
+      return
     const { error: err } = await supabase.from('goals').delete().eq('id', goal.id)
     if (err) {
       setError(err.message)
