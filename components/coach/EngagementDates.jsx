@@ -174,6 +174,19 @@ export default function EngagementDates({ client, onUpdate, editRequest, btn }) 
           <button style={btn(true)} disabled={saving} onClick={() => save(form)}>
             {saving ? '…' : 'OK'}
           </button>
+          {!hasEndColumn && (
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                fontSize: 11.5,
+                color: 'var(--gold)',
+                lineHeight: 1.4,
+              }}
+            >
+              La date de fin n'est pas encore modifiable : lance le script « 4_engagement_fin.sql »
+              dans Supabase (SQL Editor). En attendant, la fin est calculée à début + 12 semaines.
+            </div>
+          )}
         </div>
       ) : (
         <div
