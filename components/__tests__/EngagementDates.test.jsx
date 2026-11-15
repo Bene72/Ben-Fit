@@ -61,3 +61,16 @@ it('modifie les deux dates et refuse une fin avant le début', async () => {
   await waitFor(() => expect(onUpdate).toHaveBeenCalled())
   expect(updates.at(-1)).toEqual({ engagement_start: '2026-10-01', engagement_end: '2026-12-31' })
 })
+
+it('explique pourquoi la date de fin est grisée si la colonne manque', () => {
+  render(
+    <EngagementDates
+      client={{ id: 'c1', engagement_start: '2026-03-14' }}
+      onUpdate={() => {}}
+      btn={btn}
+      editRequest={0}
+    />
+  )
+  fireEvent.click(screen.getByTitle('Modifier les dates'))
+  expect(screen.getByText(/4_engagement_fin\.sql/)).toBeTruthy()
+})
