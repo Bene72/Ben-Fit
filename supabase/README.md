@@ -14,6 +14,7 @@ sans risque) et ne supprime aucune donnée.
 | `20261111120000_engagement_fin.sql`       | Date de fin d'engagement (pré-remplie début + 12 sem.)                         | ☐                                        |
 | `20261112210000_durcissement_regles.sql`  | Messages non modifiables, objectifs limités aux athlètes du coach              | ☐                                        |
 | `20261112220000_vues_securite.sql`        | Les vues `cycle_alerts` et `exercises_canonical` respectent les règles d'accès | ☐                                        |
+| `20261118150000_renouvellement_gere.sql`  | Bouton « ✓ Géré » des renouvellements à préparer                               | ☐                                        |
 
 Coche la case dans ce tableau quand c'est fait, pour garder une trace.
 
