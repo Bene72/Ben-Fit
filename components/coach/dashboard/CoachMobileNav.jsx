@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { id: 'calendar', icon: 'calendar' },
 ]
 
-export default function CoachMobileNav({ activeTab, onSelectTab }) {
+export default function CoachMobileNav({ activeTab, onSelectTab, onSignOut }) {
   return (
     <div
       style={{
@@ -42,6 +42,36 @@ export default function CoachMobileNav({ activeTab, onSelectTab }) {
           <Icon name={item.icon} size={16} color={activeTab === item.id ? '#16110D' : S.muted} />
         </button>
       ))}
+      {/* 18/11/2026 : sur mobile la sidebar (et son « Se déconnecter ») est
+          masquée — bouton de déconnexion poussé à droite de la barre. */}
+      {onSignOut && (
+        <button
+          onClick={() => {
+            if (window.confirm('Se déconnecter ?')) onSignOut()
+          }}
+          aria-label="Se déconnecter"
+          title="Se déconnecter"
+          style={{
+            marginLeft: 'auto',
+            padding: '8px 12px',
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.12)',
+            cursor: 'pointer',
+            background: 'transparent',
+            color: S.muted,
+            fontFamily: font,
+            fontSize: 12,
+            fontWeight: 600,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Icon name="logout" size={15} color={S.muted} />
+          Déconnexion
+        </button>
+      )}
     </div>
   )
 }

@@ -275,7 +275,13 @@ export default function CoachDashboard() {
         {/* ── MAIN ── */}
         <div style={{ flex: 1, padding: isMobile ? '16px' : '28px', overflowY: 'auto' }}>
           {/* Nav mobile */}
-          {isMobile && <CoachMobileNav activeTab={activeTab} onSelectTab={setActiveTab} />}
+          {isMobile && (
+            <CoachMobileNav
+              activeTab={activeTab}
+              onSelectTab={setActiveTab}
+              onSignOut={() => signOutAndRedirect(router)}
+            />
+          )}
 
           {/* KPI Row — chaque tuile est un hyperlien vers la vue concernée */}
           <KpiRow

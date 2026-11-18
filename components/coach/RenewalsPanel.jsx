@@ -122,7 +122,7 @@ function MessageModal({ coachId, target, onClose, onSent }) {
   )
 }
 
-function RenewalCard({ item, sent, onMessage, onOpen }) {
+function RenewalCard({ item, sent, onMessage, onOpen, onHandled, handling }) {
   const { client, engagement } = item
   const [summary, setSummary] = useState(null)
 
@@ -152,7 +152,23 @@ function RenewalCard({ item, sent, onMessage, onOpen }) {
         opacity: sent ? 0.6 : 1,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 14 }}>{client.name}</div>
+      <a
+        href={`/coach/${client.id}`}
+        onClick={(e) => {
+          e.preventDefault()
+          onOpen(client.id)
+        }}
+        style={{
+          fontWeight: 700,
+          fontSize: 14,
+          color: 'var(--chalk)',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          textDecorationColor: 'rgba(255,255,255,0.3)',
+        }}
+      >
+        {client.name} ›
+      </a>
       <div style={{ fontSize: 11.5, fontWeight: 700, color, marginTop: 2 }}>
         {engagement.ended
           ? `Terminé depuis le ${fmtDate(engagement.endDate)}`
@@ -190,6 +206,14 @@ function RenewalCard({ item, sent, onMessage, onOpen }) {
         <button style={btn(false)} onClick={() => onOpen(client.id)}>
           Fiche
         </button>
+        <button
+          style={{ ...btn(false), marginLeft: 'auto' }}
+          onClick={() => onHandled(item)}
+          disabled={handling}
+          title="Je l'ai géré : la carte disparaît jusqu'à la prochaine fin d'engagement"
+        >
+          {handling ? '…' : '✓ Géré'}
+        </button>
       </div>
     </div>
   )
@@ -198,8 +222,37 @@ function RenewalCard({ item, sent, onMessage, onOpen }) {
 export default function RenewalsPanel({ coachId, clients, onOpenClient }) {
   const [target, setTarget] = useState(null)
   const [sentTo, setSentTo] = useState(() => new Set())
-  const renewals = coachRenewals(clients)
+  const [hidden, setHidden] = useState(() => new Set())
+  const [handlingId, setHandlingId] = useState(null)
+  const [error, setError] = useState('')
+  // Carte masquée si le coach a déjà validé CETTE fin d'engagement : si la
+  // date de fin change (renouvellement), la carte reviendra le moment venu.
+  const renewals = coachRenewals(clients).filter(
+    ({ client, engagement }) =>
+      !hidden.has(client.id) &&
+      !(client._raw?.renewal_handled_for && client._raw.renewal_handled_for === engagement.endDate)
+  )
   if (!renewals.length) return null
+
+  const markHandled = async ({ client, engagement }) => {
+    setHandlingId(client.id)
+    setError('')
+    const { error: err } = await supabase
+      .from('profiles')
+      .update({ renewal_handled_for: engagement.endDate })
+      .eq('id', client.id)
+    setHandlingId(null)
+    if (err) {
+      setError(
+        /renewal_handled_for/.test(err.message)
+          ? 'Il manque la migration 20261118150000_renouvellement_gere.sql dans Supabase.'
+          : `Impossible d'enregistrer : ${err.message}`
+      )
+      return
+    }
+    if (client._raw) client._raw.renewal_handled_for = engagement.endDate
+    setHidden((prev) => new Set(prev).add(client.id))
+  }
 
   return (
     <section
@@ -246,9 +299,12 @@ export default function RenewalsPanel({ coachId, clients, onOpenClient }) {
             sent={sentTo.has(item.client.id)}
             onOpen={onOpenClient}
             onMessage={(client, text) => setTarget({ client, text })}
+            onHandled={markHandled}
+            handling={handlingId === item.client.id}
           />
         ))}
       </div>
+      {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{error}</div>}
       {target && (
         <MessageModal
           coachId={coachId}
