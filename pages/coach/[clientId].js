@@ -38,7 +38,9 @@ function CoachFrame({ user, isMobile, toast, onSelectTab, onCreateClient, onSign
           />
         )}
         <div style={{ flex: 1, minWidth: 0, padding: isMobile ? 16 : 28, overflowY: 'auto' }}>
-          {isMobile && <CoachMobileNav activeTab="clients" onSelectTab={onSelectTab} />}
+          {isMobile && (
+            <CoachMobileNav activeTab="clients" onSelectTab={onSelectTab} onSignOut={onSignOut} />
+          )}
           {children}
         </div>
       </div>
